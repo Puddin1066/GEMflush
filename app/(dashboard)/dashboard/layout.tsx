@@ -4,7 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu } from 'lucide-react';
+import { LayoutDashboard, Building2, TrendingUp, Database, Settings, Activity, Menu, Sparkles } from 'lucide-react';
+import { GemBadge } from '@/components/ui/gem-icon';
+import useSWR from 'swr';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function DashboardLayout({
   children
@@ -13,12 +17,17 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { data: team } = useSWR('/api/team', fetcher);
+
+  // Determine user's plan tier
+  const planTier = team?.planId || 'free';
+  const isPro = planTier === 'pro' || planTier === 'agency';
 
   const navItems = [
-    { href: '/dashboard', icon: Users, label: 'Team' },
-    { href: '/dashboard/general', icon: Settings, label: 'General' },
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
+    { href: '/dashboard/businesses', icon: Building2, label: 'Businesses' },
     { href: '/dashboard/activity', icon: Activity, label: 'Activity' },
-    { href: '/dashboard/security', icon: Shield, label: 'Security' }
+    { href: '/dashboard/settings', icon: Settings, label: 'Settings' }
   ];
 
   return (
@@ -26,7 +35,7 @@ export default function DashboardLayout({
       {/* Mobile header */}
       <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4">
         <div className="flex items-center">
-          <span className="font-medium">Settings</span>
+          <span className="font-medium">Dashboard</span>
         </div>
         <Button
           className="-mr-3"
@@ -47,21 +56,73 @@ export default function DashboardLayout({
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <nav className="h-full overflow-y-auto p-4">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} passHref>
-                <Button
-                  variant={pathname === item.href ? 'secondary' : 'ghost'}
-                  className={`shadow-none my-1 w-full justify-start ${
-                    pathname === item.href ? 'bg-gray-100' : ''
-                  }`}
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Button>
-              </Link>
-            ))}
+          <nav className="h-full overflow-y-auto p-4 flex flex-col">
+            {/* Plan Badge */}
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              {planTier === 'free' && (
+                <div className="space-y-2">
+                  <GemBadge variant="outline" className="w-full text-center">
+                    Free Plan
+                  </GemBadge>
+                  <Link href="/pricing" className="block">
+                    <Button 
+                      size="sm" 
+                      className="w-full gem-gradient text-white hover:opacity-90"
+                    >
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Upgrade to Pro
+                    </Button>
+                  </Link>
+                </div>
+              )}
+              {planTier === 'pro' && (
+                <GemBadge className="w-full text-center">
+                  Pro Plan
+                </GemBadge>
+              )}
+              {planTier === 'agency' && (
+                <GemBadge className="w-full text-center gem-faceted">
+                  Agency Plan
+                </GemBadge>
+              )}
+            </div>
+
+            {/* Navigation Items */}
+            <div className="space-y-1 flex-1">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href || 
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <Button
+                      variant={isActive ? 'secondary' : 'ghost'}
+                      className={`shadow-none w-full justify-start ${
+                        isActive ? 'bg-gray-100 font-medium' : ''
+                      }`}
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <item.icon className="h-4 w-4 mr-2" />
+                      {item.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Bottom CTA for Free Users */}
+            {!isPro && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="gem-card p-3 text-center space-y-2">
+                  <p className="text-xs font-medium">Unlock Wikidata Publishing</p>
+                  <Link href="/pricing">
+                    <Button size="sm" className="w-full gem-gradient text-white text-xs">
+                      View Plans
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            )}
           </nav>
         </aside>
 

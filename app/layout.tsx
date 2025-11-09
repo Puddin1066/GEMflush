@@ -5,8 +5,21 @@ import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { SWRConfig } from 'swr';
 
 export const metadata: Metadata = {
-  title: 'Next.js SaaS Starter',
-  description: 'Get started quickly with Next.js, Postgres, and Stripe.'
+  title: 'GEMflush - AI Visibility Platform',
+  description: 'Get your business found by ChatGPT, Claude, and Perplexity. Automated Wikidata publishing and LLM visibility tracking for local businesses.',
+  keywords: ['AI visibility', 'Wikidata', 'LLM', 'ChatGPT', 'knowledge graph', 'business visibility', 'SEO'],
+  authors: [{ name: 'GEMflush' }],
+  openGraph: {
+    title: 'GEMflush - AI Visibility Platform',
+    description: 'Get your business found by ChatGPT, Claude, and Perplexity.',
+    type: 'website',
+    siteName: 'GEMflush',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'GEMflush - AI Visibility Platform',
+    description: 'Get your business found by ChatGPT, Claude, and Perplexity.',
+  }
 };
 
 export const viewport: Viewport = {

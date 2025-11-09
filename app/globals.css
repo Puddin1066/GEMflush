@@ -79,6 +79,232 @@
   body {
     font-family: "Manrope", Arial, Helvetica, sans-serif;
   }
+  
+  /* Wikidata-inspired Knowledge Graph utility classes */
+  .wikidata-accent {
+    color: hsl(var(--wikidata-red));
+  }
+  
+  .bg-wikidata-accent {
+    background-color: hsl(var(--wikidata-red));
+  }
+  
+  .border-wikidata-accent {
+    border-color: hsl(var(--wikidata-red));
+  }
+  
+  .knowledge-graph-accent {
+    color: hsl(var(--knowledge-graph));
+  }
+  
+  .bg-knowledge-graph {
+    background-color: hsl(var(--knowledge-graph));
+  }
+  
+  .entity-highlight {
+    color: hsl(var(--entity-highlight));
+  }
+  
+  .bg-entity-highlight {
+    background-color: hsl(var(--entity-highlight));
+  }
+  
+  .property-accent {
+    color: hsl(var(--property-accent));
+  }
+  
+  .bg-property-accent {
+    background-color: hsl(var(--property-accent));
+  }
+  
+  /* ✨ GEMflush Brand - Gem-Inspired Styling ✨ */
+  
+  /* Gem Gradient - Primary violet-to-purple gem effect */
+  .gem-gradient {
+    background: linear-gradient(135deg, 
+      hsl(262, 83%, 58%) 0%,
+      hsl(280, 70%, 60%) 50%,
+      hsl(290, 75%, 65%) 100%);
+  }
+  
+  /* Gem Gradient with shine overlay */
+  .gem-gradient-shine {
+    background: linear-gradient(135deg, 
+      hsl(262, 83%, 58%) 0%,
+      hsl(280, 70%, 60%) 50%,
+      hsl(290, 75%, 65%) 100%);
+    position: relative;
+  }
+  
+  .gem-gradient-shine::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 70%);
+    pointer-events: none;
+  }
+  
+  /* Multi-facet gem effect (like a cut diamond) */
+  .gem-faceted {
+    background: linear-gradient(135deg, 
+      hsl(262, 83%, 58%) 0%,
+      hsl(280, 70%, 60%) 25%,
+      hsl(262, 83%, 65%) 50%,
+      hsl(290, 75%, 60%) 75%,
+      hsl(280, 70%, 65%) 100%);
+    box-shadow: 
+      inset 0 1px 3px rgba(255, 255, 255, 0.3),
+      inset 0 -1px 3px rgba(0, 0, 0, 0.2),
+      0 4px 12px rgba(138, 92, 246, 0.4);
+  }
+  
+  /* Ruby gem (Wikidata red accent) */
+  .gem-ruby {
+    background: linear-gradient(135deg,
+      hsl(0, 72%, 40%) 0%,
+      hsl(340, 75%, 55%) 50%,
+      hsl(0, 80%, 50%) 100%);
+    box-shadow: 
+      inset 0 1px 3px rgba(255, 255, 255, 0.3),
+      0 4px 12px rgba(153, 0, 0, 0.3);
+  }
+  
+  /* Gem sparkle effect - animated */
+  .gem-sparkle {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .gem-sparkle::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.6) 50%,
+      transparent 70%
+    );
+    animation: gem-shine 3s infinite;
+  }
+  
+  @keyframes gem-shine {
+    0% {
+      transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    }
+    100% {
+      transform: translateX(100%) translateY(100%) rotate(45deg);
+    }
+  }
+  
+  /* Gem glow effect for icons and logos */
+  .gem-glow {
+    filter: drop-shadow(0 0 8px hsl(262, 83%, 58%))
+            drop-shadow(0 0 16px hsl(280, 70%, 60%));
+  }
+  
+  .gem-glow-strong {
+    filter: drop-shadow(0 0 12px hsl(262, 83%, 58%))
+            drop-shadow(0 0 24px hsl(280, 70%, 60%))
+            drop-shadow(0 0 32px hsl(290, 75%, 65%));
+  }
+  
+  /* Prismatic text effect (rainbow gem reflection) */
+  .gem-text {
+    background: linear-gradient(135deg, 
+      hsl(262, 83%, 58%) 0%,
+      hsl(280, 70%, 60%) 25%,
+      hsl(290, 75%, 65%) 50%,
+      hsl(340, 75%, 55%) 75%,
+      hsl(262, 83%, 58%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 200%;
+  }
+  
+  /* Animated gem text shimmer */
+  .gem-text-shimmer {
+    background: linear-gradient(135deg, 
+      hsl(262, 83%, 58%) 0%,
+      hsl(280, 70%, 60%) 25%,
+      hsl(290, 75%, 65%) 50%,
+      hsl(340, 75%, 55%) 75%,
+      hsl(262, 83%, 58%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 200%;
+    animation: gem-shimmer 4s ease infinite;
+  }
+  
+  @keyframes gem-shimmer {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  
+  /* Gem cut border (faceted diamond shape) */
+  .gem-border {
+    border: 2px solid transparent;
+    background: 
+      linear-gradient(white, white) padding-box,
+      linear-gradient(135deg, 
+        hsl(262, 83%, 58%),
+        hsl(280, 70%, 60%),
+        hsl(290, 75%, 65%)) border-box;
+  }
+  
+  /* Icon gem styling - for SVG icons */
+  .icon-gem {
+    color: hsl(262, 83%, 58%);
+    filter: drop-shadow(0 2px 4px rgba(138, 92, 246, 0.3));
+  }
+  
+  /* Gem badge - perfect for status indicators */
+  .gem-badge {
+    background: linear-gradient(135deg, 
+      hsl(262, 83%, 58%) 0%,
+      hsl(280, 70%, 60%) 100%);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.2),
+      0 0 8px rgba(138, 92, 246, 0.4);
+  }
+  
+  /* Gem card - elevated cards with gem-like appearance */
+  .gem-card {
+    background: linear-gradient(135deg,
+      rgba(138, 92, 246, 0.05) 0%,
+      rgba(168, 85, 247, 0.08) 100%);
+    border: 1px solid hsl(262, 83%, 58%, 0.2);
+    box-shadow: 
+      0 4px 12px rgba(138, 92, 246, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  
+  .dark .gem-card {
+    background: linear-gradient(135deg,
+      rgba(138, 92, 246, 0.1) 0%,
+      rgba(168, 85, 247, 0.15) 100%);
+    border: 1px solid hsl(262, 83%, 58%, 0.3);
+  }
 }
 
 @layer base {
@@ -89,68 +315,80 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262.1 83.3% 57.8%;
+    --chart-1: 0 72% 40%;
+    --chart-2: 262 83% 58%;
+    --chart-3: 280 65% 60%;
+    --chart-4: 340 75% 55%;
+    --chart-5: 20 90% 48%;
     --radius: 0.5rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 262.1 83.3% 57.8%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 262.1 83.3% 57.8%;
+    
+    /* Wikidata-inspired Knowledge Graph accents */
+    --wikidata-red: 0 72% 40%;
+    --knowledge-graph: 262 83% 58%;
+    --entity-highlight: 280 65% 60%;
+    --property-accent: 340 75% 55%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 263.4 70% 50.4%;
+    --chart-1: 0 72% 50%;
+    --chart-2: 262 83% 65%;
+    --chart-3: 280 65% 65%;
+    --chart-4: 340 75% 60%;
+    --chart-5: 20 90% 55%;
+    --sidebar-background: 224 71.4% 4.1%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 263.4 70% 50.4%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 215 27.9% 16.9%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 215 27.9% 16.9%;
+    --sidebar-ring: 263.4 70% 50.4%;
+    
+    /* Wikidata-inspired Knowledge Graph accents */
+    --wikidata-red: 0 72% 50%;
+    --knowledge-graph: 262 83% 65%;
+    --entity-highlight: 280 65% 65%;
+    --property-accent: 340 75% 60%;
   }
 }
 

@@ -1,8 +1,26 @@
-# Next.js SaaS Starter
+# Next.js SaaS Starter - GEMflush Edition 💎
 
 This is a starter template for building a SaaS application using **Next.js** with support for authentication, Stripe integration for payments, and a dashboard for logged-in users.
 
-**Demo: [https://next-saas-start.vercel.app/](https://next-saas-start.vercel.app/)**
+**This fork has been enhanced for GEMflush** - a Knowledge Graph as a Service (KGaaS) platform with AI-powered entity fingerprinting, Wikidata integration, and a custom gem-inspired design system.
+
+**Original Demo: [https://next-saas-start.vercel.app/](https://next-saas-start.vercel.app/)**
+
+## 💎 GEMflush-Specific Features
+
+- **Gem-Inspired Design System** - Violet/purple brand identity with Wikidata authority
+- **Knowledge Graph Builder** - Create and manage business entity knowledge graphs
+- **AI Entity Fingerprinting** - Automated entity analysis using LLMs
+- **Wikidata Integration** - Publish entities directly to Wikidata
+- **Web Crawler** - Extract structured data from business websites
+- **Custom UI Components** - Gem icons, badges, cards, and premium styling effects
+- **SPARQL Query Builder** - Direct queries to Wikidata knowledge base
+
+📚 **See additional documentation:**
+- [GEMflush Features & Architecture](./README_GEMFLUSH.md)
+- [Design System Documentation](./DESIGN_SYSTEM.md)
+- [Gem Styling Quick Reference](./GEM_STYLING_GUIDE.md)
+- [Full Implementation Details](./GEMFLUSH.md)
 
 ## Features
 

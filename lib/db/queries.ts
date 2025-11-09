@@ -1,6 +1,20 @@
-import { desc, and, eq, isNull } from 'drizzle-orm';
+import { desc, and, eq, isNull, count } from 'drizzle-orm';
 import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users } from './schema';
+import {
+  activityLogs,
+  teamMembers,
+  teams,
+  users,
+  businesses,
+  wikidataEntities,
+  llmFingerprints,
+  crawlJobs,
+  competitors,
+  type NewBusiness,
+  type NewCrawlJob,
+  type NewLLMFingerprint,
+  type NewWikidataEntity,
+} from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
 
@@ -127,4 +141,155 @@ export async function getTeamForUser() {
   });
 
   return result?.team || null;
+}
+
+// GEMflush-specific queries
+
+export async function getBusinessesByTeam(teamId: number) {
+  return await db
+    .select()
+    .from(businesses)
+    .where(eq(businesses.teamId, teamId))
+    .orderBy(desc(businesses.createdAt));
+}
+
+export async function getBusinessById(businessId: number) {
+  const result = await db
+    .select()
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createBusiness(businessData: NewBusiness) {
+  const result = await db
+    .insert(businesses)
+    .values(businessData)
+    .returning();
+
+  return result[0];
+}
+
+export async function updateBusiness(
+  businessId: number,
+  updates: Partial<NewBusiness>
+) {
+  const result = await db
+    .update(businesses)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(eq(businesses.id, businessId))
+    .returning();
+
+  return result[0];
+}
+
+export async function getBusinessCountByTeam(teamId: number): Promise<number> {
+  const result = await db
+    .select({ count: count() })
+    .from(businesses)
+    .where(eq(businesses.teamId, teamId));
+
+  return result[0]?.count || 0;
+}
+
+export async function getLatestFingerprint(businessId: number) {
+  const result = await db
+    .select()
+    .from(llmFingerprints)
+    .where(eq(llmFingerprints.businessId, businessId))
+    .orderBy(desc(llmFingerprints.createdAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createFingerprint(fingerprintData: NewLLMFingerprint) {
+  const result = await db
+    .insert(llmFingerprints)
+    .values(fingerprintData)
+    .returning();
+
+  return result[0];
+}
+
+export async function getFingerprintHistory(
+  businessId: number,
+  limit: number = 10
+) {
+  return await db
+    .select()
+    .from(llmFingerprints)
+    .where(eq(llmFingerprints.businessId, businessId))
+    .orderBy(desc(llmFingerprints.createdAt))
+    .limit(limit);
+}
+
+export async function getWikidataEntity(businessId: number) {
+  const result = await db
+    .select()
+    .from(wikidataEntities)
+    .where(eq(wikidataEntities.businessId, businessId))
+    .orderBy(desc(wikidataEntities.publishedAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createWikidataEntity(entityData: NewWikidataEntity) {
+  const result = await db
+    .insert(wikidataEntities)
+    .values(entityData)
+    .returning();
+
+  return result[0];
+}
+
+export async function createCrawlJob(jobData: NewCrawlJob) {
+  const result = await db
+    .insert(crawlJobs)
+    .values(jobData)
+    .returning();
+
+  return result[0];
+}
+
+export async function updateCrawlJob(
+  jobId: number,
+  updates: Partial<NewCrawlJob>
+) {
+  const result = await db
+    .update(crawlJobs)
+    .set(updates)
+    .where(eq(crawlJobs.id, jobId))
+    .returning();
+
+  return result[0];
+}
+
+export async function getCrawlJob(jobId: number) {
+  const result = await db
+    .select()
+    .from(crawlJobs)
+    .where(eq(crawlJobs.id, jobId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function getActiveCrawlJobs() {
+  return await db
+    .select()
+    .from(crawlJobs)
+    .where(eq(crawlJobs.status, 'processing'))
+    .orderBy(crawlJobs.createdAt);
+}
+
+export async function getCompetitors(businessId: number) {
+  return await db
+    .select()
+    .from(competitors)
+    .where(eq(competitors.businessId, businessId))
+    .orderBy(desc(competitors.createdAt));
 }
