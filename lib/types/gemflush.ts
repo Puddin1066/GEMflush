@@ -27,6 +27,17 @@ export interface CrawledData {
   categories?: string[];
   services?: string[];
   imageUrl?: string;
+  // LLM-enhanced extraction
+  llmEnhanced?: {
+    extractedEntities: string[];
+    businessCategory: string;
+    serviceOfferings: string[];
+    targetAudience: string;
+    keyDifferentiators: string[];
+    confidence: number;
+    model: string;
+    processedAt: Date;
+  };
 }
 
 // Wikidata types
@@ -34,6 +45,25 @@ export interface WikidataEntityData {
   labels: Record<string, { language: string; value: string }>;
   descriptions: Record<string, { language: string; value: string }>;
   claims: Record<string, WikidataClaim[]>;
+  // LLM-generated suggestions
+  llmSuggestions?: {
+    suggestedProperties: Array<{
+      property: string;
+      propertyLabel: string;
+      suggestedValue: string;
+      confidence: number;
+      reasoning: string;
+    }>;
+    suggestedReferences: Array<{
+      url: string;
+      title: string;
+      relevance: number;
+    }>;
+    qualityScore: number;
+    completeness: number;
+    model: string;
+    generatedAt: Date;
+  };
 }
 
 export interface WikidataClaim {
@@ -64,6 +94,12 @@ export interface LLMResult {
   rankPosition: number | null;
   rawResponse: string;
   tokensUsed: number;
+  // LLM reasoning and context
+  reasoning?: string;
+  confidence?: number;
+  contextualRelevance?: number;
+  competitorMentions?: string[];
+  keyPhrases?: string[];
 }
 
 export interface CompetitiveBenchmark {
@@ -84,6 +120,15 @@ export interface FingerprintAnalysis {
   avgRankPosition: number | null;
   llmResults: LLMResult[];
   competitiveBenchmark?: CompetitiveBenchmark;
+  // LLM-generated insights
+  insights?: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    summary: string;
+    confidenceLevel: 'high' | 'medium' | 'low';
+    generatedBy: string;
+  };
 }
 
 // Crawler types

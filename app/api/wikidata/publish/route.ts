@@ -8,7 +8,7 @@ import {
   createWikidataEntity,
 } from '@/lib/db/queries';
 import { canPublishToWikidata } from '@/lib/gemflush/permissions';
-import { entityBuilder } from '@/lib/wikidata/entity-builder';
+import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
 import { wikidataPublisher } from '@/lib/wikidata/publisher';
 // Business status constants removed - using string literals
 import { z } from 'zod';
@@ -72,21 +72,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build Wikidata entity
-    const crawledData = business.crawlData as any;
-    const entity = entityBuilder.buildEntity(business, crawledData);
+    // Get DTO with notability check (includes Google Search + LLM assessment)
+    const publishData = await getWikidataPublishDTO(businessId);
 
-    // Validate notability
-    const notabilityCheck = entityBuilder.validateNotability(entity);
-    if (!notabilityCheck.isNotable) {
+    // Check if can publish (notability + confidence threshold)
+    if (!publishData.canPublish) {
       return NextResponse.json(
         {
-          error: 'Entity does not meet notability standards',
-          reasons: notabilityCheck.reasons,
+          error: 'Business does not meet notability standards',
+          notability: publishData.notability,
+          recommendation: publishData.recommendation,
         },
         { status: 400 }
       );
     }
+
+    // Use full entity for publishing
+    const entity = publishData.fullEntity;
 
     // Update business status
     await updateBusiness(businessId, {
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
       entityUrl: publishToProduction
         ? `https://www.wikidata.org/wiki/${publishResult.qid}`
         : `https://test.wikidata.org/wiki/${publishResult.qid}`,
+      notability: publishData.notability,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
