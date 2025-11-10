@@ -191,7 +191,7 @@ async function runRealDataTest() {
         notabilityResult.reasons.forEach(r => console.log(`      - ${r}`));
       }
       
-      if (notabilityResult.topReferences.length > 0) {
+      if (notabilityResult.topReferences && notabilityResult.topReferences.length > 0) {
         console.log(`\n   Top References:`);
         notabilityResult.topReferences.slice(0, 3).forEach((ref, idx) => {
           console.log(`      ${idx + 1}. ${ref.title}`);
