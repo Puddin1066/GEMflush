@@ -1,5 +1,3 @@
-'use client';
-
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,8 +7,10 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { GemIcon, GemClusterIcon, WikidataRubyIcon, GemBadge } from '@/components/ui/gem-icon';
-import { TeamDataWithMembers } from '@/lib/db/schema';
-import useSWR from 'swr';
+import { getUser, getTeamForUser } from '@/lib/db/queries';
+import { getDashboardDTO } from '@/lib/data/dashboard-dto';
+import type { DashboardDTO } from '@/lib/data/types';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { 
   TrendingUp, 
@@ -23,57 +23,23 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+export default async function DashboardPage() {
+  // Get authenticated user and team
+  const user = await getUser();
+  if (!user) {
+    redirect('/sign-in');
+  }
 
-// Mock data - in real app, this would come from API
-// TODO: Replace with actual API calls when backend is ready
-const MOCK_BUSINESS_DATA = {
-  totalBusinesses: 3,
-  wikidataEntities: 2,
-  avgVisibilityScore: 76,
-  businesses: [
-    {
-      id: '1',
-      name: 'Sample Coffee Shop',
-      location: 'San Francisco, CA',
-      visibilityScore: 85,
-      trend: 'up' as const,
-      trendValue: 12,
-      wikidataQid: 'Q12345',
-      lastFingerprint: '2 days ago',
-      status: 'published' as const,
-    },
-    {
-      id: '2',
-      name: 'Tech Startup Inc',
-      location: 'Austin, TX',
-      visibilityScore: 72,
-      trend: 'up' as const,
-      trendValue: 5,
-      wikidataQid: 'Q67890',
-      lastFingerprint: '5 days ago',
-      status: 'published' as const,
-    },
-    {
-      id: '3',
-      name: 'Local Bookstore',
-      location: 'Portland, OR',
-      visibilityScore: 68,
-      trend: 'down' as const,
-      trendValue: -3,
-      wikidataQid: null,
-      lastFingerprint: '1 week ago',
-      status: 'pending' as const,
-    },
-  ],
-};
+  const team = await getTeamForUser();
+  if (!team) {
+    redirect('/sign-in');
+  }
 
-export default function DashboardOverviewPage() {
-  const { data: teamData } = useSWR<TeamDataWithMembers>('/api/team', fetcher);
-  
-  // In real app, fetch actual business data
-  const hasBusinesses = MOCK_BUSINESS_DATA.totalBusinesses > 0;
-  const planTier = teamData?.planId || 'free';
+  // Fetch dashboard data via DTO layer
+  const stats: DashboardDTO = await getDashboardDTO(team.id);
+
+  const hasBusinesses = stats.totalBusinesses > 0;
+  const planTier = team.planName || 'free';
   const isPro = planTier === 'pro' || planTier === 'agency';
 
   // Empty state for new users
@@ -197,7 +163,7 @@ export default function DashboardOverviewPage() {
               <Building2 className="h-5 w-5 text-gray-400" />
             </div>
             <div className="text-3xl font-bold text-gray-900">
-              {MOCK_BUSINESS_DATA.totalBusinesses}
+              {stats.totalBusinesses}
             </div>
           </CardContent>
         </Card>
@@ -209,7 +175,7 @@ export default function DashboardOverviewPage() {
               <WikidataRubyIcon size={20} />
             </div>
             <div className="text-3xl font-bold gem-text">
-              {MOCK_BUSINESS_DATA.wikidataEntities}
+              {stats.wikidataEntities}
             </div>
           </CardContent>
         </Card>
@@ -221,7 +187,7 @@ export default function DashboardOverviewPage() {
               <TrendingUp className="h-5 w-5 text-green-500" />
             </div>
             <div className="text-3xl font-bold text-gray-900">
-              {MOCK_BUSINESS_DATA.avgVisibilityScore}
+              {stats.avgVisibilityScore || '--'}
               <span className="text-lg text-gray-500">/100</span>
             </div>
           </CardContent>
@@ -240,7 +206,7 @@ export default function DashboardOverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {MOCK_BUSINESS_DATA.businesses.map((business) => (
+        {stats.businesses.map((business) => (
           <Link key={business.id} href={`/dashboard/businesses/${business.id}`}>
             <Card className="gem-card hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>

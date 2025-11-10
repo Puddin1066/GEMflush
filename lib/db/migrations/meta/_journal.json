@@ -15,6 +15,13 @@
       "when": 1762710797014,
       "tag": "0001_flawless_logan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762740770780,
+      "tag": "0002_lush_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

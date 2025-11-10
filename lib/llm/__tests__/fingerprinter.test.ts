@@ -12,12 +12,13 @@ describe('LLMFingerprinter', () => {
     url: 'https://testcoffee.com',
     category: 'restaurant',
     location: {
-      address: '123 Main St',
       city: 'San Francisco',
       state: 'CA',
       country: 'US',
-      lat: 37.7749,
-      lng: -122.4194,
+      coordinates: {
+        lat: 37.7749,
+        lng: -122.4194,
+      },
     },
     wikidataQID: null,
     wikidataPublishedAt: null,

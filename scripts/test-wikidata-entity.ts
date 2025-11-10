@@ -13,12 +13,13 @@ const mockBusiness: Business = {
   url: 'https://acmecoffee.com',
   category: 'restaurant',
   location: {
-    address: '123 Main Street',
     city: 'San Francisco',
     state: 'CA',
     country: 'US',
-    lat: 37.7749,
-    lng: -122.4194,
+    coordinates: {
+      lat: 37.7749,
+      lng: -122.4194,
+    },
   },
   wikidataQID: null,
   wikidataPublishedAt: null,
@@ -76,7 +77,7 @@ console.log('  Name:', mockBusiness.name);
 console.log('  URL:', mockBusiness.url);
 console.log('  Category:', mockBusiness.category);
 console.log('  Location:', `${mockBusiness.location?.city}, ${mockBusiness.location?.state}`);
-console.log('  Coordinates:', `${mockBusiness.location?.lat}, ${mockBusiness.location?.lng}`);
+console.log('  Coordinates:', `${mockBusiness.location?.coordinates?.lat}, ${mockBusiness.location?.coordinates?.lng}`);
 console.log('\n📊 Crawled Data:');
 console.log('  Description:', mockCrawledData.description?.substring(0, 80) + '...');
 console.log('  Phone:', mockCrawledData.phone);

@@ -9,7 +9,6 @@ import {
   updateCrawlJob,
 } from '@/lib/db/queries';
 import { webCrawler } from '@/lib/crawler';
-import { CrawlJobType, CrawlJobStatus, BusinessStatus } from '@/lib/db/schema';
 import { z } from 'zod';
 
 const crawlRequestSchema = z.object({
@@ -57,8 +56,8 @@ export async function POST(request: NextRequest) {
     // Create crawl job
     const job = await createCrawlJob({
       businessId,
-      jobType: CrawlJobType.INITIAL_CRAWL,
-      status: CrawlJobStatus.QUEUED,
+      jobType: 'initial_crawl',
+      status: 'queued',
       progress: 0,
     });
 
@@ -94,13 +93,12 @@ async function executeCrawlJob(jobId: number, businessId: number) {
   try {
     // Update job status
     await updateCrawlJob(jobId, {
-      status: CrawlJobStatus.PROCESSING,
-      startedAt: new Date(),
+      status: 'processing',
     });
 
     // Update business status
     await updateBusiness(businessId, {
-      status: BusinessStatus.CRAWLING,
+      status: 'crawling',
     });
 
     // Get business details
@@ -115,14 +113,14 @@ async function executeCrawlJob(jobId: number, businessId: number) {
     if (result.success && result.data) {
       // Update business with crawled data
       await updateBusiness(businessId, {
-        status: BusinessStatus.CRAWLED,
+        status: 'crawled',
         crawlData: result.data,
         lastCrawledAt: new Date(),
       });
 
       // Update job as completed
       await updateCrawlJob(jobId, {
-        status: CrawlJobStatus.COMPLETED,
+        status: 'completed',
         progress: 100,
         result: { crawledData: result.data },
         completedAt: new Date(),
@@ -135,14 +133,14 @@ async function executeCrawlJob(jobId: number, businessId: number) {
 
     // Update job as failed
     await updateCrawlJob(jobId, {
-      status: CrawlJobStatus.FAILED,
+      status: 'failed',
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       completedAt: new Date(),
     });
 
     // Update business status
     await updateBusiness(businessId, {
-      status: BusinessStatus.ERROR,
+      status: 'error',
     });
   }
 }

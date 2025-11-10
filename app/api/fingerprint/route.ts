@@ -9,7 +9,7 @@ import {
   updateCrawlJob,
 } from '@/lib/db/queries';
 import { llmFingerprinter } from '@/lib/llm/fingerprinter';
-import { CrawlJobType, CrawlJobStatus } from '@/lib/db/schema';
+// Job type/status constants removed - using string literals
 import { z } from 'zod';
 
 const fingerprintRequestSchema = z.object({
@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
     // Create fingerprint job
     const job = await createCrawlJob({
       businessId,
-      jobType: CrawlJobType.FINGERPRINT,
-      status: CrawlJobStatus.QUEUED,
+      jobType: 'fingerprint',
+      status: 'queued',
       progress: 0,
     });
 
@@ -93,8 +93,7 @@ async function executeFingerprintJob(jobId: number, businessId: number) {
   try {
     // Update job status
     await updateCrawlJob(jobId, {
-      status: CrawlJobStatus.PROCESSING,
-      startedAt: new Date(),
+      status: 'processing',
       progress: 10,
     });
 
@@ -116,17 +115,13 @@ async function executeFingerprintJob(jobId: number, businessId: number) {
     const fingerprint = await createFingerprint({
       businessId,
       visibilityScore: analysis.visibilityScore,
-      mentionRate: analysis.mentionRate,
-      sentimentScore: analysis.sentimentScore,
-      accuracyScore: analysis.accuracyScore,
-      avgRankPosition: analysis.avgRankPosition,
       llmResults: analysis.llmResults,
       competitiveBenchmark: analysis.competitiveBenchmark,
     });
 
     // Update job as completed
     await updateCrawlJob(jobId, {
-      status: CrawlJobStatus.COMPLETED,
+      status: 'completed',
       progress: 100,
       result: {
         fingerprintId: fingerprint.id,
@@ -141,7 +136,7 @@ async function executeFingerprintJob(jobId: number, businessId: number) {
 
     // Update job as failed
     await updateCrawlJob(jobId, {
-      status: CrawlJobStatus.FAILED,
+      status: 'failed',
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       completedAt: new Date(),
     });

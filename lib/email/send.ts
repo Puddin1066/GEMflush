@@ -8,7 +8,7 @@ import { VisibilityReportEmail } from './templates/visibility-report';
 export interface SendEmailOptions {
   to: string | string[];
   subject: string;
-  react: React.ReactElement;
+  react: any;
 }
 
 /**
@@ -47,13 +47,15 @@ export async function sendWelcomeEmail(
 ) {
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   
+  const emailContent = await WelcomeEmail({
+    userName,
+    loginUrl: `${baseUrl}/sign-in`,
+  });
+  
   return sendEmail({
     to,
     subject: 'Welcome to GEMflush - Your AI Visibility Journey Starts Now! 💎',
-    react: WelcomeEmail({
-      userName,
-      loginUrl: `${baseUrl}/sign-in`,
-    }),
+    react: emailContent,
   });
 }
 

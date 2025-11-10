@@ -14,6 +14,7 @@ export interface CrawledData {
   description?: string;
   phone?: string;
   email?: string;
+  address?: string;
   socialLinks?: {
     facebook?: string;
     instagram?: string;

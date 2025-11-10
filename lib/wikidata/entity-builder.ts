@@ -55,11 +55,11 @@ export class WikidataEntityBuilder {
     }
     
     // P625: coordinate location
-    if (business.location?.lat && business.location?.lng) {
+    if (business.location?.coordinates?.lat && business.location?.coordinates?.lng) {
       claims.P625 = [this.createCoordinateClaim(
         'P625',
-        business.location.lat,
-        business.location.lng,
+        business.location.coordinates.lat,
+        business.location.coordinates.lng,
         business.url
       )];
     }
@@ -76,9 +76,10 @@ export class WikidataEntityBuilder {
       claims.P1329 = [this.createStringClaim('P1329', crawledData.phone, business.url)];
     }
     
-    // P969: street address
-    if (business.location?.address) {
-      claims.P969 = [this.createStringClaim('P969', business.location.address, business.url)];
+    // P6375: street address (replaces deprecated P969)
+    // Note: Address is stored in crawledData parameter
+    if (crawledData?.address) {
+      claims.P6375 = [this.createStringClaim('P6375', crawledData.address, business.url)];
     }
     
     return claims;

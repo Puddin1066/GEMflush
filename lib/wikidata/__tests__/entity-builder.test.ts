@@ -11,12 +11,13 @@ describe('WikidataEntityBuilder', () => {
     url: 'https://testbusiness.com',
     category: 'restaurant',
     location: {
-      address: '123 Main St',
       city: 'San Francisco',
       state: 'CA',
       country: 'US',
-      lat: 37.7749,
-      lng: -122.4194,
+      coordinates: {
+        lat: 37.7749,
+        lng: -122.4194,
+      },
     },
     wikidataQID: null,
     wikidataPublishedAt: null,
@@ -32,6 +33,7 @@ describe('WikidataEntityBuilder', () => {
     description: 'A test business for unit testing',
     phone: '+1-555-0123',
     email: 'test@testbusiness.com',
+    address: '123 Main St',
   };
 
   describe('buildEntity', () => {
@@ -112,7 +114,6 @@ describe('WikidataEntityBuilder', () => {
       const businessWithoutCoords: Business = {
         ...mockBusiness,
         location: {
-          address: '123 Main St',
           city: 'San Francisco',
           state: 'CA',
           country: 'US',
@@ -138,11 +139,11 @@ describe('WikidataEntityBuilder', () => {
       expect(entity.claims.P1329[0].mainsnak.datavalue.value).toBe('+1-555-0123');
     });
 
-    it('should include P969 (street address) when available', () => {
+    it('should include P6375 (street address) when available', () => {
       const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
-      expect(entity.claims.P969).toBeDefined();
-      expect(entity.claims.P969[0].mainsnak.datavalue.value).toBe('123 Main St');
+      expect(entity.claims.P6375).toBeDefined();
+      expect(entity.claims.P6375[0].mainsnak.datavalue.value).toBe('123 Main St');
     });
 
     it('should include references (P854) for claims', () => {

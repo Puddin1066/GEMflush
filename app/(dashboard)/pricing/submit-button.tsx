@@ -4,15 +4,20 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useFormStatus } from 'react-dom';
 
-export function SubmitButton() {
+interface SubmitButtonProps {
+  className?: string;
+  variant?: 'default' | 'outline' | 'ghost' | 'link';
+}
+
+export function SubmitButton({ className, variant = 'outline' }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
   return (
     <Button
       type="submit"
       disabled={pending}
-      variant="outline"
-      className="w-full rounded-full"
+      variant={variant}
+      className={className || "w-full rounded-full"}
     >
       {pending ? (
         <>

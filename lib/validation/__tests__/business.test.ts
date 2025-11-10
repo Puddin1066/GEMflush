@@ -25,12 +25,13 @@ describe('Business Validation', () => {
         url: 'https://testbusiness.com',
         category: 'retail',
         location: {
-          address: '123 Main Street',
           city: 'San Francisco',
           state: 'CA',
           country: 'US',
-          lat: 37.7749,
-          lng: -122.4194,
+          coordinates: {
+            lat: 37.7749,
+            lng: -122.4194,
+          },
         },
       };
 

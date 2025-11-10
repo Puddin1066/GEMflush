@@ -60,7 +60,6 @@ export async function GET(
       result: job.result,
       errorMessage: job.errorMessage,
       createdAt: job.createdAt,
-      startedAt: job.startedAt,
       completedAt: job.completedAt,
     });
   } catch (error) {

@@ -10,7 +10,7 @@ import {
 import { canPublishToWikidata } from '@/lib/gemflush/permissions';
 import { entityBuilder } from '@/lib/wikidata/entity-builder';
 import { wikidataPublisher } from '@/lib/wikidata/publisher';
-import { BusinessStatus } from '@/lib/db/schema';
+// Business status constants removed - using string literals
 import { z } from 'zod';
 
 const publishRequestSchema = z.object({
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if business has been crawled
-    if (business.status !== BusinessStatus.CRAWLED && business.status !== BusinessStatus.PUBLISHED) {
+    if (business.status !== 'crawled' && business.status !== 'published') {
       return NextResponse.json(
         { error: 'Business must be crawled before publishing' },
         { status: 400 }
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     // Update business status
     await updateBusiness(businessId, {
-      status: BusinessStatus.GENERATING,
+      status: 'generating',
     });
 
     // Publish to Wikidata
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     if (!publishResult.success) {
       await updateBusiness(businessId, {
-        status: BusinessStatus.ERROR,
+        status: 'error',
       });
 
       return NextResponse.json(
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     // Update business with QID
     await updateBusiness(businessId, {
-      status: BusinessStatus.PUBLISHED,
+      status: 'published',
       wikidataQID: publishResult.qid,
       wikidataPublishedAt: new Date(),
     });

@@ -12,12 +12,13 @@ const mockBusiness: Business = {
   url: 'https://acmecoffee.com',
   category: 'restaurant',
   location: {
-    address: '123 Main Street',
     city: 'San Francisco',
     state: 'CA',
     country: 'US',
-    lat: 37.7749,
-    lng: -122.4194,
+    coordinates: {
+      lat: 37.7749,
+      lng: -122.4194,
+    },
   },
   wikidataQID: null,
   wikidataPublishedAt: null,
@@ -81,7 +82,7 @@ async function runTest() {
         
         console.log(`    ${icon} ${result.promptType}:`);
         console.log(`       Mentioned: ${result.mentioned ? 'Yes' : 'No'}`);
-        console.log(`       Sentiment: ${sentimentIcons[result.sentiment]} ${result.sentiment}`);
+        console.log(`       Sentiment: ${sentimentIcons[result.sentiment as keyof typeof sentimentIcons]} ${result.sentiment}`);
         if (result.rankPosition) {
           console.log(`       Rank: #${result.rankPosition}`);
         }

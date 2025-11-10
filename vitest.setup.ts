@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom';
-import { expect, afterEach } from 'vitest';
+import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+
+// Mock server-only package for tests
+vi.mock('server-only', () => ({}));
 
 // Cleanup after each test
 afterEach(() => {

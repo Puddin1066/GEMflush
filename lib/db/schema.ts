@@ -5,7 +5,6 @@ import {
   text,
   timestamp,
   integer,
-  boolean,
   jsonb,
   real,
 } from 'drizzle-orm/pg-core';
@@ -115,7 +114,36 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   }),
 }));
 
-// GEMflush-specific tables
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type NewTeamMember = typeof teamMembers.$inferInsert;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type NewActivityLog = typeof activityLogs.$inferInsert;
+export type Invitation = typeof invitations.$inferSelect;
+export type NewInvitation = typeof invitations.$inferInsert;
+export type TeamDataWithMembers = Team & {
+  teamMembers: (TeamMember & {
+    user: Pick<User, 'id' | 'name' | 'email'>;
+  })[];
+};
+
+export enum ActivityType {
+  SIGN_UP = 'SIGN_UP',
+  SIGN_IN = 'SIGN_IN',
+  SIGN_OUT = 'SIGN_OUT',
+  UPDATE_PASSWORD = 'UPDATE_PASSWORD',
+  DELETE_ACCOUNT = 'DELETE_ACCOUNT',
+  UPDATE_ACCOUNT = 'UPDATE_ACCOUNT',
+  CREATE_TEAM = 'CREATE_TEAM',
+  REMOVE_TEAM_MEMBER = 'REMOVE_TEAM_MEMBER',
+  INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
+  ACCEPT_INVITATION = 'ACCEPT_INVITATION',
+}
+
+// ========== GEMFLUSH TABLES ==========
 
 export const businesses = pgTable('businesses', {
   id: serial('id').primaryKey(),
@@ -126,12 +154,10 @@ export const businesses = pgTable('businesses', {
   url: text('url').notNull(),
   category: varchar('category', { length: 100 }),
   location: jsonb('location').$type<{
-    address?: string;
     city: string;
     state: string;
     country: string;
-    lat?: number;
-    lng?: number;
+    coordinates?: { lat: number; lng: number };
   }>(),
   wikidataQID: varchar('wikidata_qid', { length: 50 }),
   wikidataPublishedAt: timestamp('wikidata_published_at'),
@@ -150,8 +176,8 @@ export const wikidataEntities = pgTable('wikidata_entities', {
   qid: varchar('qid', { length: 50 }).notNull().unique(),
   entityData: jsonb('entity_data').notNull(),
   publishedTo: varchar('published_to', { length: 50 }).notNull(),
-  version: integer('version').notNull().default(1),
-  enrichmentLevel: integer('enrichment_level').notNull().default(1),
+  version: integer('version'),
+  enrichmentLevel: integer('enrichment_level'),
   publishedAt: timestamp('published_at').notNull().defaultNow(),
   lastEnrichedAt: timestamp('last_enriched_at'),
 });
@@ -162,29 +188,8 @@ export const llmFingerprints = pgTable('llm_fingerprints', {
     .notNull()
     .references(() => businesses.id),
   visibilityScore: integer('visibility_score').notNull(),
-  mentionRate: real('mention_rate'),
-  sentimentScore: real('sentiment_score'),
-  accuracyScore: real('accuracy_score'),
-  avgRankPosition: real('avg_rank_position'),
-  llmResults: jsonb('llm_results').$type<Array<{
-    model: string;
-    promptType: string;
-    mentioned: boolean;
-    sentiment: 'positive' | 'neutral' | 'negative';
-    accuracy: number;
-    rankPosition: number | null;
-    rawResponse: string;
-    tokensUsed: number;
-  }>>(),
-  competitiveBenchmark: jsonb('competitive_benchmark').$type<{
-    rank: number;
-    totalCompetitors: number;
-    competitorScores: Array<{
-      businessId: number;
-      businessName: string;
-      score: number;
-    }>;
-  }>(),
+  llmResults: jsonb('llm_results'),
+  competitiveBenchmark: jsonb('competitive_benchmark'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
@@ -194,11 +199,10 @@ export const crawlJobs = pgTable('crawl_jobs', {
     .notNull()
     .references(() => businesses.id),
   jobType: varchar('job_type', { length: 50 }).notNull(),
-  status: varchar('status', { length: 20 }).notNull().default('queued'),
-  progress: integer('progress').notNull().default(0),
+  status: varchar('status', { length: 20 }).notNull(),
+  progress: integer('progress'),
   result: jsonb('result'),
   errorMessage: text('error_message'),
-  startedAt: timestamp('started_at'),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -208,22 +212,23 @@ export const competitors = pgTable('competitors', {
   businessId: integer('business_id')
     .notNull()
     .references(() => businesses.id),
-  competitorBusinessId: integer('competitor_business_id').references(() => businesses.id),
+  competitorBusinessId: integer('competitor_business_id').references(
+    () => businesses.id
+  ),
   competitorName: varchar('competitor_name', { length: 200 }),
   competitorUrl: text('competitor_url'),
   addedBy: varchar('added_by', { length: 20 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// GEMflush relations
-
+// Relations
 export const businessesRelations = relations(businesses, ({ one, many }) => ({
   team: one(teams, {
     fields: [businesses.teamId],
     references: [teams.id],
   }),
-  wikidataEntity: one(wikidataEntities),
-  fingerprints: many(llmFingerprints),
+  wikidataEntities: many(wikidataEntities),
+  llmFingerprints: many(llmFingerprints),
   crawlJobs: many(crawlJobs),
   competitors: many(competitors),
 }));
@@ -260,23 +265,7 @@ export const competitorsRelations = relations(competitors, ({ one }) => ({
   }),
 }));
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type Team = typeof teams.$inferSelect;
-export type NewTeam = typeof teams.$inferInsert;
-export type TeamMember = typeof teamMembers.$inferSelect;
-export type NewTeamMember = typeof teamMembers.$inferInsert;
-export type ActivityLog = typeof activityLogs.$inferSelect;
-export type NewActivityLog = typeof activityLogs.$inferInsert;
-export type Invitation = typeof invitations.$inferSelect;
-export type NewInvitation = typeof invitations.$inferInsert;
-export type TeamDataWithMembers = Team & {
-  teamMembers: (TeamMember & {
-    user: Pick<User, 'id' | 'name' | 'email'>;
-  })[];
-};
-
-// GEMflush types
+// Type exports
 export type Business = typeof businesses.$inferSelect;
 export type NewBusiness = typeof businesses.$inferInsert;
 export type WikidataEntity = typeof wikidataEntities.$inferSelect;
@@ -287,39 +276,3 @@ export type CrawlJob = typeof crawlJobs.$inferSelect;
 export type NewCrawlJob = typeof crawlJobs.$inferInsert;
 export type Competitor = typeof competitors.$inferSelect;
 export type NewCompetitor = typeof competitors.$inferInsert;
-
-export enum ActivityType {
-  SIGN_UP = 'SIGN_UP',
-  SIGN_IN = 'SIGN_IN',
-  SIGN_OUT = 'SIGN_OUT',
-  UPDATE_PASSWORD = 'UPDATE_PASSWORD',
-  DELETE_ACCOUNT = 'DELETE_ACCOUNT',
-  UPDATE_ACCOUNT = 'UPDATE_ACCOUNT',
-  CREATE_TEAM = 'CREATE_TEAM',
-  REMOVE_TEAM_MEMBER = 'REMOVE_TEAM_MEMBER',
-  INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
-  ACCEPT_INVITATION = 'ACCEPT_INVITATION',
-}
-
-export enum BusinessStatus {
-  PENDING = 'pending',
-  CRAWLING = 'crawling',
-  CRAWLED = 'crawled',
-  GENERATING = 'generating',
-  PUBLISHED = 'published',
-  ERROR = 'error',
-}
-
-export enum CrawlJobType {
-  INITIAL_CRAWL = 'initial_crawl',
-  ENRICHMENT = 'enrichment',
-  FINGERPRINT = 'fingerprint',
-  COMPETITIVE_ANALYSIS = 'competitive_analysis',
-}
-
-export enum CrawlJobStatus {
-  QUEUED = 'queued',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-}
