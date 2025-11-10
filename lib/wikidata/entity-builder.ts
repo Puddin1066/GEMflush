@@ -106,7 +106,113 @@ export class WikidataEntityBuilder {
       claims.P6375 = [this.createStringClaim('P6375', crawledData.address, business.url)];
     }
     
+    // P968: email address
+    if (crawledData?.email) {
+      claims.P968 = [this.createStringClaim('P968', crawledData.email, business.url)];
+    }
+    
+    // P571: inception (founded date)
+    if (crawledData?.founded) {
+      const foundedClaim = this.createTimeClaim('P571', crawledData.founded, business.url);
+      if (foundedClaim) {
+        claims.P571 = [foundedClaim];
+      }
+    }
+    
+    // SOCIAL MEDIA PROPERTIES
+    if (crawledData?.socialLinks) {
+      // P2002: Twitter username
+      if (crawledData.socialLinks.twitter) {
+        const username = this.extractUsername(crawledData.socialLinks.twitter, 'twitter');
+        if (username) {
+          claims.P2002 = [this.createStringClaim('P2002', username, business.url)];
+        }
+      }
+      
+      // P2013: Facebook ID
+      if (crawledData.socialLinks.facebook) {
+        const fbId = this.extractUsername(crawledData.socialLinks.facebook, 'facebook');
+        if (fbId) {
+          claims.P2013 = [this.createStringClaim('P2013', fbId, business.url)];
+        }
+      }
+      
+      // P2003: Instagram username
+      if (crawledData.socialLinks.instagram) {
+        const username = this.extractUsername(crawledData.socialLinks.instagram, 'instagram');
+        if (username) {
+          claims.P2003 = [this.createStringClaim('P2003', username, business.url)];
+        }
+      }
+      
+      // P4264: LinkedIn company ID
+      if (crawledData.socialLinks.linkedin) {
+        const linkedinId = this.extractUsername(crawledData.socialLinks.linkedin, 'linkedin');
+        if (linkedinId) {
+          claims.P4264 = [this.createStringClaim('P4264', linkedinId, business.url)];
+        }
+      }
+    }
+    
+    // BUSINESS DETAILS (from crawledData.businessDetails)
+    if (crawledData?.businessDetails) {
+      // P1128: employee count
+      if (crawledData.businessDetails.employeeCount) {
+        const count = typeof crawledData.businessDetails.employeeCount === 'number'
+          ? crawledData.businessDetails.employeeCount
+          : parseInt(String(crawledData.businessDetails.employeeCount));
+        
+        if (!isNaN(count) && count > 0) {
+          claims.P1128 = [this.createQuantityClaim('P1128', count, business.url)];
+        }
+      }
+      
+      // P249: stock ticker symbol
+      if (crawledData.businessDetails.stockSymbol) {
+        claims.P249 = [this.createStringClaim('P249', crawledData.businessDetails.stockSymbol, business.url)];
+      }
+    }
+    
     return claims;
+  }
+  
+  /**
+   * Extract username from social media URL
+   * Follows Single Responsibility: Only handles URL parsing
+   */
+  private extractUsername(url: string, platform: 'twitter' | 'facebook' | 'instagram' | 'linkedin'): string | null {
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      
+      switch (platform) {
+        case 'twitter':
+          // https://twitter.com/username or https://x.com/username
+          const twitterMatch = pathname.match(/^\/([a-zA-Z0-9_]+)\/?$/);
+          return twitterMatch ? twitterMatch[1] : null;
+          
+        case 'facebook':
+          // https://facebook.com/pages/name/123456 or https://facebook.com/username
+          const fbMatch = pathname.match(/\/pages\/[^\/]+\/(\d+)|^\/([a-zA-Z0-9.]+)\/?$/);
+          return fbMatch ? (fbMatch[1] || fbMatch[2]) : null;
+          
+        case 'instagram':
+          // https://instagram.com/username
+          const instaMatch = pathname.match(/^\/([a-zA-Z0-9._]+)\/?$/);
+          return instaMatch ? instaMatch[1] : null;
+          
+        case 'linkedin':
+          // https://linkedin.com/company/company-name
+          const linkedinMatch = pathname.match(/\/company\/([^\/]+)\/?$/);
+          return linkedinMatch ? linkedinMatch[1] : null;
+          
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.warn(`Failed to extract ${platform} username from: ${url}`);
+      return null;
+    }
   }
   
   private createItemClaim(property: string, qid: string, referenceUrl: string): WikidataClaim {
@@ -293,8 +399,16 @@ export class WikidataEntityBuilder {
       // Query LLM
       const response = await openRouterClient.query('openai/gpt-4-turbo', prompt);
       
+      // Clean up markdown code blocks if present
+      let content = response.content.trim();
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (content.startsWith('```')) {
+        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
       // Parse suggestions
-      const suggestions = JSON.parse(response.content);
+      const suggestions = JSON.parse(content);
       
       // Convert suggestions to claims with QID resolution
       const claims = await this.convertSuggestionsToClaims(suggestions, business.url);

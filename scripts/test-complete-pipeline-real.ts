@@ -52,10 +52,26 @@ const mockCrawledData: CrawledData = {
   description: 'Community-based not-for-profit physician group affiliated with Brown University',
   phone: '+1-401-444-5000',
   email: 'info@brownphysicians.org',
-  address: 'Providence, Rhode Island',
+  address: '593 Eddy Street, Providence, Rhode Island 02903',
   founded: '2017',
   categories: ['healthcare', 'medical', 'physicians'],
   services: ['Primary Care', 'Specialty Care', 'Medical Services'],
+  socialLinks: {
+    facebook: 'https://www.facebook.com/BrownPhysicians',
+    linkedin: 'https://www.linkedin.com/company/brown-physicians-inc',
+    twitter: 'https://twitter.com/BrownHealth',
+    instagram: 'https://www.instagram.com/brownhealth/',
+  },
+  businessDetails: {
+    industry: 'Healthcare',
+    sector: 'Medical Services',
+    businessType: 'Physician Group',
+    legalForm: 'Not-for-profit corporation',
+    founded: '2017',
+    employeeCount: 450,
+    headquarters: 'Providence, Rhode Island',
+    parentCompany: 'Brown University Health',
+  },
 };
 
 async function runTest() {
