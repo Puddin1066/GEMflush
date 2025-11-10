@@ -90,6 +90,16 @@ export class NotabilityChecker {
     
     console.log(`📚 Found ${references.length} potential references`);
     
+    // Debug: Show top references
+    if (references.length > 0) {
+      console.log('\n🔍 Top references found:');
+      references.slice(0, 5).forEach((ref, idx) => {
+        console.log(`   ${idx + 1}. ${ref.title}`);
+        console.log(`      ${ref.url}`);
+      });
+      console.log('');
+    }
+    
     // Step 2: Assess quality with LLM
     console.log(`🤖 Assessing reference quality with LLM...`);
     const assessment = await this.assessReferenceQuality(references, businessName);
