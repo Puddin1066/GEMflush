@@ -147,6 +147,21 @@ export interface FingerprintAnalysis {
   llmResults: LLMResult[];
   generatedAt: Date;
   competitiveBenchmark?: CompetitiveBenchmark;
+  competitiveLeaderboard?: {
+    targetBusiness: {
+      name: string;
+      rank: number | null;
+      mentionCount: number;
+      avgPosition: number | null;
+    };
+    competitors: Array<{
+      name: string;
+      mentionCount: number;
+      avgPosition: number;
+      appearsWithTarget: number;
+    }>;
+    totalRecommendationQueries: number;
+  };
   // LLM-generated insights
   insights?: {
     strengths: string[];

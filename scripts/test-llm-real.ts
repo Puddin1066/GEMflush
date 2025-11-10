@@ -129,6 +129,33 @@ async function test() {
       console.log(`  Not ranked by any model`);
     }
     
+    // Display competitive leaderboard
+    if (analysis.competitiveLeaderboard && analysis.competitiveLeaderboard.competitors.length > 0) {
+      console.log(`\n🎯 COMPETITIVE LEADERBOARD`);
+      console.log(`   Based on ${analysis.competitiveLeaderboard.totalRecommendationQueries} recommendation queries\n`);
+      
+      const { targetBusiness, competitors } = analysis.competitiveLeaderboard;
+      
+      console.log(`   ${business.name} (You):`);
+      console.log(`     Mentioned: ${targetBusiness.mentionCount}/${analysis.competitiveLeaderboard.totalRecommendationQueries} times`);
+      if (targetBusiness.avgPosition) {
+        console.log(`     Avg Position: #${targetBusiness.avgPosition.toFixed(1)}`);
+      }
+      
+      if (competitors.length > 0) {
+        console.log(`\n   Top Competitors Mentioned:`);
+        competitors.slice(0, 10).forEach((comp, idx) => {
+          const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '  ';
+          console.log(`   ${medal} ${idx + 1}. ${comp.name}`);
+          console.log(`       Mentioned: ${comp.mentionCount} times`);
+          console.log(`       Avg Position: #${comp.avgPosition.toFixed(1)}`);
+        });
+      }
+    } else {
+      console.log(`\n🎯 COMPETITIVE LEADERBOARD`);
+      console.log(`   No competitors extracted from recommendation queries`);
+    }
+    
     console.log(`\n💰 API Usage:`);
     console.log(`  Total Queries: ${analysis.llmResults.length}`);
     console.log(`  Total Tokens: ${analysis.llmResults.reduce((sum, r) => sum + r.tokensUsed, 0).toLocaleString()}`);

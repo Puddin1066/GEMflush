@@ -157,6 +157,7 @@ export class LLMFingerprinter {
         sentiment: analysis.sentiment,
         accuracy: analysis.accuracy,
         rankPosition: analysis.rankPosition,
+        competitorMentions: analysis.competitorMentions,
         rawResponse: response.content,
         tokensUsed: response.tokensUsed,
       };
@@ -204,6 +205,7 @@ export class LLMFingerprinter {
     sentiment: 'positive' | 'neutral' | 'negative';
     accuracy: number;
     rankPosition: number | null;
+    competitorMentions?: string[];
   } {
     // Check if business is mentioned
     const mentioned = this.detectMention(response, businessName);
@@ -216,6 +218,11 @@ export class LLMFingerprinter {
       ? this.extractRankPosition(response, businessName)
       : null;
     
+    // Extract competitor mentions (for recommendation prompts)
+    const competitorMentions = promptType === 'recommendation'
+      ? this.extractCompetitorMentions(response, businessName)
+      : undefined;
+    
     // Calculate accuracy (simplified for now)
     const accuracy = mentioned ? 0.7 : 0;
     
@@ -224,6 +231,7 @@ export class LLMFingerprinter {
       sentiment,
       accuracy,
       rankPosition,
+      competitorMentions,
     };
   }
   
@@ -297,6 +305,38 @@ export class LLMFingerprinter {
   }
   
   /**
+   * Extract competitor business names from recommendation response
+   * Returns list of competitors mentioned alongside the target business
+   */
+  private extractCompetitorMentions(response: string, businessName: string): string[] {
+    const competitors: string[] = [];
+    const lines = response.split('\n');
+    
+    for (const line of lines) {
+      // Match numbered list items: "1. Business Name" or "1) Business Name"
+      const listMatch = line.match(/^\s*(\d+)[.)]\s*(.+?)(?:\s*-|\s*:|$)/);
+      if (listMatch) {
+        const competitor = listMatch[2].trim();
+        
+        // Don't include the target business itself
+        if (!this.detectMention(competitor, businessName) && competitor.length > 0) {
+          // Clean up common prefixes/suffixes
+          const cleaned = competitor
+            .replace(/^(The|A|An)\s+/i, '')
+            .replace(/\s+(LLC|Inc|Corp|Ltd|Co)\.?$/i, '')
+            .trim();
+          
+          if (cleaned.length > 2) {
+            competitors.push(cleaned);
+          }
+        }
+      }
+    }
+    
+    return competitors;
+  }
+  
+  /**
    * Calculate overall metrics from LLM results
    */
   private calculateMetrics(
@@ -339,6 +379,13 @@ export class LLMFingerprinter {
       (avgRankPosition ? Math.max(0, (6 - avgRankPosition) / 5 * 10) : 5) // 10% on ranking
     );
     
+    // Build competitive leaderboard from competitor mentions
+    const competitiveLeaderboard = this.buildCompetitiveLeaderboard(
+      llmResults,
+      business,
+      avgRankPosition
+    );
+    
     return {
       businessId: business.id,
       businessName: business.name,
@@ -348,7 +395,80 @@ export class LLMFingerprinter {
       accuracyScore: avgAccuracy,
       avgRankPosition,
       llmResults,
+      competitiveLeaderboard,
       generatedAt: new Date(),
+    };
+  }
+  
+  /**
+   * Build competitive leaderboard from competitor mentions
+   * Shows which competitors are mentioned most often alongside the target business
+   */
+  private buildCompetitiveLeaderboard(
+    llmResults: LLMResult[],
+    business: Business,
+    targetBusinessRank: number | null
+  ): {
+    targetBusiness: {
+      name: string;
+      rank: number | null;
+      mentionCount: number;
+      avgPosition: number | null;
+    };
+    competitors: Array<{
+      name: string;
+      mentionCount: number;
+      avgPosition: number;
+      appearsWithTarget: number; // How many times mentioned alongside target
+    }>;
+    totalRecommendationQueries: number;
+  } {
+    const recommendationResults = llmResults.filter(r => r.promptType === 'recommendation');
+    
+    // Count competitor mentions
+    const competitorCounts = new Map<string, { count: number; positions: number[] }>();
+    
+    recommendationResults.forEach((result) => {
+      if (result.competitorMentions && result.competitorMentions.length > 0) {
+        result.competitorMentions.forEach((competitor, idx) => {
+          if (!competitorCounts.has(competitor)) {
+            competitorCounts.set(competitor, { count: 0, positions: [] });
+          }
+          const stats = competitorCounts.get(competitor)!;
+          stats.count++;
+          // Estimate position based on order in list (1-based)
+          stats.positions.push(idx + 1);
+        });
+      }
+    });
+    
+    // Build sorted leaderboard
+    const competitors = Array.from(competitorCounts.entries())
+      .map(([name, stats]) => ({
+        name,
+        mentionCount: stats.count,
+        avgPosition: stats.positions.reduce((sum, p) => sum + p, 0) / stats.positions.length,
+        appearsWithTarget: stats.count, // All mentions are alongside target
+      }))
+      .sort((a, b) => {
+        // Sort by mention count (descending), then by avg position (ascending)
+        if (b.mentionCount !== a.mentionCount) {
+          return b.mentionCount - a.mentionCount;
+        }
+        return a.avgPosition - b.avgPosition;
+      });
+    
+    const targetMentionCount = recommendationResults.filter(r => r.mentioned).length;
+    
+    return {
+      targetBusiness: {
+        name: business.name,
+        rank: targetBusinessRank,
+        mentionCount: targetMentionCount,
+        avgPosition: targetBusinessRank,
+      },
+      competitors,
+      totalRecommendationQueries: recommendationResults.length,
     };
   }
 }
