@@ -88,68 +88,75 @@ console.log('  Social Links:', Object.keys(mockCrawledData.socialLinks || {}).le
 console.log('\n' + '='.repeat(80));
 console.log('🏗️  Building Wikidata Entity...\n');
 
-// Build the entity
-const wikidataEntity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+async function runTest() {
+  // Build the entity
+  const wikidataEntity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
-console.log('📦 Generated Wikidata Entity JSON:');
-console.log('=' .repeat(80));
-console.log(JSON.stringify(wikidataEntity, null, 2));
+  console.log('📦 Generated Wikidata Entity JSON:');
+  console.log('=' .repeat(80));
+  console.log(JSON.stringify(wikidataEntity, null, 2));
 
-console.log('\n' + '='.repeat(80));
-console.log('✅ Validating Notability Standards...\n');
+  console.log('\n' + '='.repeat(80));
+  console.log('✅ Validating Notability Standards...\n');
 
-// Validate notability
-const notabilityCheck = entityBuilder.validateNotability(wikidataEntity);
+  // Validate notability
+  const notabilityCheck = entityBuilder.validateNotability(wikidataEntity);
 
-if (notabilityCheck.isNotable) {
-  console.log('✅ Entity meets Wikidata notability standards!');
-} else {
-  console.log('❌ Entity does NOT meet notability standards:');
-  notabilityCheck.reasons.forEach(reason => {
-    console.log('   -', reason);
+  if (notabilityCheck.isNotable) {
+    console.log('✅ Entity meets Wikidata notability standards!');
+  } else {
+    console.log('❌ Entity does NOT meet notability standards:');
+    notabilityCheck.reasons.forEach(reason => {
+      console.log('   -', reason);
+    });
+  }
+
+  console.log('\n' + '='.repeat(80));
+  console.log('📊 Entity Statistics:\n');
+
+  const claimCount = Object.keys(wikidataEntity.claims).length;
+  const referenceCount = Object.values(wikidataEntity.claims)
+    .flat()
+    .filter(claim => claim.references && claim.references.length > 0).length;
+
+  console.log('  Total Properties (PIDs):', claimCount);
+  console.log('  Properties with References:', referenceCount);
+  console.log('  Labels:', Object.keys(wikidataEntity.labels).join(', '));
+  console.log('  Descriptions:', Object.keys(wikidataEntity.descriptions).join(', '));
+
+  console.log('\n📝 Property Breakdown:');
+  Object.entries(wikidataEntity.claims).forEach(([pid, claims]) => {
+    const propertyNames: Record<string, string> = {
+      P31: 'instance of',
+      P856: 'official website',
+      P625: 'coordinate location',
+      P1448: 'official name',
+      P1329: 'phone number',
+      P6375: 'street address',
+    };
+    
+    const name = propertyNames[pid] || 'unknown property';
+    console.log(`  ${pid} (${name}):`, claims.length, 'claim(s)');
   });
+
+  console.log('\n' + '='.repeat(80));
+  console.log('🚀 This JSON would be sent to Wikidata Action API:');
+  console.log('   Endpoint: https://test.wikidata.org/w/api.php');
+  console.log('   Action: wbeditentity');
+  console.log('   Method: POST');
+  console.log('   Parameters:');
+  console.log('     - action: wbeditentity');
+  console.log('     - new: item');
+  console.log('     - data: [JSON above]');
+  console.log('     - token: [CSRF token]');
+  console.log('     - format: json');
+  console.log('\n' + '='.repeat(80));
+
+  console.log('\n✨ Test completed successfully!\n');
 }
 
-console.log('\n' + '='.repeat(80));
-console.log('📊 Entity Statistics:\n');
-
-const claimCount = Object.keys(wikidataEntity.claims).length;
-const referenceCount = Object.values(wikidataEntity.claims)
-  .flat()
-  .filter(claim => claim.references && claim.references.length > 0).length;
-
-console.log('  Total Properties (PIDs):', claimCount);
-console.log('  Properties with References:', referenceCount);
-console.log('  Labels:', Object.keys(wikidataEntity.labels).join(', '));
-console.log('  Descriptions:', Object.keys(wikidataEntity.descriptions).join(', '));
-
-console.log('\n📝 Property Breakdown:');
-Object.entries(wikidataEntity.claims).forEach(([pid, claims]) => {
-  const propertyNames: Record<string, string> = {
-    P31: 'instance of',
-    P856: 'official website',
-    P625: 'coordinate location',
-    P1448: 'official name',
-    P1329: 'phone number',
-    P969: 'street address',
-  };
-  
-  const name = propertyNames[pid] || 'unknown property';
-  console.log(`  ${pid} (${name}):`, claims.length, 'claim(s)');
+runTest().catch(error => {
+  console.error('❌ Error running test:', error);
+  process.exit(1);
 });
-
-console.log('\n' + '='.repeat(80));
-console.log('🚀 This JSON would be sent to Wikidata Action API:');
-console.log('   Endpoint: https://test.wikidata.org/w/api.php');
-console.log('   Action: wbeditentity');
-console.log('   Method: POST');
-console.log('   Parameters:');
-console.log('     - action: wbeditentity');
-console.log('     - new: item');
-console.log('     - data: [JSON above]');
-console.log('     - token: [CSRF token]');
-console.log('     - format: json');
-console.log('\n' + '='.repeat(80));
-
-console.log('\n✨ Test completed successfully!\n');
 
