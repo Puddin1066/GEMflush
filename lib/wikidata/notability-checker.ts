@@ -48,6 +48,7 @@ export interface NotabilityResult {
   references: Reference[];
   seriousReferenceCount: number;
   assessment?: NotabilityAssessment;
+  topReferences?: Reference[]; // Best references for Wikidata citations
 }
 
 /**
@@ -104,6 +105,9 @@ export class NotabilityChecker {
     console.log(`🤖 Assessing reference quality with LLM...`);
     const assessment = await this.assessReferenceQuality(references, businessName);
     
+    // Step 3: Extract top serious references for Wikidata citations
+    const topReferences = this.extractTopReferences(references, assessment);
+    
     const result: NotabilityResult = {
       isNotable: assessment.meetsNotability,
       confidence: assessment.confidence,
@@ -111,6 +115,7 @@ export class NotabilityChecker {
       references: references,
       seriousReferenceCount: assessment.seriousReferenceCount,
       assessment: assessment,
+      topReferences: topReferences,
     };
     
     console.log(
@@ -275,6 +280,49 @@ Return ONLY valid JSON with this exact structure:
   "recommendations": string[]
 }
     `.trim();
+  }
+  
+  /**
+   * Extract top serious references for Wikidata citations
+   * Prioritizes government, news, academic sources
+   * Follows Single Responsibility: Only extracts best references
+   */
+  private extractTopReferences(
+    references: Reference[],
+    assessment: NotabilityAssessment
+  ): Reference[] {
+    // Get assessments of serious references
+    const seriousRefs = assessment.references
+      .filter(ref => ref.isSerious && ref.isPubliclyAvailable && ref.isIndependent)
+      .sort((a, b) => {
+        // Prioritize by source type (government > news > academic > other)
+        const typeRank = {
+          'government': 1,
+          'news': 2,
+          'academic': 3,
+          'database': 4,
+          'other': 5,
+          'company': 6,
+        };
+        const rankA = typeRank[a.sourceType] || 10;
+        const rankB = typeRank[b.sourceType] || 10;
+        
+        if (rankA !== rankB) return rankA - rankB;
+        
+        // Then by trust score
+        return b.trustScore - a.trustScore;
+      });
+    
+    // Map back to original references and take top 5
+    const topRefs: Reference[] = [];
+    for (const assessment of seriousRefs.slice(0, 5)) {
+      const ref = references[assessment.index];
+      if (ref) {
+        topRefs.push(ref);
+      }
+    }
+    
+    return topRefs;
   }
   
   /**

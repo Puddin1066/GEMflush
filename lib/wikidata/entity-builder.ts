@@ -181,8 +181,15 @@ export class WikidataEntityBuilder {
     };
   }
   
-  private createReference(url: string) {
-    return {
+  /**
+   * Create reference with URL, title, and retrieved date
+   * Can accept Reference object from notability checker or plain URL
+   */
+  private createReference(urlOrRef: string | { url: string; title?: string; snippet?: string }) {
+    const url = typeof urlOrRef === 'string' ? urlOrRef : urlOrRef.url;
+    const title = typeof urlOrRef === 'object' ? urlOrRef.title : undefined;
+    
+    const reference: any = {
       snaks: {
         P854: [
           {
@@ -196,6 +203,43 @@ export class WikidataEntityBuilder {
         ],
       },
     };
+    
+    // Add title if available (P1476)
+    if (title) {
+      reference.snaks.P1476 = [
+        {
+          snaktype: 'value',
+          property: 'P1476',
+          datavalue: {
+            value: {
+              text: title,
+              language: 'en',
+            },
+            type: 'monolingualtext',
+          },
+        },
+      ];
+    }
+    
+    // Add retrieved date (P813)
+    const today = new Date().toISOString().split('T')[0];
+    reference.snaks.P813 = [
+      {
+        snaktype: 'value',
+        property: 'P813',
+        datavalue: {
+          value: {
+            time: `+${today}T00:00:00Z`,
+            precision: 11, // day precision
+            timezone: 0,
+            calendarmodel: 'http://www.wikidata.org/entity/Q1985727',
+          },
+          type: 'time',
+        },
+      },
+    ];
+    
+    return reference;
   }
   
   /**

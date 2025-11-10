@@ -233,6 +233,32 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     dataType: 'string',
     required: false,
   },
+  
+  // REFERENCES (used in claim references, not as main property)
+  'P854': {
+    pid: 'P854',
+    label: 'reference URL',
+    description: 'URL used as reference for claims',
+    dataType: 'url',
+    required: false,
+    validator: (url) => /^https?:\/\/.+/.test(url),
+  },
+  
+  'P813': {
+    pid: 'P813',
+    label: 'retrieved',
+    description: 'date when information was retrieved from source',
+    dataType: 'time',
+    required: false,
+  },
+  
+  'P1476': {
+    pid: 'P1476',
+    label: 'title',
+    description: 'title of referenced work',
+    dataType: 'string',
+    required: false,
+  },
 };
 
 /**
