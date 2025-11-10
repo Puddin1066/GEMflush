@@ -126,6 +126,7 @@ export interface FingerprintDetailDTO {
     averageRank: number | null;
   };
   results: FingerprintResultDTO[];
+  competitiveLeaderboard: CompetitiveLeaderboardDTO | null;
   createdAt: string;
 }
 
@@ -139,6 +140,40 @@ export interface FingerprintResultDTO {
   confidence: number;                // 0-100
   rankPosition: number | null;
   // ❌ NO rawResponse (too technical for UI)
+}
+
+/**
+ * Competitive leaderboard showing business vs competitors
+ * Used by: Fingerprint detail page - competitive analysis section
+ */
+export interface CompetitiveLeaderboardDTO {
+  targetBusiness: {
+    name: string;
+    rank: number | null;             // Position in recommendations (1-5)
+    mentionCount: number;            // How many times mentioned
+    mentionRate: number;             // Percentage (0-100)
+  };
+  competitors: CompetitorDTO[];
+  totalQueries: number;              // Total recommendation queries analyzed
+  insights: {
+    marketPosition: 'leading' | 'competitive' | 'emerging' | 'unknown';
+    topCompetitor: string | null;    // Name of top competitor
+    competitiveGap: number | null;   // Difference in mention count
+    recommendation: string;          // Strategic recommendation
+  };
+}
+
+/**
+ * Individual competitor in leaderboard
+ */
+export interface CompetitorDTO {
+  rank: number;                      // Leaderboard position (1, 2, 3...)
+  name: string;
+  mentionCount: number;              // Times mentioned across all LLMs
+  avgPosition: number;               // Average ranking position (1.0-5.0)
+  appearsWithTarget: number;         // Co-occurrence count
+  marketShare: number;               // Estimated share of mentions (0-100)
+  badge?: 'top' | 'rising' | 'declining';  // Visual indicator
 }
 
 // ============================================================================
