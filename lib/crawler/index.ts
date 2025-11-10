@@ -42,51 +42,37 @@ export class WebCrawler {
   }
   
   private async fetchHTML(url: string): Promise<string> {
-    // MOCK: Return simulated HTML for development
-    // In production: Use fetch() or axios with proper headers and error handling
+    // PRODUCTION: Real HTTP fetch
+    console.log(`🌐 Fetching: ${url}`);
     
-    // Simulated delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Sample Business - Professional Services</title>
-          <meta name="description" content="Leading provider of professional services since 2010">
-          <script type="application/ld+json">
-          {
-            "@context": "https://schema.org",
-            "@type": "LocalBusiness",
-            "name": "Sample Business Inc",
-            "description": "Professional services provider",
-            "telephone": "+1-555-123-4567",
-            "email": "info@samplebusiness.com",
-            "address": {
-              "@type": "PostalAddress",
-              "streetAddress": "123 Main Street",
-              "addressLocality": "San Francisco",
-              "addressRegion": "CA",
-              "postalCode": "94102",
-              "addressCountry": "US"
-            }
-          }
-          </script>
-        </head>
-        <body>
-          <h1>Sample Business Inc</h1>
-          <p>We provide excellent professional services to our clients.</p>
-          <div class="contact">
-            <p>Phone: +1-555-123-4567</p>
-            <p>Email: info@samplebusiness.com</p>
-          </div>
-          <div class="social">
-            <a href="https://facebook.com/samplebusiness">Facebook</a>
-            <a href="https://linkedin.com/company/samplebusiness">LinkedIn</a>
-          </div>
-        </body>
-      </html>
-    `;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': this.userAgent,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        },
+        // Follow redirects
+        redirect: 'follow',
+        // 10 second timeout
+        signal: AbortSignal.timeout(10000),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const html = await response.text();
+      console.log(`✅ Fetched ${html.length} bytes from ${url}`);
+      
+      return html;
+    } catch (error) {
+      console.error(`❌ Fetch failed for ${url}:`, error);
+      throw error;
+    }
   }
   
   private async extractData($: cheerio.CheerioAPI, url: string): Promise<CrawledData> {

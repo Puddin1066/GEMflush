@@ -20,11 +20,13 @@ export class WikidataSPARQLService {
   
   /**
    * Find QID for a city (hybrid: L1 → L2 → L3 → L4)
+   * @param skipSparql - If true, only use local/cached data (fast mode for commercial apps)
    */
   async findCityQID(
     cityName: string,
     state?: string,
-    countryQID: string = 'Q30'
+    countryQID: string = 'Q30',
+    skipSparql: boolean = false
   ): Promise<string | null> {
     const key = state
       ? `${cityName}, ${state}`
@@ -47,18 +49,29 @@ export class WikidataSPARQLService {
     // L3: Local mapping (< 1ms)
     if (US_CITY_QIDS[normalizedKey]) {
       const qid = US_CITY_QIDS[normalizedKey];
-      await this.setCachedQID('city', normalizedKey, qid, 'local_mapping');
+      // Background save to DB (don't await - fire and forget)
+      this.setCachedQID('city', normalizedKey, qid, 'local_mapping').catch(err => 
+        console.error('Background cache save failed:', err)
+      );
       this.memoryCache.set(cacheKey, qid);
       console.log(`✓ Local city QID: ${key} → ${qid}`);
       return qid;
     }
     
-    // L4: SPARQL lookup (200-500ms)
+    // L4: SPARQL lookup (200-500ms) - OPTIONAL for speed
+    if (skipSparql) {
+      console.log(`⏭️  Skipping SPARQL for: ${key} (fast mode)`);
+      return null;
+    }
+    
     console.log(`⏳ SPARQL lookup for city: ${key}`);
     const qid = await this.sparqlCityLookup(cityName, countryQID);
     
     if (qid) {
-      await this.setCachedQID('city', normalizedKey, qid, 'sparql');
+      // Background save to DB (don't await)
+      this.setCachedQID('city', normalizedKey, qid, 'sparql').catch(err =>
+        console.error('Background cache save failed:', err)
+      );
       this.memoryCache.set(cacheKey, qid);
       console.log(`✓ SPARQL found: ${key} → ${qid}`);
     } else {
@@ -70,8 +83,9 @@ export class WikidataSPARQLService {
   
   /**
    * Find QID for industry (hybrid: L1 → L2 → L3 → L4)
+   * @param skipSparql - If true, only use local/cached data (fast mode)
    */
-  async findIndustryQID(industryName: string): Promise<string | null> {
+  async findIndustryQID(industryName: string, skipSparql: boolean = false): Promise<string | null> {
     const normalizedKey = this.normalizeKey(industryName);
     
     // L1: Memory cache
@@ -90,18 +104,29 @@ export class WikidataSPARQLService {
     // L3: Local mapping
     if (INDUSTRY_QIDS[normalizedKey]) {
       const qid = INDUSTRY_QIDS[normalizedKey];
-      await this.setCachedQID('industry', normalizedKey, qid, 'local_mapping');
+      // Background save (fire and forget)
+      this.setCachedQID('industry', normalizedKey, qid, 'local_mapping').catch(err =>
+        console.error('Background cache save failed:', err)
+      );
       this.memoryCache.set(cacheKey, qid);
       console.log(`✓ Local industry QID: ${industryName} → ${qid}`);
       return qid;
     }
     
-    // L4: SPARQL lookup
+    // L4: SPARQL lookup - OPTIONAL for speed
+    if (skipSparql) {
+      console.log(`⏭️  Skipping SPARQL for industry: ${industryName} (fast mode)`);
+      return null;
+    }
+    
     console.log(`⏳ SPARQL lookup for industry: ${industryName}`);
     const qid = await this.sparqlIndustryLookup(industryName);
     
     if (qid) {
-      await this.setCachedQID('industry', normalizedKey, qid, 'sparql');
+      // Background save (fire and forget)
+      this.setCachedQID('industry', normalizedKey, qid, 'sparql').catch(err =>
+        console.error('Background cache save failed:', err)
+      );
       this.memoryCache.set(cacheKey, qid);
       console.log(`✓ SPARQL found: ${industryName} → ${qid}`);
     } else {

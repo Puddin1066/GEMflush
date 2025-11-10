@@ -85,6 +85,10 @@ export const INDUSTRY_QIDS: Record<string, string> = {
   "pharmaceutical": "Q420927",
   "biotechnology": "Q7108",
   "medical device": "Q861699",
+  "cannabis": "Q3197",
+  "cannabis dispensary": "Q24140788",
+  "marijuana dispensary": "Q24140788",
+  "dispensary": "Q24140788",
   
   // Technology
   "technology": "Q11016",
