@@ -1,7 +1,41 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { entityBuilder } from '../entity-builder';
 import { Business } from '@/lib/db/schema';
 import { CrawledData } from '@/lib/types/gemflush';
+
+// Mock the OpenRouter client to avoid real API calls in tests
+vi.mock('@/lib/llm/openrouter', () => ({
+  openRouterClient: {
+    query: vi.fn().mockResolvedValue({
+      content: '[]', // Empty array = no LLM suggestions
+      tokensUsed: 100,
+      model: 'mock-model',
+    }),
+  },
+}));
+
+// Mock the database to avoid real DB calls in tests
+vi.mock('@/lib/db/drizzle', () => ({
+  db: {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    }),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockResolvedValue({}),
+      }),
+    }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue({}),
+      }),
+    }),
+  },
+}));
 
 describe('WikidataEntityBuilder', () => {
   const mockBusiness: Business = {

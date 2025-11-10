@@ -191,7 +191,6 @@ export const INDUSTRY_QIDS: Record<string, string> = {
   // Construction & Real Estate
   "construction": "Q385378",
   "building": "Q385378",
-  "real estate": "Q66344",
   "property management": "Q2500254",
   "development": "Q753445",
   
