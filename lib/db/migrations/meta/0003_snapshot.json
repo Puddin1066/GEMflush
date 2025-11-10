@@ -1,0 +1,110 @@
+{
+  "id": "0003-qid-cache",
+  "prevId": "0002_lush_masked_marvel",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "qid_cache": {
+      "name": "qid_cache",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "search_key": {
+          "name": "search_key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "qid": {
+          "name": "qid",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "query_count": {
+          "name": "query_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 1
+        },
+        "last_queried_at": {
+          "name": "last_queried_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "validated_at": {
+          "name": "validated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {
+        "idx_qid_cache_lookup": {
+          "name": "idx_qid_cache_lookup",
+          "columns": ["entity_type", "search_key"],
+          "isUnique": false
+        },
+        "idx_qid_cache_popular": {
+          "name": "idx_qid_cache_popular",
+          "columns": ["query_count"],
+          "isUnique": false
+        },
+        "idx_qid_cache_validated": {
+          "name": "idx_qid_cache_validated",
+          "columns": ["validated_at"],
+          "isUnique": false
+        },
+        "idx_qid_cache_source": {
+          "name": "idx_qid_cache_source",
+          "columns": ["source"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "qid_cache_entity_type_search_key_unique": {
+          "name": "qid_cache_entity_type_search_key_unique",
+          "columns": ["entity_type", "search_key"]
+        }
+      }
+    }
+  }
+}
+

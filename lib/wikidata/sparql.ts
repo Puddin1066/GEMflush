@@ -1,59 +1,254 @@
 // SPARQL query service for Wikidata validation and lookups
+// Enhanced with hybrid caching: Memory (L1) + Database (L2) + Local Mappings (L3) + SPARQL (L4)
+
+import { db } from '@/lib/db/drizzle';
+import { qidCache } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import {
+  US_CITY_QIDS,
+  INDUSTRY_QIDS,
+  LEGAL_FORM_QIDS,
+  US_STATE_QIDS,
+  COUNTRY_QIDS,
+} from './qid-mappings';
 
 export class WikidataSPARQLService {
   private endpoint = 'https://query.wikidata.org/sparql';
   
+  // L1 Cache: In-memory (fast, clears on restart)
+  private memoryCache: Map<string, string> = new Map();
+  
   /**
-   * Validate that a QID exists in Wikidata
-   * MOCKING API CALLS: Simulated validation for development
+   * Find QID for a city (hybrid: L1 → L2 → L3 → L4)
    */
-  async validateQID(qid: string): Promise<boolean> {
-    console.log(`[MOCK] Validating QID: ${qid}`);
+  async findCityQID(
+    cityName: string,
+    state?: string,
+    countryQID: string = 'Q30'
+  ): Promise<string | null> {
+    const key = state
+      ? `${cityName}, ${state}`
+      : cityName;
+    const normalizedKey = this.normalizeKey(key);
     
-    // MOCK: Simulate validation delay
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    // MOCK: Common QIDs always validate
-    const commonQIDs = ['Q4830453', 'Q515', 'Q30', 'Q11862829'];
-    if (commonQIDs.includes(qid)) {
-      return true;
+    // L1: Memory cache (< 1ms)
+    const cacheKey = `city:${normalizedKey}`;
+    if (this.memoryCache.has(cacheKey)) {
+      return this.memoryCache.get(cacheKey)!;
     }
     
-    // MOCK: QIDs matching pattern Qnnnnnnn validate
-    return /^Q\d{7}$/.test(qid);
+    // L2: Database cache (5-20ms)
+    const dbResult = await this.getCachedQID('city', normalizedKey);
+    if (dbResult) {
+      this.memoryCache.set(cacheKey, dbResult);
+      return dbResult;
+    }
     
-    /* PRODUCTION CODE:
+    // L3: Local mapping (< 1ms)
+    if (US_CITY_QIDS[normalizedKey]) {
+      const qid = US_CITY_QIDS[normalizedKey];
+      await this.setCachedQID('city', normalizedKey, qid, 'local_mapping');
+      this.memoryCache.set(cacheKey, qid);
+      console.log(`✓ Local city QID: ${key} → ${qid}`);
+      return qid;
+    }
     
-    const query = `ASK { wd:${qid} ?p ?o }`;
+    // L4: SPARQL lookup (200-500ms)
+    console.log(`⏳ SPARQL lookup for city: ${key}`);
+    const qid = await this.sparqlCityLookup(cityName, countryQID);
     
-    const response = await this.executeQuery(query);
-    return response.boolean;
-    */
+    if (qid) {
+      await this.setCachedQID('city', normalizedKey, qid, 'sparql');
+      this.memoryCache.set(cacheKey, qid);
+      console.log(`✓ SPARQL found: ${key} → ${qid}`);
+    } else {
+      console.warn(`✗ No QID found for city: ${key}`);
+    }
+    
+    return qid;
   }
   
   /**
-   * Find QID for a city by name and country
+   * Find QID for industry (hybrid: L1 → L2 → L3 → L4)
    */
-  async findCityQID(cityName: string, countryQID: string = 'Q30'): Promise<string | null> {
-    console.log(`[MOCK] Finding QID for city: ${cityName} in country ${countryQID}`);
+  async findIndustryQID(industryName: string): Promise<string | null> {
+    const normalizedKey = this.normalizeKey(industryName);
     
-    // MOCK: Simulate lookup delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // L1: Memory cache
+    const cacheKey = `industry:${normalizedKey}`;
+    if (this.memoryCache.has(cacheKey)) {
+      return this.memoryCache.get(cacheKey)!;
+    }
     
-    // MOCK: Return common city QIDs
-    const cityMappings: Record<string, string> = {
-      'san francisco': 'Q62',
-      'new york': 'Q60',
-      'los angeles': 'Q65',
-      'chicago': 'Q1297',
-      'seattle': 'Q5083',
-    };
+    // L2: Database cache
+    const dbResult = await this.getCachedQID('industry', normalizedKey);
+    if (dbResult) {
+      this.memoryCache.set(cacheKey, dbResult);
+      return dbResult;
+    }
     
-    const normalized = cityName.toLowerCase();
-    return cityMappings[normalized] || null;
+    // L3: Local mapping
+    if (INDUSTRY_QIDS[normalizedKey]) {
+      const qid = INDUSTRY_QIDS[normalizedKey];
+      await this.setCachedQID('industry', normalizedKey, qid, 'local_mapping');
+      this.memoryCache.set(cacheKey, qid);
+      console.log(`✓ Local industry QID: ${industryName} → ${qid}`);
+      return qid;
+    }
     
-    /* PRODUCTION CODE:
+    // L4: SPARQL lookup
+    console.log(`⏳ SPARQL lookup for industry: ${industryName}`);
+    const qid = await this.sparqlIndustryLookup(industryName);
     
+    if (qid) {
+      await this.setCachedQID('industry', normalizedKey, qid, 'sparql');
+      this.memoryCache.set(cacheKey, qid);
+      console.log(`✓ SPARQL found: ${industryName} → ${qid}`);
+    } else {
+      console.warn(`✗ No QID found for industry: ${industryName}`);
+    }
+    
+    return qid;
+  }
+  
+  /**
+   * Find QID for legal form (local mapping only - 100% coverage)
+   */
+  async findLegalFormQID(legalForm: string): Promise<string | null> {
+    const normalizedKey = this.normalizeKey(legalForm);
+    
+    // L1: Memory cache
+    const cacheKey = `legal_form:${normalizedKey}`;
+    if (this.memoryCache.has(cacheKey)) {
+      return this.memoryCache.get(cacheKey)!;
+    }
+    
+    // L2: Database cache
+    const dbResult = await this.getCachedQID('legal_form', normalizedKey);
+    if (dbResult) {
+      this.memoryCache.set(cacheKey, dbResult);
+      return dbResult;
+    }
+    
+    // L3: Local mapping (complete coverage)
+    const qid = LEGAL_FORM_QIDS[normalizedKey];
+    
+    if (qid) {
+      await this.setCachedQID('legal_form', normalizedKey, qid, 'local_mapping');
+      this.memoryCache.set(cacheKey, qid);
+      console.log(`✓ Legal form QID: ${legalForm} → ${qid}`);
+      return qid;
+    }
+    
+    console.warn(`✗ Unknown legal form: ${legalForm}`);
+    return null;
+  }
+  
+  /**
+   * Validate that a QID exists in Wikidata
+   */
+  async validateQID(qid: string): Promise<boolean> {
+    const query = `ASK { wd:${qid} ?p ?o }`;
+    
+    try {
+      const response = await this.executeQuery(query);
+      return response.boolean || false;
+    } catch (error) {
+      console.error('QID validation error:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Get cached QID from database (L2)
+   */
+  private async getCachedQID(
+    entityType: string,
+    searchKey: string
+  ): Promise<string | null> {
+    try {
+      const result = await db
+        .select({ qid: qidCache.qid })
+        .from(qidCache)
+        .where(
+          and(
+            eq(qidCache.entityType, entityType),
+            eq(qidCache.searchKey, searchKey)
+          )
+        )
+        .limit(1);
+      
+      if (result.length > 0) {
+        // Update query count and timestamp
+        await db
+          .update(qidCache)
+          .set({
+            queryCount: sql`${qidCache.queryCount} + 1`,
+            lastQueriedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(qidCache.entityType, entityType),
+              eq(qidCache.searchKey, searchKey)
+            )
+          );
+        
+        console.log(`✓ DB cache hit: ${entityType}:${searchKey} → ${result[0].qid}`);
+        return result[0].qid;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Database cache lookup error:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Save QID to database cache (L2)
+   */
+  private async setCachedQID(
+    entityType: string,
+    searchKey: string,
+    qid: string,
+    source: 'local_mapping' | 'sparql' | 'manual'
+  ): Promise<void> {
+    try {
+      await db
+        .insert(qidCache)
+        .values({
+          entityType,
+          searchKey,
+          qid,
+          source,
+          queryCount: 1,
+          lastQueriedAt: new Date(),
+          validatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [qidCache.entityType, qidCache.searchKey],
+          set: {
+            qid,
+            source,
+            queryCount: sql`${qidCache.queryCount} + 1`,
+            lastQueriedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+      
+      console.log(`✓ Cached: ${entityType}:${searchKey} → ${qid} (${source})`);
+    } catch (error) {
+      console.error('Database cache save error:', error);
+    }
+  }
+  
+  /**
+   * SPARQL city lookup (production)
+   */
+  private async sparqlCityLookup(
+    cityName: string,
+    countryQID: string
+  ): Promise<string | null> {
     const query = `
       SELECT ?city WHERE {
         ?city rdfs:label "${cityName}"@en .
@@ -63,57 +258,56 @@ export class WikidataSPARQLService {
       LIMIT 1
     `;
     
-    const response = await this.executeQuery(query);
-    
-    if (response.results.bindings.length > 0) {
-      const uri = response.results.bindings[0].city.value;
-      return uri.split('/').pop() || null;
+    try {
+      const response = await this.executeQuery(query);
+      
+      if (response.results.bindings.length > 0) {
+        const uri = response.results.bindings[0].city.value;
+        return uri.split('/').pop() || null;
+      }
+    } catch (error) {
+      console.error('SPARQL city lookup error:', error);
     }
     
     return null;
-    */
   }
   
   /**
-   * Find QID for an industry/category
+   * SPARQL industry lookup (production)
    */
-  async findIndustryQID(industryName: string): Promise<string | null> {
-    console.log(`[MOCK] Finding QID for industry: ${industryName}`);
+  private async sparqlIndustryLookup(industryName: string): Promise<string | null> {
+    const query = `
+      SELECT ?industry WHERE {
+        ?industry rdfs:label "${industryName}"@en .
+        ?industry wdt:P31/wdt:P279* wd:Q268592 .
+      }
+      LIMIT 1
+    `;
     
-    // MOCK: Simulate lookup delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    try {
+      const response = await this.executeQuery(query);
+      
+      if (response.results.bindings.length > 0) {
+        const uri = response.results.bindings[0].industry.value;
+        return uri.split('/').pop() || null;
+      }
+    } catch (error) {
+      console.error('SPARQL industry lookup error:', error);
+    }
     
-    // MOCK: Return common industry QIDs
-    const industryMappings: Record<string, string> = {
-      restaurant: 'Q11862829',
-      retail: 'Q194353',
-      healthcare: 'Q31207',
-      'professional services': 'Q17489659',
-      technology: 'Q11016',
-    };
-    
-    const normalized = industryName.toLowerCase();
-    return industryMappings[normalized] || null;
+    return null;
   }
   
   /**
-   * Execute SPARQL query
+   * Execute SPARQL query (PRODUCTION)
    */
   private async executeQuery(query: string): Promise<any> {
-    // MOCK: Return empty result for development
-    return {
-      results: {
-        bindings: [],
-      },
-    };
-    
-    /* PRODUCTION CODE:
-    
     const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/sparql-query',
         'Accept': 'application/json',
+        'User-Agent': 'GEMflush/1.0 (https://gemflush.com)',
       },
       body: query,
     });
@@ -123,9 +317,18 @@ export class WikidataSPARQLService {
     }
     
     return await response.json();
-    */
+  }
+  
+  /**
+   * Normalize keys for consistent lookup
+   */
+  private normalizeKey(key: string): string {
+    return key
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9,\s-]/g, '')
+      .replace(/\s+/g, ' ');
   }
 }
 
 export const sparqlService = new WikidataSPARQLService();
-

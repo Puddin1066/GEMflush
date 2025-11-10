@@ -273,23 +273,13 @@ async function resolveIndustryQID(industry: string): Promise<string | null> {
 }
 
 async function resolveLegalFormQID(form: string): Promise<string | null> {
-  // Map common legal forms to QIDs
-  const mapping: Record<string, string> = {
-    'LLC': 'Q1269299',
-    'Limited Liability Company': 'Q1269299',
-    'Corporation': 'Q167037',
-    'Public Company': 'Q891723',
-    'Private Company': 'Q380085',
-    'Partnership': 'Q167395',
-    'Sole Proprietorship': 'Q849495',
-  };
-  
-  return mapping[form] || null;
+  // Use comprehensive local mapping via SPARQL service
+  return await sparqlService.findLegalFormQID(form);
 }
 
-async function resolveCityQID(city: string): Promise<string | null> {
-  // Use existing SPARQL service
-  return await sparqlService.findCityQID(city);
+async function resolveCityQID(city: string, state?: string): Promise<string | null> {
+  // Use hybrid SPARQL service with state context for better accuracy
+  return await sparqlService.findCityQID(city, state);
 }
 
 async function resolveOrganizationQID(org: string): Promise<string | null> {
