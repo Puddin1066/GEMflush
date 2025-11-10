@@ -129,6 +129,7 @@ export class NotabilityChecker {
   
   /**
    * Find references using Google Custom Search API
+   * Uses multiple search strategies to find all relevant references
    * Follows Interface Segregation Principle: Focused on search only
    */
   private async findReferences(
@@ -136,11 +137,6 @@ export class NotabilityChecker {
     location?: { city: string; state: string; country?: string }
   ): Promise<Reference[]> {
     try {
-      // Build search query
-      const query = location 
-        ? `"${name}" ${location.city} ${location.state}`
-        : `"${name}"`;
-      
       // Validate API credentials
       const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
       const engineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
@@ -150,12 +146,76 @@ export class NotabilityChecker {
         return [];
       }
       
-      // Call Google Custom Search API
+      const allReferences: Reference[] = [];
+      const seenUrls = new Set<string>();
+      
+      // Strategy 1: Exact business name
+      const exactQuery = location 
+        ? `"${name}" ${location.city} ${location.state}`
+        : `"${name}"`;
+      
+      const exactResults = await this.searchGoogle(apiKey, engineId, exactQuery, 10);
+      for (const ref of exactResults) {
+        if (!seenUrls.has(ref.url)) {
+          allReferences.push(ref);
+          seenUrls.add(ref.url);
+        }
+      }
+      
+      // Strategy 2: Name variations (remove Inc, LLC, etc)
+      const nameVariations = this.generateNameVariations(name);
+      for (const variant of nameVariations.slice(0, 1)) { // Try top variation
+        if (this.dailyQueries >= this.DAILY_LIMIT) break;
+        
+        const variantQuery = location
+          ? `"${variant}" ${location.city} ${location.state}`
+          : `"${variant}"`;
+        
+        const variantResults = await this.searchGoogle(apiKey, engineId, variantQuery, 5);
+        for (const ref of variantResults) {
+          if (!seenUrls.has(ref.url)) {
+            allReferences.push(ref);
+            seenUrls.add(ref.url);
+          }
+        }
+      }
+      
+      // Strategy 3: Government/News sources (site-specific)
+      if (this.dailyQueries < this.DAILY_LIMIT) {
+        const officialQuery = `"${name}" OR "${nameVariations[0]}" site:*.gov OR site:*.edu`;
+        const officialResults = await this.searchGoogle(apiKey, engineId, officialQuery, 5);
+        for (const ref of officialResults) {
+          if (!seenUrls.has(ref.url)) {
+            allReferences.push(ref);
+            seenUrls.add(ref.url);
+          }
+        }
+      }
+      
+      // Return top 15 unique references
+      return allReferences.slice(0, 15);
+    } catch (error) {
+      console.error('Error finding references:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Execute Google Custom Search query
+   * Separated for DRY principle
+   */
+  private async searchGoogle(
+    apiKey: string,
+    engineId: string,
+    query: string,
+    numResults: number
+  ): Promise<Reference[]> {
+    try {
       const response = await this.customSearch.cse.list({
         auth: apiKey,
         cx: engineId,
         q: query,
-        num: 10, // Top 10 results
+        num: numResults,
       });
       
       this.dailyQueries++;
@@ -178,6 +238,30 @@ export class NotabilityChecker {
       console.error('Google Search API error:', error);
       return [];
     }
+  }
+  
+  /**
+   * Generate name variations to improve search coverage
+   * Removes legal suffixes to find alternate references
+   */
+  private generateNameVariations(name: string): string[] {
+    const variations: string[] = [];
+    
+    // Remove common legal suffixes
+    const suffixes = [', Inc.', ' Inc.', ', Inc', ' Inc', ', LLC', ' LLC', ', Ltd.', ' Ltd.', ' Corporation', ' Corp.', ' Corp'];
+    
+    for (const suffix of suffixes) {
+      if (name.includes(suffix)) {
+        variations.push(name.replace(suffix, '').trim());
+      }
+    }
+    
+    // Add original if no variations found
+    if (variations.length === 0) {
+      variations.push(name);
+    }
+    
+    return variations;
   }
   
   /**
