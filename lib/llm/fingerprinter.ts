@@ -15,58 +15,164 @@ export class LLMFingerprinter {
   
   /**
    * Run full fingerprint analysis for a business
+   * 
+   * @param business - Business to fingerprint
+   * @param options - Execution options
+   *   - parallel: Run all queries in parallel (default: true, ~3-5s)
+   *   - batchSize: Number of concurrent requests (default: 15, no batching)
+   *   - sequential: Run queries one-by-one (legacy mode, ~45-60s)
    */
-  async fingerprint(business: Business): Promise<FingerprintAnalysis> {
+  async fingerprint(
+    business: Business, 
+    options: { parallel?: boolean; batchSize?: number } = {}
+  ): Promise<FingerprintAnalysis> {
+    const { parallel = true, batchSize = 15 } = options;
+    
     console.log(`Starting LLM fingerprint for business: ${business.name}`);
+    console.log(`Mode: ${parallel ? 'Parallel' : 'Sequential'}, Batch size: ${batchSize}`);
     
     // Generate prompts
     const prompts = this.generatePrompts(business);
     
-    // Query all LLMs with all prompt types
-    const llmResults: LLMResult[] = [];
+    // Build all query tasks
+    const queryTasks = this.models.flatMap(model =>
+      Object.entries(prompts).map(([promptType, prompt]) => ({
+        model,
+        promptType,
+        prompt,
+      }))
+    );
     
-    for (const model of this.models) {
-      for (const [promptType, prompt] of Object.entries(prompts)) {
-        try {
-          const response = await openRouterClient.query(model, prompt);
-          
-          const analysis = this.analyzeResponse(
-            response.content,
-            business.name,
-            promptType
-          );
-          
-          llmResults.push({
-            model,
-            promptType,
-            mentioned: analysis.mentioned,
-            sentiment: analysis.sentiment,
-            accuracy: analysis.accuracy,
-            rankPosition: analysis.rankPosition,
-            rawResponse: response.content,
-            tokensUsed: response.tokensUsed,
-          });
-        } catch (error) {
-          console.error(`Error querying ${model}:`, error);
-          // Add failed result
-          llmResults.push({
-            model,
-            promptType,
-            mentioned: false,
-            sentiment: 'neutral',
-            accuracy: 0,
-            rankPosition: null,
-            rawResponse: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            tokensUsed: 0,
-          });
-        }
-      }
+    console.log(`Total queries: ${queryTasks.length} (${this.models.length} models × ${Object.keys(prompts).length} prompts)`);
+    
+    let llmResults: LLMResult[];
+    
+    if (parallel) {
+      // Parallel execution with optional batching
+      llmResults = await this.executeParallel(queryTasks, business.name, batchSize);
+    } else {
+      // Sequential execution (legacy mode)
+      llmResults = await this.executeSequential(queryTasks, business.name);
     }
     
     // Calculate overall metrics
     const analysis = this.calculateMetrics(llmResults, business);
     
     return analysis;
+  }
+  
+  /**
+   * Execute queries in parallel with optional batching
+   */
+  private async executeParallel(
+    tasks: Array<{ model: string; promptType: string; prompt: string }>,
+    businessName: string,
+    batchSize: number
+  ): Promise<LLMResult[]> {
+    const startTime = Date.now();
+    
+    if (batchSize >= tasks.length) {
+      // No batching - all at once
+      console.log(`Executing all ${tasks.length} queries in parallel...`);
+      const results = await Promise.allSettled(
+        tasks.map(task => this.executeQuery(task, businessName))
+      );
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`✓ Completed in ${duration}s`);
+      
+      return results.map(result =>
+        result.status === 'fulfilled' ? result.value : result.value
+      );
+    } else {
+      // Batched execution
+      console.log(`Executing ${tasks.length} queries in batches of ${batchSize}...`);
+      const results: LLMResult[] = [];
+      
+      for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, i + batchSize);
+        console.log(`  Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(tasks.length / batchSize)}: ${batch.length} queries`);
+        
+        const batchResults = await Promise.allSettled(
+          batch.map(task => this.executeQuery(task, businessName))
+        );
+        
+        results.push(
+          ...batchResults.map(result =>
+            result.status === 'fulfilled' ? result.value : result.value
+          )
+        );
+      }
+      
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+      console.log(`✓ Completed in ${duration}s`);
+      
+      return results;
+    }
+  }
+  
+  /**
+   * Execute queries sequentially (legacy mode)
+   */
+  private async executeSequential(
+    tasks: Array<{ model: string; promptType: string; prompt: string }>,
+    businessName: string
+  ): Promise<LLMResult[]> {
+    const startTime = Date.now();
+    console.log(`Executing ${tasks.length} queries sequentially...`);
+    
+    const results: LLMResult[] = [];
+    
+    for (const task of tasks) {
+      const result = await this.executeQuery(task, businessName);
+      results.push(result);
+    }
+    
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`✓ Completed in ${duration}s`);
+    
+    return results;
+  }
+  
+  /**
+   * Execute a single query with error handling
+   */
+  private async executeQuery(
+    task: { model: string; promptType: string; prompt: string },
+    businessName: string
+  ): Promise<LLMResult> {
+    try {
+      const response = await openRouterClient.query(task.model, task.prompt);
+      
+      const analysis = this.analyzeResponse(
+        response.content,
+        businessName,
+        task.promptType
+      );
+      
+      return {
+        model: task.model,
+        promptType: task.promptType,
+        mentioned: analysis.mentioned,
+        sentiment: analysis.sentiment,
+        accuracy: analysis.accuracy,
+        rankPosition: analysis.rankPosition,
+        rawResponse: response.content,
+        tokensUsed: response.tokensUsed,
+      };
+    } catch (error) {
+      console.error(`Error querying ${task.model} (${task.promptType}):`, error);
+      return {
+        model: task.model,
+        promptType: task.promptType,
+        mentioned: false,
+        sentiment: 'neutral',
+        accuracy: 0,
+        rankPosition: null,
+        rawResponse: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        tokensUsed: 0,
+      };
+    }
   }
   
   /**
