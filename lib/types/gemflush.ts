@@ -27,6 +27,30 @@ export interface CrawledData {
   categories?: string[];
   services?: string[];
   imageUrl?: string;
+  // Rich business details
+  businessDetails?: {
+    industry?: string;
+    sector?: string;
+    businessType?: string;
+    legalForm?: string;
+    founded?: string;
+    dissolved?: string;
+    employeeCount?: number | string;
+    revenue?: string;
+    locations?: number;
+    products?: string[];
+    services?: string[];
+    brands?: string[];
+    parentCompany?: string;
+    subsidiaries?: string[];
+    partnerships?: string[];
+    awards?: string[];
+    certifications?: string[];
+    targetMarket?: string;
+    headquarters?: string;
+    ceo?: string;
+    stockSymbol?: string;
+  };
   // LLM-enhanced extraction
   llmEnhanced?: {
     extractedEntities: string[];

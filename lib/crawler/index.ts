@@ -2,6 +2,7 @@
 
 import * as cheerio from 'cheerio';
 import { CrawledData, CrawlResult } from '@/lib/types/gemflush';
+import { openRouterClient } from '@/lib/llm/openrouter';
 
 // MOCKING API CALLS: This is a simulated crawler for development
 // In production, implement actual HTTP fetching and parsing
@@ -91,7 +92,7 @@ export class WebCrawler {
   private async extractData($: cheerio.CheerioAPI, url: string): Promise<CrawledData> {
     const data: CrawledData = {};
     
-    // Extract structured data (JSON-LD)
+    // PASS 1: Extract structured data (JSON-LD)
     const structuredData = this.extractJSONLD($);
     if (structuredData) {
       data.structuredData = structuredData;
@@ -125,7 +126,13 @@ export class WebCrawler {
     data.categories = this.extractCategories($);
     data.services = this.extractServices($);
     
-    return data;
+    // PASS 2: LLM-enhanced extraction
+    const llmEnhancement = await this.enhanceWithLLM($, data, url);
+    
+    return {
+      ...data,
+      ...llmEnhancement,
+    };
   }
   
   private extractJSONLD($: cheerio.CheerioAPI): Record<string, unknown> | null {
@@ -244,6 +251,173 @@ export class WebCrawler {
     } catch {
       return url;
     }
+  }
+  
+  /**
+   * LLM-enhanced extraction
+   * Extracts rich business data that regex/selectors can't find
+   * Follows Single Responsibility Principle: Only handles LLM extraction
+   */
+  private async enhanceWithLLM(
+    $: cheerio.CheerioAPI,
+    basicData: Partial<CrawledData>,
+    url: string
+  ): Promise<Partial<CrawledData>> {
+    try {
+      // Extract clean text content
+      const textContent = this.extractCleanText($);
+      
+      // Build comprehensive extraction prompt
+      const prompt = this.buildExtractionPrompt(basicData, textContent, url);
+      
+      // Query LLM
+      const response = await openRouterClient.query('openai/gpt-4-turbo', prompt);
+      
+      // Parse structured response
+      const extracted = JSON.parse(response.content);
+      
+      // Validate and return
+      return this.validateExtraction(extracted);
+      
+    } catch (error) {
+      console.error('LLM extraction error:', error);
+      // Return empty on failure - basic data still available
+      return {};
+    }
+  }
+  
+  /**
+   * Extract clean text from HTML (remove noise)
+   * Follows DRY principle: Centralized text extraction
+   */
+  private extractCleanText($: cheerio.CheerioAPI): string {
+    // Remove scripts, styles, navigation
+    $('script, style, nav, header, footer').remove();
+    
+    // Get main content (try common selectors)
+    const mainContent = $('main, article, .content, #content, .main')
+      .first()
+      .text();
+    
+    if (mainContent) {
+      return this.cleanText(mainContent);
+    }
+    
+    // Fallback: get body text
+    return this.cleanText($('body').text());
+  }
+  
+  /**
+   * Clean and normalize text
+   */
+  private cleanText(text: string): string {
+    return text
+      .replace(/\s+/g, ' ')           // Normalize whitespace
+      .replace(/[^\x20-\x7E\n]/g, '') // Remove non-ASCII
+      .trim();
+  }
+  
+  /**
+   * Build comprehensive extraction prompt
+   * Follows Interface Segregation: Returns only what UI needs
+   */
+  private buildExtractionPrompt(
+    basicData: Partial<CrawledData>,
+    textContent: string,
+    url: string
+  ): string {
+    return `
+You are a business intelligence extraction system. Analyze this website and extract ALL available information.
+
+URL: ${url}
+
+Basic Info Already Extracted:
+- Name: ${basicData.name || 'Unknown'}
+- Description: ${basicData.description || 'None'}
+- Phone: ${basicData.phone || 'None'}
+- Email: ${basicData.email || 'None'}
+
+Website Content (first 4000 chars):
+${textContent.substring(0, 4000)}
+
+Extract the following (use null if not found, DO NOT GUESS):
+
+CRITICAL RULES:
+- Only include information explicitly stated on the website
+- Use null for any field where information is not found
+- DO NOT make assumptions or inferences
+- For dates, prefer "YYYY" format unless full date is clear
+- Be conservative - it's better to return null than incorrect data
+
+Return ONLY valid JSON (no markdown, no explanations):
+{
+  "businessDetails": {
+    "industry": string | null,
+    "sector": string | null,
+    "legalForm": string | null,
+    "founded": string | null,
+    "employeeCount": string | number | null,
+    "revenue": string | null,
+    "locations": number | null,
+    "products": string[] | null,
+    "services": string[] | null,
+    "parentCompany": string | null,
+    "ceo": string | null,
+    "awards": string[] | null,
+    "certifications": string[] | null,
+    "stockSymbol": string | null
+  },
+  "llmEnhanced": {
+    "extractedEntities": string[],
+    "businessCategory": string,
+    "serviceOfferings": string[],
+    "targetAudience": string,
+    "keyDifferentiators": string[],
+    "confidence": number
+  }
+}
+    `.trim();
+  }
+  
+  /**
+   * Validate LLM extraction results
+   * Follows Dependency Inversion: Validates against business rules
+   */
+  private validateExtraction(extracted: any): Partial<CrawledData> {
+    if (!extracted || typeof extracted !== 'object') {
+      return {};
+    }
+    
+    // Validate employee count format
+    if (extracted.businessDetails?.employeeCount) {
+      const count = extracted.businessDetails.employeeCount;
+      if (typeof count === 'string' && !/^\d+(-\d+)?(\+)?$/.test(count)) {
+        extracted.businessDetails.employeeCount = null;
+      }
+    }
+    
+    // Validate founded year format
+    if (extracted.businessDetails?.founded) {
+      if (!/^\d{4}(-\d{2}-\d{2})?$/.test(extracted.businessDetails.founded)) {
+        extracted.businessDetails.founded = null;
+      }
+    }
+    
+    // Validate confidence score
+    if (extracted.llmEnhanced?.confidence) {
+      const conf = extracted.llmEnhanced.confidence;
+      if (conf < 0 || conf > 1) {
+        extracted.llmEnhanced.confidence = 0.5;
+      }
+    }
+    
+    // Add processedAt timestamp
+    if (extracted.llmEnhanced) {
+      extracted.llmEnhanced.processedAt = new Date();
+      extracted.llmEnhanced.model = 'openai/gpt-4-turbo';
+    }
+    
+    return extracted;
   }
 }
 

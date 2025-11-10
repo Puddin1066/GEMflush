@@ -43,8 +43,8 @@ export async function getWikidataPublishDTO(
     throw new Error(`Business not found: ${businessId}`);
   }
   
-  // Build Wikidata entity
-  const fullEntity = entityBuilder.buildEntity(business, business.crawlData);
+  // Build Wikidata entity (now async due to LLM enhancements)
+  const fullEntity = await entityBuilder.buildEntity(business, business.crawlData);
   
   // Check notability with Google Search + LLM
   const notabilityResult = await notabilityChecker.checkNotability(
