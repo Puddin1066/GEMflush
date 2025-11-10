@@ -52,34 +52,34 @@ describe('WikidataEntityBuilder', () => {
       expect(entity.labels.en.language).toBe('en');
     });
 
-    it.skip('should fallback to business name if no crawled name', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness);
+    it('should fallback to business name if no crawled name', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness);
 
       expect(entity.labels.en.value).toBe('Test Business');
     });
 
-    it.skip('should include description from crawled data', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include description from crawled data', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.descriptions.en.value).toBe('A test business for unit testing');
     });
 
-    it.skip('should truncate description to 250 characters', () => {
+    it('should truncate description to 250 characters', async () => {
       const longDescription = 'a'.repeat(300);
       const crawledData: CrawledData = {
         ...mockCrawledData,
         description: longDescription,
       };
 
-      const entity = entityBuilder.buildEntity(mockBusiness, crawledData);
+      const entity = await entityBuilder.buildEntity(mockBusiness, crawledData);
 
       expect(entity.descriptions.en.value.length).toBe(250);
     });
   });
 
   describe('claims (properties)', () => {
-    it.skip('should include P31 (instance of) claim', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include P31 (instance of) claim', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.claims.P31).toBeDefined();
       expect(entity.claims.P31[0].mainsnak.property).toBe('P31');
@@ -89,16 +89,16 @@ describe('WikidataEntityBuilder', () => {
       });
     });
 
-    it.skip('should include P856 (official website) claim', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include P856 (official website) claim', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.claims.P856).toBeDefined();
       expect(entity.claims.P856[0].mainsnak.property).toBe('P856');
       expect(entity.claims.P856[0].mainsnak.datavalue.value).toBe('https://testbusiness.com');
     });
 
-    it.skip('should include P625 (coordinates) when location has lat/lng', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include P625 (coordinates) when location has lat/lng', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.claims.P625).toBeDefined();
       expect(entity.claims.P625[0].mainsnak.property).toBe('P625');
@@ -110,7 +110,7 @@ describe('WikidataEntityBuilder', () => {
       });
     });
 
-    it.skip('should not include P625 when location missing coordinates', () => {
+    it('should not include P625 when location missing coordinates', async () => {
       const businessWithoutCoords: Business = {
         ...mockBusiness,
         location: {
@@ -120,34 +120,34 @@ describe('WikidataEntityBuilder', () => {
         },
       };
 
-      const entity = entityBuilder.buildEntity(businessWithoutCoords, mockCrawledData);
+      const entity = await entityBuilder.buildEntity(businessWithoutCoords, mockCrawledData);
 
       expect(entity.claims.P625).toBeUndefined();
     });
 
-    it.skip('should include P1448 (official name) claim', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include P1448 (official name) claim', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.claims.P1448).toBeDefined();
       expect(entity.claims.P1448[0].mainsnak.datavalue.value).toBe('Test Business Inc.');
     });
 
-    it.skip('should include P1329 (phone number) when available', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include P1329 (phone number) when available', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.claims.P1329).toBeDefined();
       expect(entity.claims.P1329[0].mainsnak.datavalue.value).toBe('+1-555-0123');
     });
 
-    it.skip('should include P6375 (street address) when available', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include P6375 (street address) when available', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       expect(entity.claims.P6375).toBeDefined();
       expect(entity.claims.P6375[0].mainsnak.datavalue.value).toBe('123 Main St');
     });
 
-    it.skip('should include references (P854) for claims', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should include references (P854) for claims', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
 
       const claimWithReference = entity.claims.P31[0];
       expect(claimWithReference.references).toBeDefined();
@@ -159,16 +159,16 @@ describe('WikidataEntityBuilder', () => {
   });
 
   describe('validateNotability', () => {
-    it.skip('should pass validation for valid entity', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should pass validation for valid entity', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
       const result = entityBuilder.validateNotability(entity);
 
       expect(result.isNotable).toBe(true);
       expect(result.reasons).toHaveLength(0);
     });
 
-    it.skip('should fail if no references provided', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should fail if no references provided', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
       // Remove all references
       Object.keys(entity.claims).forEach(pid => {
         entity.claims[pid].forEach(claim => {
@@ -182,8 +182,8 @@ describe('WikidataEntityBuilder', () => {
       expect(result.reasons).toContain('No references provided');
     });
 
-    it.skip('should fail if less than 3 properties', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should fail if less than 3 properties', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
       // Keep only 2 properties
       entity.claims = {
         P31: entity.claims.P31,
@@ -196,8 +196,8 @@ describe('WikidataEntityBuilder', () => {
       expect(result.reasons).toContain('Only 2 properties (minimum 3 required)');
     });
 
-    it.skip('should fail if missing P31 (instance of)', () => {
-      const entity = entityBuilder.buildEntity(mockBusiness, mockCrawledData);
+    it('should fail if missing P31 (instance of)', async () => {
+      const entity = await entityBuilder.buildEntity(mockBusiness, mockCrawledData);
       delete entity.claims.P31;
 
       const result = entityBuilder.validateNotability(entity);
