@@ -30,41 +30,43 @@ interface OpenRouterResponse {
 }
 
 export class OpenRouterClient {
-  private apiKey: string;
+  private apiKey: string | undefined;
   private endpoint = 'https://openrouter.ai/api/v1/chat/completions';
   
   constructor() {
-    this.apiKey = process.env.OPENROUTER_API_KEY || '';
-    
-    if (!this.apiKey) {
-      console.warn('[OpenRouter] API key not configured. Using mock responses.');
+    // Lazy load API key to ensure env vars are loaded first
+    this.apiKey = undefined;
+  }
+  
+  private getApiKey(): string {
+    if (this.apiKey === undefined) {
+      this.apiKey = process.env.OPENROUTER_API_KEY || '';
+      if (!this.apiKey) {
+        console.warn('[OpenRouter] API key not configured. Using mock responses.');
+      }
     }
+    return this.apiKey;
   }
   
   /**
    * Query an LLM via OpenRouter
-   * MOCKING API CALLS: Returns simulated responses for development
    */
   async query(model: string, prompt: string): Promise<{
     content: string;
     tokensUsed: number;
     model: string;
   }> {
-    // MOCK: Check if API key is configured
-    if (!this.apiKey) {
+    // Check if API key is configured
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      console.log('[OpenRouter] API key not configured. Using mock responses.');
       return this.getMockResponse(model, prompt);
     }
     
     try {
-      console.log(`[MOCK] Querying ${model} with prompt: ${prompt.substring(0, 50)}...`);
+      console.log(`[OpenRouter] Querying ${model}...`);
       
-      // MOCK: Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Return mock response for development
-      return this.getMockResponse(model, prompt);
-      
-      /* PRODUCTION CODE (commented out for development):
+      // PRODUCTION CODE:
       
       const request: OpenRouterRequest = {
         model,
@@ -75,15 +77,15 @@ export class OpenRouterClient {
           },
         ],
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 2000,
       };
       
       const response = await fetch(this.endpoint, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'https://gemflush.com',
+          'HTTP-Referer': process.env.BASE_URL || 'https://gemflush.com',
           'X-Title': 'GEMflush',
         },
         body: JSON.stringify(request),
@@ -97,13 +99,14 @@ export class OpenRouterClient {
       
       return {
         content: data.choices[0].message.content,
-        tokensUsed: data.usage.total_tokens,
+        tokensUsed: data.usage?.total_tokens || 0,
         model: data.model,
       };
-      */
+      
     } catch (error) {
       console.error('OpenRouter query error:', error);
-      throw error;
+      // Return mock response on error
+      return this.getMockResponse(model, prompt);
     }
   }
   

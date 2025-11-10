@@ -174,6 +174,7 @@ export class NotabilityChecker {
     businessName: string
   ): Promise<NotabilityAssessment> {
     const prompt = this.buildAssessmentPrompt(references, businessName);
+    let rawResponse = '';
     
     try {
       const response = await openRouterClient.query(
@@ -181,10 +182,23 @@ export class NotabilityChecker {
         prompt
       );
       
-      const assessment = JSON.parse(response.content) as NotabilityAssessment;
+      rawResponse = response.content;
+      
+      // Clean up markdown code blocks if present
+      let content = response.content.trim();
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (content.startsWith('```')) {
+        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      const assessment = JSON.parse(content) as NotabilityAssessment;
       return assessment;
     } catch (error) {
       console.error('LLM assessment error:', error);
+      if (rawResponse) {
+        console.error('Raw LLM response (first 500 chars):', rawResponse.substring(0, 500));
+      }
       return this.createFallbackAssessment(references);
     }
   }
