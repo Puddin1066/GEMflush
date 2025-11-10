@@ -137,12 +137,15 @@ export interface CompetitiveBenchmark {
 }
 
 export interface FingerprintAnalysis {
+  businessId: number;
+  businessName: string;
   visibilityScore: number;
   mentionRate: number;
   sentimentScore: number;
   accuracyScore: number;
   avgRankPosition: number | null;
   llmResults: LLMResult[];
+  generatedAt: Date;
   competitiveBenchmark?: CompetitiveBenchmark;
   // LLM-generated insights
   insights?: {

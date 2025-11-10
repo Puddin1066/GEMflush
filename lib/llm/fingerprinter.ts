@@ -5,12 +5,12 @@ import { FingerprintAnalysis, LLMResult } from '@/lib/types/gemflush';
 import { openRouterClient } from './openrouter';
 
 export class LLMFingerprinter {
+  // Models confirmed to work with OpenRouter API
+  // Note: Model availability depends on your OpenRouter API tier
   private models = [
     'openai/gpt-4-turbo',
     'anthropic/claude-3-opus',
-    'google/gemini-pro',
-    'meta-llama/llama-3-70b-instruct',
-    'perplexity/pplx-70b-online',
+    'openai/gpt-3.5-turbo',  // Faster, cheaper alternative
   ];
   
   /**
@@ -307,7 +307,7 @@ export class LLMFingerprinter {
     
     // Mention rate
     const mentionCount = llmResults.filter(r => r.mentioned).length;
-    const mentionRate = mentionCount / totalResults;
+    const mentionRate = (mentionCount / totalResults) * 100; // Percentage
     
     // Sentiment score
     const sentimentScores = {
@@ -333,19 +333,22 @@ export class LLMFingerprinter {
     
     // Calculate visibility score (0-100)
     const visibilityScore = Math.round(
-      (mentionRate * 40) +
-      (avgSentiment * 30) +
-      (avgAccuracy * 20) +
-      (avgRankPosition ? Math.max(0, (6 - avgRankPosition) / 5 * 10) : 5)
+      (mentionRate * 0.4) +           // 40% weight on mention rate
+      (avgSentiment * 30) +           // 30% weight on sentiment
+      (avgAccuracy * 20) +            // 20% weight on accuracy
+      (avgRankPosition ? Math.max(0, (6 - avgRankPosition) / 5 * 10) : 5) // 10% on ranking
     );
     
     return {
+      businessId: business.id,
+      businessName: business.name,
       visibilityScore,
       mentionRate,
       sentimentScore: avgSentiment,
       accuracyScore: avgAccuracy,
       avgRankPosition,
       llmResults,
+      generatedAt: new Date(),
     };
   }
 }
