@@ -188,8 +188,13 @@ export const llmFingerprints = pgTable('llm_fingerprints', {
     .notNull()
     .references(() => businesses.id),
   visibilityScore: integer('visibility_score').notNull(),
+  mentionRate: real('mention_rate'),
+  sentimentScore: real('sentiment_score'),
+  accuracyScore: real('accuracy_score'),
+  avgRankPosition: real('avg_rank_position'),
   llmResults: jsonb('llm_results'),
   competitiveBenchmark: jsonb('competitive_benchmark'),
+  competitiveLeaderboard: jsonb('competitive_leaderboard'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

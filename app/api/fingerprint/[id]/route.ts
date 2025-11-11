@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { fingerprints, businesses } from '@/lib/db/schema';
+import { llmFingerprints, businesses } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { toFingerprintDetailDTO } from '@/lib/data/fingerprint-dto';
 
@@ -37,8 +37,8 @@ export async function GET(
     // Get current fingerprint
     const [currentFingerprint] = await db
       .select()
-      .from(fingerprints)
-      .where(eq(fingerprints.id, fingerprintId))
+      .from(llmFingerprints)
+      .where(eq(llmFingerprints.id, fingerprintId))
       .limit(1);
 
     if (!currentFingerprint) {
@@ -68,17 +68,14 @@ export async function GET(
     }
 
     // Get previous fingerprint for trend calculation
-    const [previousFingerprint] = await db
+    const previousFingerprints = await db
       .select()
-      .from(fingerprints)
-      .where(
-        and(
-          eq(fingerprints.businessId, currentFingerprint.businessId),
-          eq(fingerprints.id, fingerprintId)
-        )
-      )
-      .orderBy(desc(fingerprints.createdAt))
+      .from(llmFingerprints)
+      .where(eq(llmFingerprints.businessId, currentFingerprint.businessId))
+      .orderBy(desc(llmFingerprints.createdAt))
       .limit(2);
+    
+    const previousFingerprint = previousFingerprints[1]; // Second most recent
 
     // Transform to DTO
     const dto = toFingerprintDetailDTO(

@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { businesses, fingerprints } from '@/lib/db/schema';
+import { businesses, llmFingerprints } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { llmFingerprinter } from '@/lib/llm/fingerprinter';
 import type { Business } from '@/lib/db/schema';
@@ -59,10 +59,10 @@ export async function POST(request: NextRequest) {
 
     // Save fingerprint to database
     const [savedFingerprint] = await db
-      .insert(fingerprints)
+      .insert(llmFingerprints)
       .values({
         businessId: business.id,
-        visibilityScore: analysis.visibilityScore,
+        visibilityScore: Math.round(analysis.visibilityScore),
         mentionRate: analysis.mentionRate,
         sentimentScore: analysis.sentimentScore,
         accuracyScore: analysis.accuracyScore,
