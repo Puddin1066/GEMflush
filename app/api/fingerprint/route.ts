@@ -1,23 +1,21 @@
-// LLM fingerprinting API route
+/**
+ * Fingerprint API Route
+ * Single Responsibility: Trigger new fingerprint analysis
+ * 
+ * POST /api/fingerprint - Creates new fingerprint job
+ */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
-import {
-  getBusinessById,
-  createFingerprint,
-  createCrawlJob,
-  updateCrawlJob,
-} from '@/lib/db/queries';
+import { getUser } from '@/lib/db/queries';
+import { db } from '@/lib/db/drizzle';
+import { businesses, fingerprints } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { llmFingerprinter } from '@/lib/llm/fingerprinter';
-// Job type/status constants removed - using string literals
-import { z } from 'zod';
-
-const fingerprintRequestSchema = z.object({
-  businessId: z.number().int().positive(),
-});
+import type { Business } from '@/lib/db/schema';
 
 export async function POST(request: NextRequest) {
   try {
+    // Authentication check
     const user = await getUser();
     if (!user) {
       return NextResponse.json(
@@ -26,120 +24,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const team = await getTeamForUser();
-    if (!team) {
-      return NextResponse.json(
-        { error: 'No team found' },
-        { status: 404 }
-      );
-    }
-
-    // Validate request
+    // Validate request body
     const body = await request.json();
-    const { businessId } = fingerprintRequestSchema.parse(body);
+    const { businessId } = body;
 
-    // Get business and verify ownership
-    const business = await getBusinessById(businessId);
-    if (!business) {
+    if (!businessId || typeof businessId !== 'number') {
       return NextResponse.json(
-        { error: 'Business not found' },
-        { status: 404 }
-      );
-    }
-
-    if (business.teamId !== team.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
-    }
-
-    // Create fingerprint job
-    const job = await createCrawlJob({
-      businessId,
-      jobType: 'fingerprint',
-      status: 'queued',
-      progress: 0,
-    });
-
-    // Execute fingerprint in background
-    executeFingerprintJob(job.id, businessId).catch(error => {
-      console.error('Background fingerprint error:', error);
-    });
-
-    return NextResponse.json({
-      jobId: job.id,
-      message: 'Fingerprint job started',
-      status: 'queued',
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Business ID required' },
         { status: 400 }
       );
     }
 
-    console.error('Error starting fingerprint:', error);
+    // Verify business ownership
+    const [business] = await db
+      .select()
+      .from(businesses)
+      .where(
+        and(
+          eq(businesses.id, businessId),
+          eq(businesses.teamId, user.teamId)
+        )
+      )
+      .limit(1);
+
+    if (!business) {
+      return NextResponse.json(
+        { error: 'Business not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+
+    // Run fingerprint analysis (async, but we wait for results)
+    const analysis = await llmFingerprinter.fingerprint(business as Business);
+
+    // Save fingerprint to database
+    const [savedFingerprint] = await db
+      .insert(fingerprints)
+      .values({
+        businessId: business.id,
+        visibilityScore: analysis.visibilityScore,
+        mentionRate: analysis.mentionRate,
+        sentimentScore: analysis.sentimentScore,
+        accuracyScore: analysis.accuracyScore,
+        avgRankPosition: analysis.avgRankPosition,
+        llmResults: analysis.llmResults as any,
+        competitiveLeaderboard: analysis.competitiveLeaderboard as any,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    return NextResponse.json({
+      success: true,
+      fingerprintId: savedFingerprint.id,
+      status: 'completed',
+    });
+  } catch (error) {
+    console.error('Error creating fingerprint:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to create fingerprint' },
       { status: 500 }
     );
   }
 }
-
-// Background fingerprint execution
-async function executeFingerprintJob(jobId: number, businessId: number) {
-  try {
-    // Update job status
-    await updateCrawlJob(jobId, {
-      status: 'processing',
-      progress: 10,
-    });
-
-    // Get business details
-    const business = await getBusinessById(businessId);
-    if (!business) {
-      throw new Error('Business not found');
-    }
-
-    // Execute fingerprint analysis
-    const analysis = await llmFingerprinter.fingerprint(business);
-
-    // Update progress
-    await updateCrawlJob(jobId, {
-      progress: 80,
-    });
-
-    // Save fingerprint results
-    const fingerprint = await createFingerprint({
-      businessId,
-      visibilityScore: analysis.visibilityScore,
-      llmResults: analysis.llmResults,
-      competitiveBenchmark: analysis.competitiveBenchmark,
-    });
-
-    // Update job as completed
-    await updateCrawlJob(jobId, {
-      status: 'completed',
-      progress: 100,
-      result: {
-        fingerprintId: fingerprint.id,
-        visibilityScore: analysis.visibilityScore,
-      },
-      completedAt: new Date(),
-    });
-
-    console.log(`Fingerprint completed for business ${businessId}: Score ${analysis.visibilityScore}`);
-  } catch (error) {
-    console.error('Fingerprint job execution error:', error);
-
-    // Update job as failed
-    await updateCrawlJob(jobId, {
-      status: 'failed',
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      completedAt: new Date(),
-    });
-  }
-}
-
