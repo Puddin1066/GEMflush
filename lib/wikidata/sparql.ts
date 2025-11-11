@@ -284,11 +284,11 @@ export class WikidataSPARQLService {
     `;
     
     try {
-      const response = await this.executeQuery(query);
-      
-      if (response.results.bindings.length > 0) {
-        const uri = response.results.bindings[0].city.value;
-        return uri.split('/').pop() || null;
+    const response = await this.executeQuery(query);
+    
+    if (response.results.bindings.length > 0) {
+      const uri = response.results.bindings[0].city.value;
+      return uri.split('/').pop() || null;
       }
     } catch (error) {
       console.error('SPARQL city lookup error:', error);

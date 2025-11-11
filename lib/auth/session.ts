@@ -3,6 +3,14 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NewUser } from '@/lib/db/schema';
 
+if (!process.env.AUTH_SECRET) {
+  throw new Error(
+    'AUTH_SECRET environment variable is not set. ' +
+    'Please set it in your Vercel project settings. ' +
+    'Generate a secret with: openssl rand -base64 32'
+  );
+}
+
 const key = new TextEncoder().encode(process.env.AUTH_SECRET);
 const SALT_ROUNDS = 10;
 
