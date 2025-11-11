@@ -71,7 +71,7 @@ async function demo() {
     console.log('\nProperties Generated:');
     Object.keys(entity.claims).forEach(pid => {
       const claim = entity.claims[pid][0];
-      const qid = claim.mainsnak.datavalue?.value?.id;
+      const qid = (claim.mainsnak.datavalue?.value as any)?.id;
       const stringVal = typeof claim.mainsnak.datavalue?.value === 'string' 
         ? claim.mainsnak.datavalue.value.substring(0, 40)
         : '';

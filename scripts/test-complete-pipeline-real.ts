@@ -87,7 +87,7 @@ async function runTest() {
     const checker = new NotabilityChecker();
     const notabilityResult = await checker.checkNotability(
       mockBusiness.name,
-      mockBusiness.location
+      mockBusiness.location || undefined
     );
     
     console.log(`\n${colors.cyan}Notability Result:${colors.reset}`);
@@ -145,9 +145,9 @@ async function runTest() {
     if (firstClaim.references && firstClaim.references.length > 0) {
       const ref = firstClaim.references[0];
       console.log(`\n${colors.cyan}Reference Structure (attached to each claim):${colors.reset}`);
-      console.log(`  P854 (URL): ${ref.snaks.P854?.[0]?.datavalue?.value || 'N/A'}`);
-      console.log(`  P1476 (Title): ${ref.snaks.P1476?.[0]?.datavalue?.value?.text || 'N/A'}`);
-      console.log(`  P813 (Retrieved): ${ref.snaks.P813?.[0]?.datavalue?.value?.time || 'N/A'}`);
+      console.log(`  P854 (URL): ${(ref.snaks.P854?.[0] as any)?.datavalue?.value || 'N/A'}`);
+      console.log(`  P1476 (Title): ${(ref.snaks.P1476?.[0] as any)?.datavalue?.value?.text || 'N/A'}`);
+      console.log(`  P813 (Retrieved): ${(ref.snaks.P813?.[0] as any)?.datavalue?.value?.time || 'N/A'}`);
     }
     
     if (entity.llmSuggestions) {

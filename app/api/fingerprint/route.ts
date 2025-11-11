@@ -39,18 +39,27 @@ export async function POST(request: NextRequest) {
     const [business] = await db
       .select()
       .from(businesses)
-      .where(
-        and(
-          eq(businesses.id, businessId),
-          eq(businesses.teamId, user.teamId)
-        )
-      )
+      .where(eq(businesses.id, businessId))
       .limit(1);
 
     if (!business) {
       return NextResponse.json(
-        { error: 'Business not found or unauthorized' },
+        { error: 'Business not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if user has access to this team's business
+    const userTeams = await db.query.teamMembers.findMany({
+      where: (teamMembers, { eq }) => eq(teamMembers.userId, user.id),
+    });
+
+    const hasAccess = userTeams.some(tm => tm.teamId === business.teamId);
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'Not authorized to access this business' },
+        { status: 403 }
       );
     }
 

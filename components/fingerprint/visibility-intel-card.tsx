@@ -75,6 +75,11 @@ export function VisibilityIntelCard({
     );
   }
 
+  // Null check already done above, but TypeScript needs explicit check
+  if (!fingerprint) {
+    return null;
+  }
+
   const sentiment = formatSentiment(fingerprint.summary.sentiment);
 
   return (

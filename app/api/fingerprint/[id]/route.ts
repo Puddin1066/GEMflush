@@ -14,7 +14,7 @@ import { toFingerprintDetailDTO } from '@/lib/data/fingerprint-dto';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentication check
@@ -26,7 +26,8 @@ export async function GET(
       );
     }
 
-    const fingerprintId = parseInt(params.id);
+    const { id } = await params;
+    const fingerprintId = parseInt(id);
     if (isNaN(fingerprintId)) {
       return NextResponse.json(
         { error: 'Invalid fingerprint ID' },
@@ -34,33 +35,35 @@ export async function GET(
       );
     }
 
-    // Get current fingerprint
-    const [currentFingerprint] = await db
-      .select()
+    // Get current fingerprint with business
+    const [result] = await db
+      .select({
+        fingerprint: llmFingerprints,
+        business: businesses,
+      })
       .from(llmFingerprints)
+      .innerJoin(businesses, eq(llmFingerprints.businessId, businesses.id))
       .where(eq(llmFingerprints.id, fingerprintId))
       .limit(1);
 
-    if (!currentFingerprint) {
+    if (!result) {
       return NextResponse.json(
         { error: 'Fingerprint not found' },
         { status: 404 }
       );
     }
 
-    // Verify ownership through business
-    const [business] = await db
-      .select()
-      .from(businesses)
-      .where(
-        and(
-          eq(businesses.id, currentFingerprint.businessId),
-          eq(businesses.teamId, user.teamId)
-        )
-      )
-      .limit(1);
+    const { fingerprint: currentFingerprint, business } = result;
 
-    if (!business) {
+    // Verify ownership - check if user has access to this team's business
+    // Note: User type doesn't have teamId, need to get it from teamMembers
+    const userTeams = await db.query.teamMembers.findMany({
+      where: (teamMembers, { eq }) => eq(teamMembers.userId, user.id),
+    });
+
+    const hasAccess = userTeams.some(tm => tm.teamId === business.teamId);
+
+    if (!hasAccess) {
       return NextResponse.json(
         { error: 'Not authorized to view this fingerprint' },
         { status: 403 }

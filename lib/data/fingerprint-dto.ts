@@ -141,7 +141,7 @@ function toCompetitiveLeaderboardDTO(
     marketPosition,
     mentionRate,
     competitiveGap,
-    topCompetitor?.name
+    topCompetitor?.name || null
   );
 
   return {

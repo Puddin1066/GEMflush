@@ -71,10 +71,10 @@ async function demo() {
     console.log(`Business: ${business.name}`);
     console.log(`Location: ${business.location?.city}, ${business.location?.state}`);
     console.log(`\nOverall Metrics:`);
-    console.log(`  Visibility Score: ${analysis.metrics.visibilityScore.toFixed(1)}%`);
-    console.log(`  Mention Rate: ${analysis.metrics.mentionRate.toFixed(1)}%`);
-    console.log(`  Avg Sentiment: ${analysis.metrics.avgSentiment}`);
-    console.log(`  Avg Accuracy: ${(analysis.metrics.avgAccuracy * 100).toFixed(1)}%`);
+    console.log(`  Visibility Score: ${analysis.visibilityScore.toFixed(1)}%`);
+    console.log(`  Mention Rate: ${analysis.mentionRate.toFixed(1)}%`);
+    console.log(`  Sentiment Score: ${analysis.sentimentScore.toFixed(1)}%`);
+    console.log(`  Accuracy: ${analysis.accuracyScore.toFixed(1)}%`);
     
     console.log(`\nPer-Model Breakdown:`);
     const modelStats = new Map<string, { mentions: number; total: number }>();

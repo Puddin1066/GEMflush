@@ -26,7 +26,7 @@ export function CompetitiveLeaderboard({
     rank: targetBusiness.rank || competitors.length + 1,
     name: targetBusiness.name,
     mentionCount: targetBusiness.mentionCount,
-    avgPosition: targetBusiness.avgPosition || 0,
+    avgPosition: targetBusiness.rank || 0, // Use rank as avgPosition
     appearsWithTarget: targetBusiness.mentionCount,
     marketShare: totalQueries > 0 ? (targetBusiness.mentionCount / totalQueries) * 100 : 0,
   };

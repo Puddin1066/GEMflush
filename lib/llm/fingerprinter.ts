@@ -81,9 +81,9 @@ export class LLMFingerprinter {
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`✓ Completed in ${duration}s`);
       
-      return results.map(result =>
-        result.status === 'fulfilled' ? result.value : result.value
-      );
+      return results
+        .filter(result => result.status === 'fulfilled')
+        .map(result => (result as PromiseFulfilledResult<LLMResult>).value);
     } else {
       // Batched execution
       console.log(`Executing ${tasks.length} queries in batches of ${batchSize}...`);
@@ -98,9 +98,9 @@ export class LLMFingerprinter {
         );
         
         results.push(
-          ...batchResults.map(result =>
-            result.status === 'fulfilled' ? result.value : result.value
-          )
+          ...batchResults
+            .filter(result => result.status === 'fulfilled')
+            .map(result => (result as PromiseFulfilledResult<LLMResult>).value)
         );
       }
       

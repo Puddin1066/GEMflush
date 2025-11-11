@@ -89,7 +89,7 @@ async function runTest() {
     const checker = new NotabilityChecker();
     const notabilityResult = await checker.checkNotability(
       mockBusiness.name,
-      mockBusiness.location
+      mockBusiness.location || undefined
     );
     
     console.log(`\n${colors.cyan}Notability Result:${colors.reset}`);

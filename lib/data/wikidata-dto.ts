@@ -44,12 +44,12 @@ export async function getWikidataPublishDTO(
   }
   
   // Build Wikidata entity (now async due to LLM enhancements)
-  const fullEntity = await entityBuilder.buildEntity(business, business.crawlData);
+  const fullEntity = await entityBuilder.buildEntity(business, business.crawlData as any);
   
   // Check notability with Google Search + LLM
   const notabilityResult = await notabilityChecker.checkNotability(
     business.name,
-    business.location
+    business.location || undefined
   );
   
   // Determine if can publish

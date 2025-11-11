@@ -14,12 +14,13 @@ import { ArrowLeft, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
 
 interface CompetitivePageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function CompetitivePage({ params }: CompetitivePageProps) {
+  const { id } = await params;
   // Authentication
   const user = await getUser();
   if (!user) {
@@ -31,7 +32,7 @@ export default async function CompetitivePage({ params }: CompetitivePageProps) 
     redirect('/sign-in');
   }
 
-  const businessId = parseInt(params.id);
+  const businessId = parseInt(id);
   if (isNaN(businessId)) {
     redirect('/dashboard');
   }

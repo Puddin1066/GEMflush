@@ -18,12 +18,13 @@ import Link from 'next/link';
 import { formatSentiment } from '@/lib/utils/format';
 
 interface FingerprintPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default async function FingerprintPage({ params }: FingerprintPageProps) {
+  const { id } = await params;
   // Authentication
   const user = await getUser();
   if (!user) {
@@ -35,7 +36,7 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
     redirect('/sign-in');
   }
 
-  const businessId = parseInt(params.id);
+  const businessId = parseInt(id);
   if (isNaN(businessId)) {
     redirect('/dashboard');
   }

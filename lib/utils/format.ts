@@ -3,7 +3,7 @@
  * Single source of truth for all formatting operations
  */
 
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 
 /**
  * Format a number as a percentage
