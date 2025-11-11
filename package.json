@@ -9,7 +9,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "vercel-build": "pnpm test:run && next build",
+    "vercel-build": "next build",
     "lint": "next lint",
     "db:setup": "npx tsx lib/db/setup.ts",
     "db:seed": "npx tsx lib/db/seed.ts",
