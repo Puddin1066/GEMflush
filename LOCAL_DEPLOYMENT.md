@@ -10,6 +10,13 @@ Your Next.js development server is now running locally with Turbopack!
 
 **Dashboard**: http://localhost:3000/dashboard
 
+### Test Credentials
+
+**Email**: `test@test.com`  
+**Password**: `admin123`
+
+*Note: These credentials are set in `lib/db/seed.ts`*
+
 ### Server Information
 
 - **Process ID**: Check with `ps aux | grep "next dev"`
