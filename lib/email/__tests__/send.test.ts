@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sendWelcomeEmail, sendPasswordResetEmail, sendSubscriptionEmail } from '../send';
+import {
+  sendEmail,
+  sendWelcomeEmail,
+  sendPasswordResetEmail,
+  sendSubscriptionEmail,
+  sendVisibilityReportEmail,
+} from '../send';
 import * as resendModule from '../resend';
 
 // Mock the Resend client
@@ -145,6 +151,103 @@ describe('Email Service', () => {
           subject: expect.stringContaining('Plan Has Been Updated'),
         })
       );
+    });
+  });
+
+  describe('sendVisibilityReportEmail', () => {
+    it('should send visibility report email with business details', async () => {
+      const mockSend = vi.spyOn(resendModule.resend.emails, 'send').mockResolvedValue({
+        data: { id: 'email-visibility' },
+        error: null,
+      });
+
+      await sendVisibilityReportEmail(
+        'user@example.com',
+        'Acme Corp',
+        78,
+        ['ChatGPT mentions you 8 times', 'Claude ranks you #2']
+      );
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'user@example.com',
+          subject: expect.stringMatching(/Acme Corp.*78\/100|78\/100.*Acme Corp/),
+        })
+      );
+    });
+
+    it('should handle empty insights array', async () => {
+      const mockSend = vi.spyOn(resendModule.resend.emails, 'send').mockResolvedValue({
+        data: { id: 'email-visibility' },
+        error: null,
+      });
+
+      await sendVisibilityReportEmail('user@example.com', 'Test Business', 50, []);
+
+      expect(mockSend).toHaveBeenCalled();
+    });
+  });
+
+  describe('sendEmail (base function)', () => {
+    it('should send email with correct parameters', async () => {
+      const mockSend = vi.spyOn(resendModule.resend.emails, 'send').mockResolvedValue({
+        data: { id: 'email-base' },
+        error: null,
+      });
+
+      const mockReact = { type: 'div', props: { children: 'Test Email' } };
+
+      const result = await sendEmail({
+        to: 'user@example.com',
+        subject: 'Test Subject',
+        react: mockReact as any,
+      });
+
+      expect(mockSend).toHaveBeenCalledWith({
+        from: 'GEMflush <noreply@gemflush.com>',
+        to: 'user@example.com',
+        subject: 'Test Subject',
+        react: mockReact,
+      });
+      expect(result).toMatchObject({ id: 'email-base' });
+    });
+
+    it('should support multiple recipients', async () => {
+      const mockSend = vi.spyOn(resendModule.resend.emails, 'send').mockResolvedValue({
+        data: { id: 'email-multi' },
+        error: null,
+      });
+
+      const mockReact = { type: 'div', props: { children: 'Test' } };
+
+      await sendEmail({
+        to: ['user1@example.com', 'user2@example.com'],
+        subject: 'Test Subject',
+        react: mockReact as any,
+      });
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: ['user1@example.com', 'user2@example.com'],
+        })
+      );
+    });
+
+    it('should throw error when Resend returns error', async () => {
+      const mockSend = vi.spyOn(resendModule.resend.emails, 'send').mockResolvedValue({
+        data: null,
+        error: { message: 'API Error', name: 'ApiError' },
+      });
+
+      const mockReact = { type: 'div', props: { children: 'Test' } };
+
+      await expect(
+        sendEmail({
+          to: 'user@example.com',
+          subject: 'Test',
+          react: mockReact as any,
+        })
+      ).rejects.toThrow('Email send failed: API Error');
     });
   });
 

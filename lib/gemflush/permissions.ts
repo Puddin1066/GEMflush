@@ -1,39 +1,44 @@
 // Permission utilities for GEMflush features
 
 import { Team } from '@/lib/db/schema';
-import { GEMFLUSH_PLANS, getPlanById } from './plans';
+import { getPlanById } from './plans';
+
+// Helper function to get plan for team (DRY principle)
+function getTeamPlan(team: Team) {
+  return getPlanById(team.planName || 'free');
+}
 
 export function canPublishToWikidata(team: Team): boolean {
-  const plan = getPlanById(team.planName || 'free');
+  const plan = getTeamPlan(team);
   return plan?.features.wikidataPublishing || false;
 }
 
 export function getMaxBusinesses(team: Team): number {
-  const plan = getPlanById(team.planName || 'free');
+  const plan = getTeamPlan(team);
   return plan?.features.maxBusinesses || 1;
 }
 
 export function canAccessHistoricalData(team: Team): boolean {
-  const plan = getPlanById(team.planName || 'free');
+  const plan = getTeamPlan(team);
   return plan?.features.historicalData || false;
 }
 
 export function canUseProgressiveEnrichment(team: Team): boolean {
-  const plan = getPlanById(team.planName || 'free');
+  const plan = getTeamPlan(team);
   return plan?.features.progressiveEnrichment || false;
 }
 
 export function canAccessAPI(team: Team): boolean {
-  const plan = getPlanById(team.planName || 'free');
+  const plan = getTeamPlan(team);
   return plan?.features.apiAccess || false;
 }
 
 export function getFingerprintFrequency(team: Team): 'monthly' | 'weekly' | 'daily' {
-  const plan = getPlanById(team.planName || 'free');
+  const plan = getTeamPlan(team);
   return plan?.features.fingerprintFrequency || 'monthly';
 }
 
-export async function canAddBusiness(businessCount: number, team: Team): Promise<boolean> {
+export function canAddBusiness(businessCount: number, team: Team): boolean {
   const maxBusinesses = getMaxBusinesses(team);
   return businessCount < maxBusinesses;
 }

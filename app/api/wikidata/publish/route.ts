@@ -10,13 +10,8 @@ import {
 import { canPublishToWikidata } from '@/lib/gemflush/permissions';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
 import { wikidataPublisher } from '@/lib/wikidata/publisher';
-// Business status constants removed - using string literals
+import { wikidataPublishRequestSchema } from '@/lib/validation/business';
 import { z } from 'zod';
-
-const publishRequestSchema = z.object({
-  businessId: z.number().int().positive(),
-  publishToProduction: z.boolean().optional().default(false),
-});
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Validate request
     const body = await request.json();
-    const { businessId, publishToProduction } = publishRequestSchema.parse(body);
+    const { businessId, publishToProduction } = wikidataPublishRequestSchema.parse(body);
 
     // Get business and verify ownership
     const business = await getBusinessById(businessId);

@@ -2,7 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
-import { getCrawlJob, getBusinessById } from '@/lib/db/queries';
+import { getCrawlJob } from '@/lib/db/queries';
+import { verifyBusinessOwnership } from '@/lib/auth/middleware';
 
 export async function GET(
   request: NextRequest,
@@ -42,9 +43,9 @@ export async function GET(
       );
     }
 
-    // Verify ownership
-    const business = await getBusinessById(job.businessId);
-    if (!business || business.teamId !== team.id) {
+    // Verify ownership (DRY principle)
+    const { authorized, business } = await verifyBusinessOwnership(job.businessId, team.id);
+    if (!authorized || !business) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }

@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user can add more businesses
     const currentCount = await getBusinessCountByTeam(team.id);
-    const canAdd = await canAddBusiness(currentCount, team);
+    const canAdd = canAddBusiness(currentCount, team);
 
     if (!canAdd) {
       return NextResponse.json(

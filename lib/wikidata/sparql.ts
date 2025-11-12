@@ -49,11 +49,7 @@ export class WikidataSPARQLService {
     // L3: Local mapping (< 1ms)
     if (US_CITY_QIDS[normalizedKey]) {
       const qid = US_CITY_QIDS[normalizedKey];
-      // Background save to DB (don't await - fire and forget)
-      this.setCachedQID('city', normalizedKey, qid, 'local_mapping').catch(err => 
-        console.error('Background cache save failed:', err)
-      );
-      this.memoryCache.set(cacheKey, qid);
+      this.cacheQID(cacheKey, qid, 'city', normalizedKey, 'local_mapping');
       console.log(`✓ Local city QID: ${key} → ${qid}`);
       return qid;
     }
@@ -68,11 +64,7 @@ export class WikidataSPARQLService {
     const qid = await this.sparqlCityLookup(cityName, countryQID);
     
     if (qid) {
-      // Background save to DB (don't await)
-      this.setCachedQID('city', normalizedKey, qid, 'sparql').catch(err =>
-        console.error('Background cache save failed:', err)
-      );
-      this.memoryCache.set(cacheKey, qid);
+      this.cacheQID(cacheKey, qid, 'city', normalizedKey, 'sparql');
       console.log(`✓ SPARQL found: ${key} → ${qid}`);
     } else {
       console.warn(`✗ No QID found for city: ${key}`);
@@ -104,11 +96,7 @@ export class WikidataSPARQLService {
     // L3: Local mapping
     if (INDUSTRY_QIDS[normalizedKey]) {
       const qid = INDUSTRY_QIDS[normalizedKey];
-      // Background save (fire and forget)
-      this.setCachedQID('industry', normalizedKey, qid, 'local_mapping').catch(err =>
-        console.error('Background cache save failed:', err)
-      );
-      this.memoryCache.set(cacheKey, qid);
+      this.cacheQID(cacheKey, qid, 'industry', normalizedKey, 'local_mapping');
       console.log(`✓ Local industry QID: ${industryName} → ${qid}`);
       return qid;
     }
@@ -123,11 +111,7 @@ export class WikidataSPARQLService {
     const qid = await this.sparqlIndustryLookup(industryName);
     
     if (qid) {
-      // Background save (fire and forget)
-      this.setCachedQID('industry', normalizedKey, qid, 'sparql').catch(err =>
-        console.error('Background cache save failed:', err)
-      );
-      this.memoryCache.set(cacheKey, qid);
+      this.cacheQID(cacheKey, qid, 'industry', normalizedKey, 'sparql');
       console.log(`✓ SPARQL found: ${industryName} → ${qid}`);
     } else {
       console.warn(`✗ No QID found for industry: ${industryName}`);
@@ -159,8 +143,7 @@ export class WikidataSPARQLService {
     const qid = LEGAL_FORM_QIDS[normalizedKey];
     
     if (qid) {
-      await this.setCachedQID('legal_form', normalizedKey, qid, 'local_mapping');
-      this.memoryCache.set(cacheKey, qid);
+      this.cacheQID(cacheKey, qid, 'legal_form', normalizedKey, 'local_mapping', true);
       console.log(`✓ Legal form QID: ${legalForm} → ${qid}`);
       return qid;
     }
@@ -231,6 +214,7 @@ export class WikidataSPARQLService {
   
   /**
    * Save QID to database cache (L2)
+   * Helper method to cache QIDs (DRY principle)
    */
   private async setCachedQID(
     entityType: string,
@@ -264,6 +248,26 @@ export class WikidataSPARQLService {
       console.log(`✓ Cached: ${entityType}:${searchKey} → ${qid} (${source})`);
     } catch (error) {
       console.error('Database cache save error:', error);
+    }
+  }
+
+  /**
+   * Cache QID in memory and optionally in database (DRY principle)
+   */
+  private cacheQID(
+    cacheKey: string,
+    qid: string,
+    entityType: string,
+    searchKey: string,
+    source: 'local_mapping' | 'sparql' | 'manual',
+    saveToDb: boolean = true
+  ): void {
+    this.memoryCache.set(cacheKey, qid);
+    if (saveToDb) {
+      // Background save (fire and forget)
+      this.setCachedQID(entityType, searchKey, qid, source).catch(err =>
+        console.error('Background cache save failed:', err)
+      );
     }
   }
   

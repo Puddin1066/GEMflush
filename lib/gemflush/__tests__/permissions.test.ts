@@ -132,27 +132,27 @@ describe('GEMFlush Permissions', () => {
   });
 
   describe('canAddBusiness', () => {
-    it('should allow adding business when under limit', async () => {
+    it('should allow adding business when under limit', () => {
       const team = createMockTeam('free'); // limit: 1
-      const result = await canAddBusiness(0, team);
+      const result = canAddBusiness(0, team);
       expect(result).toBe(true);
     });
 
-    it('should not allow adding business when at limit', async () => {
+    it('should not allow adding business when at limit', () => {
       const team = createMockTeam('free'); // limit: 1
-      const result = await canAddBusiness(1, team);
+      const result = canAddBusiness(1, team);
       expect(result).toBe(false);
     });
 
-    it('should allow adding multiple businesses for pro plan', async () => {
+    it('should allow adding multiple businesses for pro plan', () => {
       const team = createMockTeam('pro'); // limit: 5
-      const result = await canAddBusiness(3, team);
+      const result = canAddBusiness(3, team);
       expect(result).toBe(true);
     });
 
-    it('should not allow exceeding pro plan limit', async () => {
+    it('should not allow exceeding pro plan limit', () => {
       const team = createMockTeam('pro'); // limit: 5
-      const result = await canAddBusiness(5, team);
+      const result = canAddBusiness(5, team);
       expect(result).toBe(false);
     });
   });

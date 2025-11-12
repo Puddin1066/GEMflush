@@ -123,7 +123,7 @@ function extractTopReferences(notabilityResult: NotabilityResult): Array<{
       title: ref.title,
       url: ref.url,
       source: ref.source,
-      trustScore: notabilityResult.assessment?.references[idx]?.trustScore || 50,
+      trustScore: notabilityResult.assessment?.references?.[idx]?.trustScore || 50,
     }));
 }
 

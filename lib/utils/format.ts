@@ -87,17 +87,39 @@ export function formatModelName(model: string): string {
 
   const [, name] = parts;
 
-  const formatted = name
-    .replace(/-/g, ' ')
-    .split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-
-  if (formatted.startsWith('Gpt')) {
-    return formatted.replace('Gpt', 'GPT');
+  // Split by hyphens, but preserve version numbers for short model names (e.g., "gpt")
+  // e.g., "gpt-4-turbo" → "GPT-4 Turbo" (keep hyphen for short names like "gpt")
+  // e.g., "claude-3-opus" → "Claude 3 Opus" (space for longer names)
+  const segments = name.split('-');
+  const formatted: string[] = [];
+  const firstSegment = segments[0];
+  const isShortModelName = firstSegment.length <= 4; // "gpt", "llm", etc.
+  
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    const isVersionNumber = /^\d+(\.\d+)?$/.test(segment);
+    const nextIsWord = i + 1 < segments.length && !/^\d+(\.\d+)?$/.test(segments[i + 1]);
+    const capitalized = segment.charAt(0).toUpperCase() + segment.slice(1);
+    
+    if (i === 0) {
+      formatted.push(capitalized);
+    } else if (isVersionNumber && nextIsWord && isShortModelName) {
+      // Version number followed by word, and model name is short: keep hyphen
+      formatted[formatted.length - 1] += `-${capitalized}`;
+    } else {
+      // Regular word or longer model name: add as new segment with space
+      formatted.push(capitalized);
+    }
   }
 
-  return formatted;
+  const result = formatted.join(' ');
+
+  // Replace "Gpt" with "GPT" at the start
+  if (result.startsWith('Gpt')) {
+    return result.replace('Gpt', 'GPT');
+  }
+
+  return result;
 }
 
 /**

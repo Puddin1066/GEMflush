@@ -267,16 +267,13 @@ export class LLMFingerprinter {
       'disappointed', 'negative', 'warning',
     ];
     
-    let positiveCount = 0;
-    let negativeCount = 0;
+    // Helper function to count keyword matches (DRY principle)
+    const countKeywords = (keywords: string[]): number => {
+      return keywords.filter(keyword => lowerText.includes(keyword)).length;
+    };
     
-    positiveKeywords.forEach(keyword => {
-      if (lowerText.includes(keyword)) positiveCount++;
-    });
-    
-    negativeKeywords.forEach(keyword => {
-      if (lowerText.includes(keyword)) negativeCount++;
-    });
+    const positiveCount = countKeywords(positiveKeywords);
+    const negativeCount = countKeywords(negativeKeywords);
     
     if (positiveCount > negativeCount + 1) return 'positive';
     if (negativeCount > positiveCount + 1) return 'negative';

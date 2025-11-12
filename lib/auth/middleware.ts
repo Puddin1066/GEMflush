@@ -73,3 +73,24 @@ export function withTeam<T>(action: ActionWithTeamFunction<T>) {
     return action(formData, team);
   };
 }
+
+/**
+ * Verify business ownership (DRY principle)
+ * Returns true if business belongs to team, false otherwise
+ */
+export async function verifyBusinessOwnership(
+  businessId: number,
+  teamId: number
+): Promise<{ authorized: boolean; business: any | null }> {
+  const { getBusinessById } = await import('@/lib/db/queries');
+  const business = await getBusinessById(businessId);
+  
+  if (!business) {
+    return { authorized: false, business: null };
+  }
+  
+  return {
+    authorized: business.teamId === teamId,
+    business,
+  };
+}

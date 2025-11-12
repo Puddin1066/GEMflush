@@ -38,6 +38,11 @@ export async function sendEmail({ to, subject, react }: SendEmailOptions) {
   }
 }
 
+// Helper function to get base URL (DRY principle)
+function getBaseUrl(): string {
+  return process.env.BASE_URL || 'http://localhost:3000';
+}
+
 /**
  * Send welcome email to new user
  */
@@ -45,9 +50,9 @@ export async function sendWelcomeEmail(
   to: string,
   userName?: string
 ) {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   
-  const emailContent = await WelcomeEmail({
+  const emailContent = WelcomeEmail({
     userName,
     loginUrl: `${baseUrl}/sign-in`,
   });
@@ -67,7 +72,7 @@ export async function sendPasswordResetEmail(
   resetToken: string,
   userName?: string
 ) {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
   
   return sendEmail({
@@ -92,7 +97,7 @@ export async function sendSubscriptionEmail(
   isUpgrade: boolean,
   userName?: string
 ) {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   
   return sendEmail({
     to,
@@ -119,7 +124,7 @@ export async function sendVisibilityReportEmail(
   score: number,
   insights: string[]
 ) {
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   const dashboardUrl = `${baseUrl}/dashboard`;
   
   return sendEmail({

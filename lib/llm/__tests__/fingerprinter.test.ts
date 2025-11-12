@@ -208,7 +208,7 @@ describe('LLMFingerprinter', () => {
 
       expect(analysis.visibilityScore).toBeGreaterThan(0);
       expect(analysis.visibilityScore).toBeLessThanOrEqual(100);
-      expect(analysis.mentionRate).toBeCloseTo(2 / 3);
+      expect(analysis.mentionRate).toBeCloseTo((2 / 3) * 100); // mentionRate is a percentage
       expect(analysis.sentimentScore).toBeGreaterThan(0.5);
       expect(analysis.accuracyScore).toBeGreaterThan(0);
     });
@@ -261,6 +261,100 @@ describe('LLMFingerprinter', () => {
       const analysis = (fingerprinter as any).calculateMetrics(llmResults, mockBusiness);
 
       expect(analysis.avgRankPosition).toBe(2);
+    });
+  });
+
+  describe('extractCompetitorMentions', () => {
+    it('should extract competitors from numbered list', () => {
+      const response = '1. Competitor A\n2. Test Coffee Shop\n3. Competitor B\n4. Competitor C';
+      const competitors = (fingerprinter as any).extractCompetitorMentions(response, 'Test Coffee Shop');
+
+      expect(competitors).toContain('Competitor A');
+      expect(competitors).toContain('Competitor B');
+      expect(competitors).toContain('Competitor C');
+      expect(competitors).not.toContain('Test Coffee Shop');
+    });
+
+    it('should handle list with parentheses', () => {
+      const response = '1) Competitor A\n2) Competitor B';
+      const competitors = (fingerprinter as any).extractCompetitorMentions(response, 'Test Coffee Shop');
+
+      expect(competitors.length).toBeGreaterThan(0);
+    });
+
+    it('should clean up common business suffixes', () => {
+      const response = '1. Competitor LLC\n2. Another Inc.\n3. Test Co.';
+      const competitors = (fingerprinter as any).extractCompetitorMentions(response, 'Test Co.');
+
+      expect(competitors.some(c => c.includes('LLC'))).toBe(false);
+      expect(competitors.some(c => c.includes('Inc'))).toBe(false);
+    });
+
+    it('should return empty array when no competitors found', () => {
+      const response = 'Test Coffee Shop is the only business mentioned.';
+      const competitors = (fingerprinter as any).extractCompetitorMentions(response, 'Test Coffee Shop');
+
+      expect(competitors).toEqual([]);
+    });
+  });
+
+  describe('analyzeResponse', () => {
+    it('should analyze response with all fields', () => {
+      const response = '1. Test Coffee Shop is excellent and highly recommended.';
+      const analysis = (fingerprinter as any).analyzeResponse(response, 'Test Coffee Shop', 'recommendation');
+
+      expect(analysis.mentioned).toBe(true);
+      expect(analysis.sentiment).toBe('positive');
+      expect(analysis.rankPosition).toBe(1);
+      expect(analysis.accuracy).toBeGreaterThan(0);
+    });
+
+    it('should handle non-recommendation prompts', () => {
+      const response = 'Test Coffee Shop is a great business.';
+      const analysis = (fingerprinter as any).analyzeResponse(response, 'Test Coffee Shop', 'factual');
+
+      expect(analysis.rankPosition).toBeNull();
+      expect(analysis.competitorMentions).toBeUndefined();
+    });
+  });
+
+  describe('buildCompetitiveLeaderboard', () => {
+    it('should build leaderboard from competitor mentions', () => {
+      const llmResults = [
+        {
+          model: 'test-model',
+          promptType: 'recommendation',
+          mentioned: true,
+          sentiment: 'positive' as const,
+          accuracy: 0.8,
+          rankPosition: 2,
+          competitorMentions: ['Competitor A', 'Competitor B'],
+          rawResponse: 'test',
+          tokensUsed: 100,
+        },
+        {
+          model: 'test-model-2',
+          promptType: 'recommendation',
+          mentioned: true,
+          sentiment: 'positive' as const,
+          accuracy: 0.9,
+          rankPosition: 1,
+          competitorMentions: ['Competitor A', 'Competitor C'],
+          rawResponse: 'test',
+          tokensUsed: 100,
+        },
+      ];
+
+      const leaderboard = (fingerprinter as any).buildCompetitiveLeaderboard(
+        llmResults,
+        mockBusiness,
+        1.5
+      );
+
+      expect(leaderboard.targetBusiness.name).toBe('Test Coffee Shop');
+      expect(leaderboard.targetBusiness.rank).toBe(1.5);
+      expect(leaderboard.competitors.length).toBeGreaterThan(0);
+      expect(leaderboard.totalRecommendationQueries).toBe(2);
     });
   });
 });

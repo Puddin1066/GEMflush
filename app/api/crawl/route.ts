@@ -9,11 +9,8 @@ import {
   updateCrawlJob,
 } from '@/lib/db/queries';
 import { webCrawler } from '@/lib/crawler';
+import { crawlRequestSchema } from '@/lib/validation/business';
 import { z } from 'zod';
-
-const crawlRequestSchema = z.object({
-  businessId: z.number().int().positive(),
-});
 
 export async function POST(request: NextRequest) {
   try {
