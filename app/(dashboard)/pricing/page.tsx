@@ -137,7 +137,12 @@ export default async function PricingPage() {
 
             <form action={checkoutAction}>
               <input type="hidden" name="priceId" value={proPrice?.id || ''} />
-              <SubmitButton className="w-full gem-gradient text-white hover:opacity-90" />
+              <SubmitButton 
+                className="w-full gem-gradient text-white hover:opacity-90"
+                disabled={!proPrice?.id}
+              >
+                {proPrice?.id ? 'Get Started' : 'Price Unavailable'}
+              </SubmitButton>
             </form>
           </div>
 
@@ -187,7 +192,13 @@ export default async function PricingPage() {
 
             <form action={checkoutAction}>
               <input type="hidden" name="priceId" value={agencyPrice?.id || ''} />
-              <SubmitButton className="w-full" variant="outline" />
+              <SubmitButton 
+                className="w-full" 
+                variant="outline"
+                disabled={!agencyPrice?.id}
+              >
+                {agencyPrice?.id ? 'Get Started' : 'Price Unavailable'}
+              </SubmitButton>
             </form>
           </div>
         </div>

@@ -3,11 +3,13 @@
  * Tests full UX/UI data flows from user perspective
  * 
  * Note: These are placeholder tests. Use complete-workflows.spec.ts for actual tests.
+ * Skipped to avoid duplicate test execution (DRY principle).
  */
 
 import { test, expect } from '@playwright/test';
 
-test.describe('User Onboarding Flow', () => {
+// Skip all tests in this file - they're placeholders (DRY: avoid duplicate tests)
+test.describe.skip('User Onboarding Flow', () => {
   test('complete sign-up to dashboard flow', async ({ page }) => {
     // Step 1: Navigate to sign-up
     await page.goto('/sign-up');
@@ -45,7 +47,7 @@ test.describe('User Onboarding Flow', () => {
   });
 });
 
-test.describe('Business Creation Flow', () => {
+test.describe.skip('Business Creation Flow', () => {
   test.beforeEach(async ({ page }) => {
     // TODO: Set up authenticated session
     // For now, we'll test the flow assuming auth is handled
@@ -120,7 +122,7 @@ test.describe('Business Creation Flow', () => {
   });
 });
 
-test.describe('Business Detail Page Flow', () => {
+test.describe.skip('Business Detail Page Flow', () => {
   test('loads business data and displays correctly', async ({ page }) => {
     // TODO: Navigate to existing business
     await page.goto('/dashboard/businesses/1');
@@ -178,7 +180,7 @@ test.describe('Business Detail Page Flow', () => {
   });
 });
 
-test.describe('Dashboard Data Flow', () => {
+test.describe.skip('Dashboard Data Flow', () => {
   test('loads and displays business list', async ({ page }) => {
     await page.goto('/dashboard');
     
@@ -218,7 +220,7 @@ test.describe('Dashboard Data Flow', () => {
   });
 });
 
-test.describe('Error Handling in UI', () => {
+test.describe.skip('Error Handling in UI', () => {
   test('shows network error message', async ({ page }) => {
     // Simulate network error by going offline
     await page.context().setOffline(true);
@@ -255,7 +257,7 @@ test.describe('Error Handling in UI', () => {
   });
 });
 
-test.describe('Loading States', () => {
+test.describe.skip('Loading States', () => {
   test('shows loading state during form submission', async ({ page }) => {
     await page.goto('/dashboard/businesses/new');
     
@@ -286,7 +288,7 @@ test.describe('Loading States', () => {
   });
 });
 
-test.describe('Data Refresh Flow', () => {
+test.describe.skip('Data Refresh Flow', () => {
   test('updates UI after crawl completion', async ({ page }) => {
     await page.goto('/dashboard/businesses/1');
     

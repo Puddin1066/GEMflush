@@ -54,7 +54,9 @@ export const mockStripeProduct: Stripe.Product = {
   unit_label: null,
   updated: 1234567890,
   url: null,
-} as Stripe.Product;
+  marketing_features: [],
+  type: 'service',
+} as unknown as Stripe.Product;
 
 export const mockStripePrice: Stripe.Price = {
   id: 'price_test_1234567890',
@@ -75,6 +77,7 @@ export const mockStripePrice: Stripe.Price = {
     interval_count: 1,
     trial_period_days: 14,
     usage_type: 'licensed',
+    meter: null,
   },
   tax_behavior: null,
   tiers_mode: null,
@@ -82,7 +85,7 @@ export const mockStripePrice: Stripe.Price = {
   type: 'recurring',
   unit_amount: 4900,
   unit_amount_decimal: '4900',
-} as Stripe.Price;
+} as unknown as Stripe.Price;
 
 export const mockStripeSubscription: Stripe.Subscription = {
   id: 'sub_test_1234567890',
@@ -170,7 +173,17 @@ export const mockStripeSubscription: Stripe.Subscription = {
   transfer_data: null,
   trial_end: null,
   trial_start: null,
-} as Stripe.Subscription;
+  billing_cycle_anchor_config: null,
+  cancellation_details: null,
+  discounts: [],
+  invoice_settings: {
+    custom_fields: null,
+    default_payment_method: null,
+    footer: null,
+    rendering_options: null,
+  },
+  trial_settings: null,
+} as unknown as Stripe.Subscription;
 
 export const mockStripeCheckoutSession: Stripe.Checkout.Session = {
   id: 'cs_test_1234567890',
@@ -244,7 +257,7 @@ export const mockStripeCheckoutSession: Stripe.Checkout.Session = {
   },
   ui_mode: 'hosted',
   url: 'https://checkout.stripe.com/test',
-} as Stripe.Checkout.Session;
+} as unknown as Stripe.Checkout.Session;
 
 export const mockStripeEvent: Stripe.Event = {
   id: 'evt_test_1234567890',
@@ -262,7 +275,7 @@ export const mockStripeEvent: Stripe.Event = {
     idempotency_key: null,
   },
   type: 'customer.subscription.updated',
-} as Stripe.Event;
+} as unknown as Stripe.Event;
 
 export const mockStripeBillingPortalSession: Stripe.BillingPortal.Session = {
   id: 'bps_test_1234567890',
@@ -344,7 +357,7 @@ export function createMockSubscription(overrides?: Partial<Stripe.Subscription>)
   return {
     ...mockStripeSubscription,
     ...overrides,
-  } as Stripe.Subscription;
+  } as unknown as Stripe.Subscription;
 }
 
 export function createMockCheckoutSession(
@@ -353,14 +366,14 @@ export function createMockCheckoutSession(
   return {
     ...mockStripeCheckoutSession,
     ...overrides,
-  } as Stripe.Checkout.Session;
+  } as unknown as Stripe.Checkout.Session;
 }
 
 export function createMockEvent(overrides?: Partial<Stripe.Event>): Stripe.Event {
   return {
     ...mockStripeEvent,
     ...overrides,
-  } as Stripe.Event;
+  } as unknown as Stripe.Event;
 }
 
 export function createMockCustomer(overrides?: Partial<Stripe.Customer>): Stripe.Customer {
@@ -374,13 +387,13 @@ export function createMockProduct(overrides?: Partial<Stripe.Product>): Stripe.P
   return {
     ...mockStripeProduct,
     ...overrides,
-  } as Stripe.Product;
+  } as unknown as Stripe.Product;
 }
 
 export function createMockPrice(overrides?: Partial<Stripe.Price>): Stripe.Price {
   return {
     ...mockStripePrice,
     ...overrides,
-  } as Stripe.Price;
+  } as unknown as Stripe.Price;
 }
 

@@ -9,6 +9,7 @@ import { db } from '@/lib/db/drizzle';
 import { businesses, llmFingerprints } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { CompetitiveLeaderboard } from '@/components/competitive/competitive-leaderboard';
+import { toCompetitiveLeaderboardDTO } from '@/lib/data/fingerprint-dto';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
@@ -61,7 +62,11 @@ export default async function CompetitivePage({ params }: CompetitivePageProps) 
     .orderBy(desc(llmFingerprints.createdAt))
     .limit(1);
 
-  const hasLeaderboard = latestFingerprint?.competitiveLeaderboard;
+  // Transform competitive leaderboard data using DTO (adds insights, validates structure)
+  const rawLeaderboard = latestFingerprint?.competitiveLeaderboard as any;
+  const leaderboardDTO = rawLeaderboard 
+    ? toCompetitiveLeaderboardDTO(rawLeaderboard, business.name)
+    : null;
 
   return (
     <div className="flex-1 p-4 lg:p-8">
@@ -92,9 +97,9 @@ export default async function CompetitivePage({ params }: CompetitivePageProps) 
         </div>
 
         {/* Content */}
-        {hasLeaderboard ? (
+        {leaderboardDTO ? (
           <CompetitiveLeaderboard
-            data={latestFingerprint.competitiveLeaderboard as any}
+            data={leaderboardDTO}
             businessId={businessId}
           />
         ) : (

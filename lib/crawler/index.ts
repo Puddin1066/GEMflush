@@ -259,8 +259,11 @@ export class WebCrawler {
       // Query LLM
       const response = await openRouterClient.query('openai/gpt-4-turbo', prompt);
       
+      // Extract JSON from response (handle markdown code blocks)
+      const jsonContent = this.extractJSONFromResponse(response.content);
+      
       // Parse structured response
-      const extracted = JSON.parse(response.content);
+      const extracted = JSON.parse(jsonContent);
       
       // Validate and return
       return this.validateExtraction(extracted);
@@ -270,6 +273,33 @@ export class WebCrawler {
       // Return empty on failure - basic data still available
       return {};
     }
+  }
+  
+  /**
+   * Extract JSON from LLM response
+   * Handles cases where LLM wraps JSON in markdown code blocks (```json ... ```)
+   * Follows DRY: Centralized JSON extraction logic
+   */
+  private extractJSONFromResponse(content: string): string {
+    // Remove markdown code block markers if present
+    const jsonBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonBlockMatch) {
+      return jsonBlockMatch[1].trim();
+    }
+    
+    // Try to find JSON object/array boundaries
+    const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonObjectMatch) {
+      return jsonObjectMatch[0];
+    }
+    
+    const jsonArrayMatch = content.match(/\[[\s\S]*\]/);
+    if (jsonArrayMatch) {
+      return jsonArrayMatch[0];
+    }
+    
+    // Fallback: return content as-is (will fail in JSON.parse if invalid)
+    return content.trim();
   }
   
   /**

@@ -161,6 +161,55 @@ describe('Stripe Payment Service', () => {
       expect(redirect).toHaveBeenCalledWith('https://checkout.stripe.com/test');
     });
 
+    it('should throw error if priceId is empty', async () => {
+      vi.mocked(queries.getUser).mockResolvedValue(mockUser);
+
+      await expect(
+        createCheckoutSession({
+          team: mockTeam,
+          priceId: '',
+        })
+      ).rejects.toThrow('Price ID is required');
+
+      await expect(
+        createCheckoutSession({
+          team: mockTeam,
+          priceId: '   ',
+        })
+      ).rejects.toThrow('Price ID is required');
+    });
+
+    it('should throw error if priceId is missing', async () => {
+      vi.mocked(queries.getUser).mockResolvedValue(mockUser);
+
+      await expect(
+        createCheckoutSession({
+          team: mockTeam,
+          priceId: undefined as any,
+        })
+      ).rejects.toThrow('Price ID is required');
+    });
+
+    it('should handle Stripe API errors gracefully', async () => {
+      vi.mocked(queries.getUser).mockResolvedValue(mockUser);
+      
+      const stripeError = new Error('You passed an empty string for line_items[0][price]');
+      (stripeError as any).type = 'StripeInvalidRequestError';
+      (stripeError as any).code = 'parameter_invalid_empty';
+      (stripeError as any).param = 'line_items[0][price]';
+      
+      vi.mocked(stripe.checkout.sessions.create).mockRejectedValue(stripeError);
+
+      await expect(
+        createCheckoutSession({
+          team: mockTeam,
+          priceId: 'price_test_123',
+        })
+      ).rejects.toThrow('Failed to create checkout session');
+
+      expect(stripe.checkout.sessions.create).toHaveBeenCalled();
+    });
+
     it('should redirect to sign-up if no team', async () => {
       vi.mocked(queries.getUser).mockResolvedValue(mockUser);
 

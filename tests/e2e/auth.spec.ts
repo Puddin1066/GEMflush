@@ -21,7 +21,8 @@ test.describe('Authentication Flows', () => {
 
   test('should display sign-up page', async ({ page }) => {
     await page.goto('/sign-up');
-    await expect(page.getByRole('heading', { name: /sign up/i })).toBeVisible();
+    // Match actual heading text: "Create your account"
+    await expect(page.getByRole('heading', { name: /create your account/i })).toBeVisible();
     await expect(page.getByLabel(/email/i)).toBeVisible();
     await expect(page.getByLabel(/password/i)).toBeVisible();
   });
@@ -36,9 +37,9 @@ test.describe('Authentication Flows', () => {
       await expect(page).toHaveURL(/.*sign-up/);
     }
 
-    // Click link back to sign-in
-    const signInLink = page.getByRole('link', { name: /sign in/i });
-    if (await signInLink.isVisible()) {
+    // Click link back to sign-in - use first() to avoid strict mode violation (DRY: most specific selector)
+    const signInLink = page.getByRole('link', { name: /sign in/i }).first();
+    if (await signInLink.isVisible().catch(() => false)) {
       await signInLink.click();
       await expect(page).toHaveURL(/.*sign-in/);
     }

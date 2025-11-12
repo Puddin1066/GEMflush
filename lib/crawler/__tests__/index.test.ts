@@ -448,6 +448,126 @@ describe('WebCrawler', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Timeout');
     });
+
+    it('should extract JSON from markdown code blocks', async () => {
+      const mockHTML = `
+        <html>
+          <head>
+            <title>Test Business</title>
+          </head>
+          <body>
+            <h1>Test Business</h1>
+          </body>
+        </html>
+      `;
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(mockHTML),
+      } as any);
+
+      const { openRouterClient } = await import('@/lib/llm/openrouter');
+      // LLM returns JSON wrapped in markdown code block
+      vi.mocked(openRouterClient.query).mockResolvedValue({
+        content: '```json\n{\n  "businessDetails": {\n    "industry": "Technology"\n  },\n  "llmEnhanced": {\n    "extractedEntities": [],\n    "businessCategory": "Technology",\n    "serviceOfferings": [],\n    "targetAudience": "",\n    "keyDifferentiators": [],\n    "confidence": 0.8\n  }\n}\n```',
+      } as any);
+
+      const result = await crawler.crawl('https://example.com');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.businessDetails?.industry).toBe('Technology');
+      expect(result.data?.llmEnhanced?.confidence).toBe(0.8);
+    });
+
+    it('should extract JSON from code block without language tag', async () => {
+      const mockHTML = `
+        <html>
+          <head>
+            <title>Test Business</title>
+          </head>
+          <body>
+            <h1>Test Business</h1>
+          </body>
+        </html>
+      `;
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(mockHTML),
+      } as any);
+
+      const { openRouterClient } = await import('@/lib/llm/openrouter');
+      // LLM returns JSON wrapped in code block without language tag
+      vi.mocked(openRouterClient.query).mockResolvedValue({
+        content: '```\n{"businessDetails": {"industry": "Healthcare"}, "llmEnhanced": {"extractedEntities": [], "businessCategory": "Healthcare", "serviceOfferings": [], "targetAudience": "", "keyDifferentiators": [], "confidence": 0.9}}\n```',
+      } as any);
+
+      const result = await crawler.crawl('https://example.com');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.businessDetails?.industry).toBe('Healthcare');
+    });
+
+    it('should extract JSON object when not in code block', async () => {
+      const mockHTML = `
+        <html>
+          <head>
+            <title>Test Business</title>
+          </head>
+          <body>
+            <h1>Test Business</h1>
+          </body>
+        </html>
+      `;
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(mockHTML),
+      } as any);
+
+      const { openRouterClient } = await import('@/lib/llm/openrouter');
+      // LLM returns plain JSON (no code block)
+      vi.mocked(openRouterClient.query).mockResolvedValue({
+        content: '{"businessDetails": {"industry": "Finance"}, "llmEnhanced": {"extractedEntities": [], "businessCategory": "Finance", "serviceOfferings": [], "targetAudience": "", "keyDifferentiators": [], "confidence": 0.7}}',
+      } as any);
+
+      const result = await crawler.crawl('https://example.com');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.businessDetails?.industry).toBe('Finance');
+    });
+
+    it('should handle invalid JSON gracefully', async () => {
+      const mockHTML = `
+        <html>
+          <head>
+            <title>Test Business</title>
+          </head>
+          <body>
+            <h1>Test Business</h1>
+          </body>
+        </html>
+      `;
+
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(mockHTML),
+      } as any);
+
+      const { openRouterClient } = await import('@/lib/llm/openrouter');
+      // LLM returns invalid JSON
+      vi.mocked(openRouterClient.query).mockResolvedValue({
+        content: 'This is not valid JSON at all',
+      } as any);
+
+      const result = await crawler.crawl('https://example.com');
+
+      // Should still succeed with basic data even if LLM JSON parsing fails
+      expect(result.success).toBe(true);
+      expect(result.data?.name).toBe('Test Business');
+      // LLM enhancement should be empty due to parsing error
+      expect(result.data?.businessDetails).toBeUndefined();
+    });
   });
 });
 

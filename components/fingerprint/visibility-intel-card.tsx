@@ -41,9 +41,9 @@ export function VisibilityIntelCard({
             <p className="text-sm text-gray-600 mb-4">
               No fingerprint data yet
             </p>
-            <Button onClick={onAnalyze} className="gem-gradient text-white">
+            <Button onClick={onAnalyze} disabled={loading} className="gem-gradient text-white">
               <Sparkles className="mr-2 h-4 w-4" />
-              Analyze Now
+              {loading ? 'Analyzing...' : 'Analyze Now'}
             </Button>
           </div>
         </CardContent>
@@ -149,8 +149,8 @@ export function VisibilityIntelCard({
         )}
 
         {/* CTA */}
-        <Button onClick={onAnalyze} variant="outline" className="w-full">
-          Run New Analysis
+        <Button onClick={onAnalyze} disabled={loading} variant="outline" className="w-full">
+          {loading ? 'Analyzing...' : 'Run New Analysis'}
         </Button>
       </CardContent>
     </Card>

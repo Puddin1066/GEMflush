@@ -20,30 +20,65 @@ export async function createCheckoutSession({
 }) {
   const user = await getUser();
 
+  // Defensive: Validate priceId before making Stripe API call
+  if (!priceId || priceId.trim() === '') {
+    console.error('[createCheckoutSession] Invalid priceId', {
+      priceId,
+      teamId: team?.id,
+      userId: user?.id,
+    });
+    throw new Error('Price ID is required to create checkout session');
+  }
+
   if (!team || !user) {
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: priceId,
-        quantity: 1
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1
+        }
+      ],
+      mode: 'subscription',
+      success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.BASE_URL}/pricing`,
+      customer: team.stripeCustomerId || undefined,
+      client_reference_id: user.id.toString(),
+      allow_promotion_codes: true,
+      subscription_data: {
+        trial_period_days: 14
       }
-    ],
-    mode: 'subscription',
-    success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.BASE_URL}/pricing`,
-    customer: team.stripeCustomerId || undefined,
-    client_reference_id: user.id.toString(),
-    allow_promotion_codes: true,
-    subscription_data: {
-      trial_period_days: 14
-    }
-  });
+    });
 
-  redirect(session.url!);
+    if (!session.url) {
+      throw new Error('Stripe checkout session created but no URL returned');
+    }
+
+    redirect(session.url);
+  } catch (error) {
+    // Enhanced error logging for debugging
+    console.error('[createCheckoutSession] Stripe API error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      priceId,
+      teamId: team.id,
+      userId: user.id,
+      stripeError: error instanceof Error && 'type' in error ? {
+        type: (error as any).type,
+        code: (error as any).code,
+        param: (error as any).param,
+      } : null,
+    });
+    
+    // Re-throw with user-friendly message
+    if (error instanceof Error) {
+      throw new Error(`Failed to create checkout session: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 export async function createCustomerPortalSession(team: Team) {

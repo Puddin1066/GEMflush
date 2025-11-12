@@ -18,7 +18,21 @@ export function CompetitiveLeaderboard({
   data,
   businessId 
 }: CompetitiveLeaderboardProps) {
-  const { targetBusiness, competitors, insights, totalQueries } = data;
+  // Defensive: Provide default values for missing data
+  const { 
+    targetBusiness, 
+    competitors = [], 
+    insights, 
+    totalQueries = 0 
+  } = data;
+
+  // Defensive: Provide default insights if missing
+  const safeInsights = insights || {
+    marketPosition: 'unknown' as const,
+    topCompetitor: null,
+    competitiveGap: null,
+    recommendation: 'Run more analyses with recommendation prompts to get competitive insights.',
+  };
 
   // Merge target business into sorted list
   const allCompetitors = [...competitors];
@@ -51,7 +65,7 @@ export function CompetitiveLeaderboard({
                 Based on {totalQueries} LLM recommendation {totalQueries === 1 ? 'query' : 'queries'}
               </CardDescription>
             </div>
-            <MarketPositionBadge position={insights.marketPosition} size="lg" />
+            <MarketPositionBadge position={safeInsights.marketPosition} size="lg" />
           </div>
         </CardHeader>
       </Card>
@@ -100,19 +114,19 @@ export function CompetitiveLeaderboard({
               <TrendingUp className="h-5 w-5 text-blue-600 mt-0.5" />
               <div>
                 <h4 className="font-medium text-blue-900 mb-1">
-                  Market Position: {insights.marketPosition.charAt(0).toUpperCase() + insights.marketPosition.slice(1)}
+                  Market Position: {safeInsights.marketPosition.charAt(0).toUpperCase() + safeInsights.marketPosition.slice(1)}
                 </h4>
                 <p className="text-sm text-blue-800">
-                  {insights.marketPosition === 'leading' && 
+                  {safeInsights.marketPosition === 'leading' && 
                     'You have the strongest LLM visibility in your market. Focus on maintaining quality and expanding your knowledge graph presence.'
                   }
-                  {insights.marketPosition === 'competitive' && 
+                  {safeInsights.marketPosition === 'competitive' && 
                     'You have solid visibility alongside other competitors. Strategic improvements can boost your ranking.'
                   }
-                  {insights.marketPosition === 'emerging' && 
+                  {safeInsights.marketPosition === 'emerging' && 
                     'You have limited visibility compared to competitors. There\'s significant opportunity for improvement.'
                   }
-                  {insights.marketPosition === 'unknown' && 
+                  {safeInsights.marketPosition === 'unknown' && 
                     'Insufficient data to determine market position. Run more analyses with recommendation prompts.'
                   }
                 </p>
@@ -121,15 +135,15 @@ export function CompetitiveLeaderboard({
           </div>
 
           {/* Top Competitor Alert */}
-          {insights.topCompetitor && (
+          {safeInsights.topCompetitor && (
             <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
               <h4 className="font-medium text-amber-900 mb-1">
-                🥇 Top Competitor: {insights.topCompetitor}
+                🥇 Top Competitor: {safeInsights.topCompetitor}
               </h4>
               <p className="text-sm text-amber-800">
-                {insights.competitiveGap && insights.competitiveGap > 0 ? (
+                {safeInsights.competitiveGap && safeInsights.competitiveGap > 0 ? (
                   <>
-                    They have <strong>{insights.competitiveGap}</strong> more {insights.competitiveGap === 1 ? 'mention' : 'mentions'} than you. 
+                    They have <strong>{safeInsights.competitiveGap}</strong> more {safeInsights.competitiveGap === 1 ? 'mention' : 'mentions'} than you. 
                     Closing this gap would significantly improve your market position.
                   </>
                 ) : (
@@ -145,7 +159,7 @@ export function CompetitiveLeaderboard({
               💡 Recommendation
             </h4>
             <p className="text-sm text-green-800">
-              {insights.recommendation}
+              {safeInsights.recommendation}
             </p>
           </div>
         </CardContent>

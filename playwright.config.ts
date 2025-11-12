@@ -6,6 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testMatch: /.*\.spec\.ts$/, // Only load Playwright spec files, exclude Vitest .test.ts files
   fullyParallel: false, // Run tests sequentially to avoid DB conflicts
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

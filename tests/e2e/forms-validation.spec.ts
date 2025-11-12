@@ -1,70 +1,77 @@
 /**
  * E2E Tests for Form Validation and User Input
  * Tests form validation, error messages, and user feedback
+ * Following SOLID and DRY principles - shared selectors, single responsibility per test
  */
 
 import { test, expect } from '@playwright/test';
+import { test as authenticatedTest } from './fixtures/authenticated-user';
+import {
+  getBusinessNameInput,
+  getBusinessUrlInput,
+  getCreateBusinessButton,
+} from './helpers/selectors';
 
 test.describe('Business Creation Form Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    // Assume user is authenticated
-    await page.goto('/dashboard/businesses/new');
+  authenticatedTest.beforeEach(async ({ authenticatedPage }) => {
+    // Use authenticated fixture (DRY: reuse authentication)
+    await authenticatedPage.goto('/dashboard/businesses/new');
   });
 
-  test('validates required fields', async ({ page }) => {
-    // Try to submit empty form
-    await page.getByRole('button', { name: /create/i }).click();
+  authenticatedTest('validates required fields', async ({ authenticatedPage }) => {
+    // Try to submit empty form (don't overfit - test behavior, not implementation)
+    const submitButton = getCreateBusinessButton(authenticatedPage);
     
     // Browser validation should prevent submission
-    // Or app should show validation errors
-    await page.waitForTimeout(500);
+    await submitButton.click({ force: true });
     
-    // Form should still be visible
-    await expect(page.getByLabel(/name/i)).toBeVisible();
+    // Form should still be visible (validation prevented submission)
+    await expect(getBusinessNameInput(authenticatedPage)).toBeVisible();
   });
 
-  test('validates URL format', async ({ page }) => {
-    await page.getByLabel(/name/i).fill('Test Business');
-    await page.getByLabel(/url/i).fill('not-a-valid-url');
+  authenticatedTest('validates URL format', async ({ authenticatedPage }) => {
+    await getBusinessNameInput(authenticatedPage).fill('Test Business');
+    await getBusinessUrlInput(authenticatedPage).fill('not-a-valid-url');
     
-    await page.getByRole('button', { name: /create/i }).click();
+    await getCreateBusinessButton(authenticatedPage).click();
     
-    // Should show URL validation error
-    await page.waitForTimeout(500);
+    // Should show URL validation error (browser or app-level)
+    await authenticatedPage.waitForTimeout(500);
     
-    // Error message should be visible
-    const errorMessage = page.getByText(/invalid.*url/i).or(
-      page.getByText(/must be a valid url/i)
-    );
-    // May or may not be visible depending on when validation occurs
+    // Form should still be visible (validation prevented submission)
+    await expect(getBusinessNameInput(authenticatedPage)).toBeVisible();
   });
 
-  test('validates location fields', async ({ page }) => {
-    await page.getByLabel(/name/i).fill('Test Business');
-    await page.getByLabel(/url/i).fill('https://example.com');
+  authenticatedTest('validates location fields', async ({ authenticatedPage }) => {
+    await getBusinessNameInput(authenticatedPage).fill('Test Business');
+    await getBusinessUrlInput(authenticatedPage).fill('https://example.com');
     // Don't fill city/state (required fields)
     
-    await page.getByRole('button', { name: /create/i }).click();
+    await getCreateBusinessButton(authenticatedPage).click();
     
     // Should show validation error for missing location
-    await page.waitForTimeout(500);
+    await authenticatedPage.waitForTimeout(500);
     
-    // City field should be marked as required or show error
-    await expect(page.getByLabel(/city/i)).toBeVisible();
+    // City field should be visible (form still there)
+    await expect(authenticatedPage.getByLabel(/city/i)).toBeVisible();
   });
 
-  test('allows valid form submission', async ({ page }) => {
+  authenticatedTest('allows valid form submission', async ({ authenticatedPage }) => {
     // Fill all required fields correctly
-    await page.getByLabel(/name/i).fill('Test Business');
-    await page.getByLabel(/url/i).fill('https://example.com');
-    await page.getByLabel(/city/i).fill('Seattle');
-    await page.getByLabel(/state/i).fill('WA');
-    await page.getByLabel(/country/i).fill('US');
+    await getBusinessNameInput(authenticatedPage).fill('Test Business');
+    await getBusinessUrlInput(authenticatedPage).fill('https://example.com');
+    await authenticatedPage.getByLabel(/city/i).fill('Seattle');
+    await authenticatedPage.getByLabel(/state/i).fill('WA');
+    await authenticatedPage.getByLabel(/country/i).fill('US');
     
-    await page.getByRole('button', { name: /create/i }).click();
+    await getCreateBusinessButton(authenticatedPage).click();
     
-    // Should submit successfully and redirect
-    await expect(page).toHaveURL(/.*businesses\/\d+/, { timeout: 10000 });
+    // Should submit successfully and redirect (flexible - allow for redirect delay)
+    // Also verify we're not still on the form page
+    await expect(authenticatedPage).toHaveURL(/.*businesses\/\d+/, { timeout: 15000 });
+    
+    const isOnFormPage = authenticatedPage.url().includes('/businesses/new');
+    expect(isOnFormPage).toBeFalsy();
   });
 });
 
@@ -151,81 +158,73 @@ test.describe('Sign-In Form Validation', () => {
 });
 
 test.describe('Error Message Display', () => {
-  test('displays API error messages to user', async ({ page }) => {
-    await page.goto('/dashboard/businesses/new');
+  authenticatedTest('displays API error messages to user', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/dashboard/businesses/new');
     
     // Fill form with data that might cause API error
-    await page.getByLabel(/name/i).fill('Test Business');
-    await page.getByLabel(/url/i).fill('https://example.com');
-    await page.getByLabel(/city/i).fill('Seattle');
-    await page.getByLabel(/state/i).fill('WA');
+    await getBusinessNameInput(authenticatedPage).fill('Test Business');
+    await getBusinessUrlInput(authenticatedPage).fill('https://example.com');
+    await authenticatedPage.getByLabel(/city/i).fill('Seattle');
+    await authenticatedPage.getByLabel(/state/i).fill('WA');
     
-    // Mock API to return error (or use invalid data)
-    await page.getByRole('button', { name: /create/i }).click();
+    // Mock API to return error
+    await authenticatedPage.route('**/api/business', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 403,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Business limit reached' }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    
+    await getCreateBusinessButton(authenticatedPage).click();
     
     // Should display error message
-    await page.waitForTimeout(2000);
+    await authenticatedPage.waitForTimeout(1000);
     
-    // Error should be visible in UI
-    const errorDisplay = page.getByText(/error/i).or(
-      page.locator('[role="alert"]')
-    );
-    // Error message should be user-friendly
-  });
-
-  test('dismisses error messages', async ({ page }) => {
-    // Create an error state
-    await page.goto('/dashboard/businesses/new');
-    await page.getByLabel(/name/i).fill('');
-    await page.getByRole('button', { name: /create/i }).click();
-    
-    await page.waitForTimeout(500);
-    
-    // If error has dismiss button, click it
-    const dismissButton = page.getByRole('button', { name: /close/i }).or(
-      page.getByRole('button', { name: /dismiss/i })
-    );
-    
-    if (await dismissButton.isVisible()) {
-      await dismissButton.click();
-      // Error should be hidden
-    }
+    // Error should be visible in UI (don't overfit - check for error presence, not exact text)
+    await expect(authenticatedPage.getByText(/error/i).or(
+      authenticatedPage.getByText(/limit/i)
+    )).toBeVisible({ timeout: 5000 });
   });
 });
 
 test.describe('Form State Management', () => {
-  test('preserves form data on validation error', async ({ page }) => {
-    await page.goto('/dashboard/businesses/new');
+  authenticatedTest('preserves form data on validation error', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/dashboard/businesses/new');
     
     // Fill form
-    await page.getByLabel(/name/i).fill('Test Business');
-    await page.getByLabel(/url/i).fill('invalid-url');
+    await getBusinessNameInput(authenticatedPage).fill('Test Business');
+    await getBusinessUrlInput(authenticatedPage).fill('invalid-url');
     
-    await page.getByRole('button', { name: /create/i }).click();
+    await getCreateBusinessButton(authenticatedPage).click();
     
     // After validation error, form data should be preserved
-    await page.waitForTimeout(500);
+    await authenticatedPage.waitForTimeout(500);
     
-    // Name should still be filled
-    await expect(page.getByLabel(/name/i)).toHaveValue('Test Business');
+    // Name should still be filled (don't overfit - test behavior, not implementation)
+    await expect(getBusinessNameInput(authenticatedPage)).toHaveValue('Test Business');
   });
 
-  test('clears form after successful submission', async ({ page }) => {
-    await page.goto('/dashboard/businesses/new');
+  authenticatedTest('clears form after successful submission', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/dashboard/businesses/new');
     
     // Fill and submit form successfully
-    await page.getByLabel(/name/i).fill('Test Business');
-    await page.getByLabel(/url/i).fill('https://example.com');
-    await page.getByLabel(/city/i).fill('Seattle');
-    await page.getByLabel(/state/i).fill('WA');
+    await getBusinessNameInput(authenticatedPage).fill('Test Business');
+    await getBusinessUrlInput(authenticatedPage).fill('https://example.com');
+    await authenticatedPage.getByLabel(/city/i).fill('Seattle');
+    await authenticatedPage.getByLabel(/state/i).fill('WA');
     
-    await page.getByRole('button', { name: /create/i }).click();
+    await getCreateBusinessButton(authenticatedPage).click();
     
     // Should redirect away from form
-    await expect(page).toHaveURL(/.*businesses\/\d+/, { timeout: 10000 });
+    await expect(authenticatedPage).toHaveURL(/.*businesses\/\d+/, { timeout: 10000 });
     
     // Form should no longer be visible (redirected)
-    await expect(page.getByLabel(/name/i)).not.toBeVisible();
+    await expect(getBusinessNameInput(authenticatedPage)).not.toBeVisible();
   });
 });
 

@@ -32,7 +32,7 @@ function UserMenu() {
 
   if (!user) {
     return (
-      <>
+      <div className="flex items-center space-x-4">
         <Link
           href="/pricing"
           className="text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -42,7 +42,7 @@ function UserMenu() {
         <Button asChild className="rounded-full">
           <Link href="/sign-up">Sign Up</Link>
         </Button>
-      </>
+      </div>
     );
   }
 

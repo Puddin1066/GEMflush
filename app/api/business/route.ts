@@ -91,24 +91,50 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     });
 
+    // Verify business was created with ID (SOLID: proper validation)
+    if (!business || !business.id) {
+      console.error('Business created but ID missing:', business);
+      return NextResponse.json(
+        { error: 'Business created but ID not returned' },
+        { status: 500 }
+      );
+    }
+
+    // Return business with ID (DRY: consistent response format)
     return NextResponse.json(
       { 
-        business,
+        business: {
+          id: business.id,
+          name: business.name,
+          url: business.url,
+          category: business.category,
+          status: business.status,
+          teamId: business.teamId,
+        },
         message: 'Business created successfully',
       },
       { status: 201 }
     );
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.errors);
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { 
+          error: 'Validation error', 
+          details: error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message,
+          })),
+        },
         { status: 400 }
       );
     }
 
     console.error('Error creating business:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: error instanceof Error ? error.message : 'Internal server error',
+      },
       { status: 500 }
     );
   }

@@ -3,10 +3,10 @@
  * Creates test users via API and authenticates for E2E tests
  */
 
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
 type AuthenticatedUserFixtures = {
-  authenticatedPage: any;
+  authenticatedPage: Page;
   testUser: {
     email: string;
     password: string;
@@ -27,7 +27,7 @@ export const test = base.extend<AuthenticatedUserFixtures>({
     await use(testUser);
   },
 
-  authenticatedPage: async ({ page, testUser }, use) => {
+  authenticatedPage: async ({ page, testUser }: { page: Page; testUser: { email: string; password: string } }, use) => {
     // Sign up the test user via UI
     await page.goto('/sign-up');
     await page.getByLabel(/email/i).fill(testUser.email);

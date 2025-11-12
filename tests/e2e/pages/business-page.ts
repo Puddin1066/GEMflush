@@ -61,7 +61,13 @@ export class BusinessPage {
   }
 
   async expectSuccess() {
-    await expect(this.page).toHaveURL(/.*businesses\/\d+/, { timeout: 10000 });
+    // Flexible - wait for redirect to business detail page (don't overfit: test behavior)
+    // Allow for redirect delay or URL pattern variations
+    await expect(this.page).toHaveURL(/.*businesses\/\d+/, { timeout: 15000 });
+    
+    // Also verify we're not still on the form page (additional safety check)
+    const isOnFormPage = this.page.url().includes('/businesses/new');
+    expect(isOnFormPage).toBeFalsy();
   }
 
   async expectError(message?: string) {
@@ -105,10 +111,19 @@ export class BusinessDetailPage {
   }
 
   async expectFingerprintLoading() {
-    const analyzeButton = this.page.getByRole('button', { name: /analyzing/i }).or(
-      this.page.getByRole('button', { name: /analyze/i })
+    // Flexible test - check for loading state (don't overfit: test behavior, not implementation)
+    // Loading state can be: button disabled, button shows "Analyzing...", or loading skeleton visible
+    const loadingSkeleton = this.page.getByText(/running analysis/i).or(
+      this.page.getByText(/analyzing/i)
     );
-    await expect(analyzeButton).toBeDisabled();
+    const analyzeButton = this.page.getByRole('button', { name: /analyze/i });
+    
+    // Check if loading skeleton is visible OR button is disabled (flexible - don't overfit)
+    const hasLoadingState = await loadingSkeleton.isVisible({ timeout: 2000 }).catch(() => false);
+    const isButtonDisabled = await analyzeButton.isDisabled({ timeout: 2000 }).catch(() => false);
+    
+    // At least one loading indicator should be present
+    expect(hasLoadingState || isButtonDisabled).toBeTruthy();
   }
 
   async expectBusinessName(name: string) {

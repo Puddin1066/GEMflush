@@ -20,17 +20,32 @@ import { formatDistanceToNow } from 'date-fns';
  * Filters out technical details, adds UI-friendly fields
  */
 export function toFingerprintDetailDTO(
-  analysis: FingerprintAnalysis,
-  previousAnalysis?: FingerprintAnalysis
+  analysis: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; [key: string]: any },
+  previousAnalysis?: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; [key: string]: any }
 ): FingerprintDetailDTO {
+  // Normalize date field (database uses createdAt, domain uses generatedAt)
+  const generatedAt = (analysis as any).generatedAt || (analysis as any).createdAt;
+  const validDate = generatedAt && (generatedAt instanceof Date || typeof generatedAt === 'string')
+    ? new Date(generatedAt)
+    : null;
+  
+  // Validate date before using formatDistanceToNow
+  if (!validDate || isNaN(validDate.getTime())) {
+    console.warn('Invalid or missing generatedAt/createdAt date in fingerprint analysis:', analysis);
+  }
+  
+  // Normalize analysis object for type safety
+  const normalizedAnalysis = normalizeFingerprintAnalysis(analysis);
+  const normalizedPrevious = previousAnalysis ? normalizeFingerprintAnalysis(previousAnalysis) : undefined;
+
   // Calculate trend by comparing to previous analysis
-  const trend = previousAnalysis
-    ? calculateTrend(analysis.visibilityScore, previousAnalysis.visibilityScore)
+  const trend = normalizedPrevious
+    ? calculateTrend(normalizedAnalysis.visibilityScore, normalizedPrevious.visibilityScore)
     : 'neutral';
 
   // Determine top performing models (highest mention rate)
   const modelPerformance = new Map<string, number>();
-  analysis.llmResults.forEach((result) => {
+  normalizedAnalysis.llmResults.forEach((result) => {
     const current = modelPerformance.get(result.model) || 0;
     modelPerformance.set(result.model, current + (result.mentioned ? 1 : 0));
   });
@@ -41,24 +56,57 @@ export function toFingerprintDetailDTO(
     .map(([model]) => formatModelName(model));
 
   // Determine overall sentiment
-  const avgSentiment = analysis.sentimentScore;
+  const avgSentiment = normalizedAnalysis.sentimentScore;
   const sentiment: 'positive' | 'neutral' | 'negative' =
     avgSentiment > 0.7 ? 'positive' : avgSentiment < 0.4 ? 'negative' : 'neutral';
 
   return {
-    visibilityScore: Math.round(analysis.visibilityScore),
+    visibilityScore: Math.round(normalizedAnalysis.visibilityScore),
     trend,
     summary: {
-      mentionRate: Math.round(analysis.mentionRate),
+      mentionRate: Math.round(normalizedAnalysis.mentionRate),
       sentiment,
       topModels,
-      averageRank: analysis.avgRankPosition,
+      averageRank: normalizedAnalysis.avgRankPosition,
     },
-    results: analysis.llmResults.map(toFingerprintResultDTO),
-    competitiveLeaderboard: analysis.competitiveLeaderboard
-      ? toCompetitiveLeaderboardDTO(analysis.competitiveLeaderboard, analysis.businessName)
+    results: normalizedAnalysis.llmResults.map(toFingerprintResultDTO),
+    competitiveLeaderboard: normalizedAnalysis.competitiveLeaderboard
+      ? toCompetitiveLeaderboardDTO(normalizedAnalysis.competitiveLeaderboard, normalizedAnalysis.businessName)
       : null,
-    createdAt: formatDistanceToNow(analysis.generatedAt, { addSuffix: true }),
+    createdAt: validDate && !isNaN(validDate.getTime())
+      ? formatDistanceToNow(validDate, { addSuffix: true })
+      : 'Unknown',
+  };
+}
+
+/**
+ * Normalize database record or domain object to FingerprintAnalysis
+ * Handles both database schema (createdAt) and domain schema (generatedAt)
+ */
+function normalizeFingerprintAnalysis(
+  analysis: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; [key: string]: any }
+): FingerprintAnalysis {
+  // Map createdAt to generatedAt if needed
+  const generatedAt = (analysis as any).generatedAt || (analysis as any).createdAt;
+  const validGeneratedAt = generatedAt 
+    ? (generatedAt instanceof Date ? generatedAt : new Date(generatedAt))
+    : new Date();
+
+  return {
+    businessId: analysis.businessId || (analysis as any).businessId || 0,
+    businessName: analysis.businessName || (analysis as any).businessName || 'Unknown',
+    visibilityScore: analysis.visibilityScore ?? (analysis as any).visibilityScore ?? 0,
+    mentionRate: analysis.mentionRate ?? (analysis as any).mentionRate ?? 0,
+    sentimentScore: analysis.sentimentScore ?? (analysis as any).sentimentScore ?? 0,
+    accuracyScore: analysis.accuracyScore ?? (analysis as any).accuracyScore ?? 0,
+    avgRankPosition: analysis.avgRankPosition ?? (analysis as any).avgRankPosition ?? null,
+    llmResults: analysis.llmResults || (analysis as any).llmResults || [],
+    generatedAt: validGeneratedAt instanceof Date && !isNaN(validGeneratedAt.getTime()) 
+      ? validGeneratedAt 
+      : new Date(),
+    competitiveBenchmark: analysis.competitiveBenchmark || (analysis as any).competitiveBenchmark,
+    competitiveLeaderboard: analysis.competitiveLeaderboard || (analysis as any).competitiveLeaderboard,
+    insights: analysis.insights || (analysis as any).insights,
   };
 }
 
@@ -79,8 +127,9 @@ function toFingerprintResultDTO(result: any): FingerprintResultDTO {
 /**
  * Transform competitive leaderboard → CompetitiveLeaderboardDTO
  * Adds insights and strategic recommendations
+ * Exported for use in competitive intelligence page
  */
-function toCompetitiveLeaderboardDTO(
+export function toCompetitiveLeaderboardDTO(
   leaderboard: {
     targetBusiness: {
       name: string;

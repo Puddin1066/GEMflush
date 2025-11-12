@@ -7,15 +7,22 @@ import { useFormStatus } from 'react-dom';
 interface SubmitButtonProps {
   className?: string;
   variant?: 'default' | 'outline' | 'ghost' | 'link';
+  disabled?: boolean;
+  children?: React.ReactNode;
 }
 
-export function SubmitButton({ className, variant = 'outline' }: SubmitButtonProps) {
+export function SubmitButton({ 
+  className, 
+  variant = 'outline',
+  disabled = false,
+  children
+}: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
   return (
     <Button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       variant={variant}
       className={className || "w-full rounded-full"}
     >
@@ -25,10 +32,12 @@ export function SubmitButton({ className, variant = 'outline' }: SubmitButtonPro
           Loading...
         </>
       ) : (
-        <>
-          Get Started
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </>
+        children || (
+          <>
+            Get Started
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </>
+        )
       )}
     </Button>
   );

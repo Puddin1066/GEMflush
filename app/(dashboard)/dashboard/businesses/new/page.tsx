@@ -39,16 +39,35 @@ export default function NewBusinessPage() {
         body: JSON.stringify(data),
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create business');
+      // Parse response - handle both success and error cases
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse API response:', parseError);
+        throw new Error('Invalid response from server');
       }
 
-      // Redirect to business detail page
-      router.push(`/dashboard/businesses/${result.business.id}`);
+      // Log response for debugging (SOLID: proper error handling)
+      if (!response.ok) {
+        console.error('API error response:', response.status, result);
+        const errorMessage = result?.error || result?.details?.[0]?.message || 'Failed to create business';
+        throw new Error(errorMessage);
+      }
+
+      // Verify business ID exists in response
+      if (!result?.business?.id) {
+        console.error('Business ID missing in response:', result);
+        throw new Error('Business created but ID not returned. Please try again.');
+      }
+
+      // Redirect to business detail page (SOLID: single responsibility)
+      // Use replace to avoid back button issues (DRY: standard navigation pattern)
+      router.replace(`/dashboard/businesses/${result.business.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create business');
+      console.error('Business creation error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create business';
+      setError(errorMessage);
       setLoading(false);
     }
   };

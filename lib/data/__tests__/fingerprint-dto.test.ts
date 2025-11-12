@@ -333,5 +333,160 @@ describe('toFingerprintDetailDTO', () => {
     expect(dto.results).toHaveLength(0);
     expect(dto.summary.topModels).toHaveLength(0);
   });
+
+  describe('Date handling', () => {
+    it('should handle database record with createdAt field', () => {
+      // Simulate database record (has createdAt, not generatedAt)
+      const dbRecord = {
+        businessId: 1,
+        businessName: 'Test Business',
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        createdAt: new Date('2025-01-15'),
+      } as any;
+
+      const dto = toFingerprintDetailDTO(dbRecord);
+      expect(dto.createdAt).not.toBe('Unknown');
+      expect(typeof dto.createdAt).toBe('string');
+    });
+
+    it('should handle domain object with generatedAt field', () => {
+      const analysis = createMockAnalysis({ generatedAt: new Date('2025-01-20') });
+      const dto = toFingerprintDetailDTO(analysis);
+      expect(dto.createdAt).not.toBe('Unknown');
+      expect(typeof dto.createdAt).toBe('string');
+    });
+
+    it('should handle null date gracefully', () => {
+      const dbRecord = {
+        businessId: 1,
+        businessName: 'Test Business',
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        createdAt: null,
+        generatedAt: null,
+      } as any;
+
+      const dto = toFingerprintDetailDTO(dbRecord);
+      expect(dto.createdAt).toBe('Unknown');
+    });
+
+    it('should handle invalid date string gracefully', () => {
+      const dbRecord = {
+        businessId: 1,
+        businessName: 'Test Business',
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        createdAt: 'invalid-date-string',
+      } as any;
+
+      const dto = toFingerprintDetailDTO(dbRecord);
+      expect(dto.createdAt).toBe('Unknown');
+    });
+
+    it('should handle missing date fields gracefully', () => {
+      const dbRecord = {
+        businessId: 1,
+        businessName: 'Test Business',
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        // No createdAt or generatedAt
+      } as any;
+
+      const dto = toFingerprintDetailDTO(dbRecord);
+      expect(dto.createdAt).toBe('Unknown');
+    });
+
+    it('should prefer generatedAt over createdAt when both present', () => {
+      const generatedDate = new Date('2025-01-20');
+      const createdDate = new Date('2025-01-15');
+      
+      const analysis = {
+        businessId: 1,
+        businessName: 'Test Business',
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        generatedAt: generatedDate,
+        createdAt: createdDate,
+      } as any;
+
+      const dto = toFingerprintDetailDTO(analysis);
+      // Should use generatedAt (more recent date)
+      expect(dto.createdAt).not.toBe('Unknown');
+      // The formatted date should reflect the generatedAt date
+      expect(dto.createdAt).toContain('ago');
+    });
+
+    it('should handle date string conversion', () => {
+      const dbRecord = {
+        businessId: 1,
+        businessName: 'Test Business',
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        createdAt: '2025-01-15T10:00:00Z',
+      } as any;
+
+      const dto = toFingerprintDetailDTO(dbRecord);
+      expect(dto.createdAt).not.toBe('Unknown');
+      expect(typeof dto.createdAt).toBe('string');
+    });
+  });
+
+  describe('Data normalization', () => {
+    it('should normalize database record to FingerprintAnalysis', () => {
+      const dbRecord = {
+        businessId: 1,
+        visibilityScore: 75,
+        mentionRate: 60,
+        sentimentScore: 0.8,
+        accuracyScore: 0.85,
+        avgRankPosition: 2.5,
+        llmResults: [],
+        createdAt: new Date('2025-01-15'),
+        // Missing businessName
+      } as any;
+
+      const dto = toFingerprintDetailDTO(dbRecord);
+      // Should use default 'Unknown' for missing businessName
+      expect(dto.competitiveLeaderboard?.targetBusiness.name || 'Unknown').toBeTruthy();
+    });
+
+    it('should handle partial data gracefully', () => {
+      const partialRecord = {
+        businessId: 1,
+        visibilityScore: 75,
+        // Missing other fields
+      } as any;
+
+      const dto = toFingerprintDetailDTO(partialRecord);
+      expect(dto.visibilityScore).toBe(75);
+      expect(dto.summary.mentionRate).toBe(0);
+      expect(dto.results).toEqual([]);
+    });
+  });
 });
 
