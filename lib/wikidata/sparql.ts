@@ -235,7 +235,7 @@ export class WikidataSPARQLService {
           validatedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [qidCache.entityType, qidCache.searchKey],
+          target: qidCache.entityTypeSearchKeyUnique,
           set: {
             qid,
             source,

@@ -64,6 +64,66 @@ describe('Stripe Webhook API Route', () => {
   });
 
   describe('POST /api/stripe/webhook', () => {
+    describe('checkout.session.completed event', () => {
+      it('should handle checkout.session.completed and normalize product name', async () => {
+        const { stripe } = await import('@/lib/payments/stripe');
+        const { handleSubscriptionChange } = await import('@/lib/payments/stripe');
+
+        const mockSession = {
+          id: 'cs_test123',
+          mode: 'subscription',
+          subscription: 'sub_test123',
+        } as Stripe.Checkout.Session;
+
+        const mockSubscription = {
+          id: 'sub_test123',
+          customer: 'cus_test123',
+          status: 'active',
+          items: {
+            data: [
+              {
+                plan: {
+                  id: 'price_test123',
+                  product: {
+                    id: 'prod_test123',
+                    name: 'Pro Plan', // Test normalization
+                  } as Stripe.Product,
+                } as Stripe.Price,
+              },
+            ],
+          },
+        } as Stripe.Subscription;
+
+        const mockEvent = {
+          type: 'checkout.session.completed',
+          data: {
+            object: mockSession,
+          },
+        } as Stripe.Event;
+
+        vi.spyOn(stripe.webhooks, 'constructEvent').mockReturnValue(mockEvent);
+        vi.spyOn(stripe.subscriptions, 'retrieve').mockResolvedValue(mockSubscription);
+        vi.mocked(handleSubscriptionChange).mockResolvedValue(undefined);
+
+        const request = new NextRequest('http://localhost:3000/api/stripe/webhook', {
+          method: 'POST',
+          headers: {
+            'stripe-signature': 'test_signature',
+          },
+          body: JSON.stringify(mockSession),
+        });
+
+        const response = await POST(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.received).toBe(true);
+        expect(stripe.subscriptions.retrieve).toHaveBeenCalledWith('sub_test123', {
+          expand: ['items.data.price.product'],
+        });
+        expect(handleSubscriptionChange).toHaveBeenCalledWith(mockSubscription);
+      });
+    });
     it('should handle subscription.updated event', async () => {
       const { stripe, handleSubscriptionChange } = await import('@/lib/payments/stripe');
       

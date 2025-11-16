@@ -9,9 +9,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { businesses, llmFingerprints } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { llmFingerprinter } from '@/lib/llm/fingerprinter';
 import type { Business } from '@/lib/db/schema';
+import {
+  getIdempotencyKey,
+  getCachedResponse,
+  cacheResponse,
+  generateIdempotencyKey,
+} from '@/lib/utils/idempotency';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,6 +69,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Idempotency check
+    const idempotencyKey = getIdempotencyKey(request) || 
+      generateIdempotencyKey(user.id, 'create-fingerprint', {
+        businessId,
+      });
+
+    // Check cached response
+    const cachedResponse = getCachedResponse(idempotencyKey);
+    if (cachedResponse) {
+      return NextResponse.json(cachedResponse);
+    }
+
+    // Check if fingerprint can run (frequency enforcement - DRY: reuse frequency logic)
+    const { canRunFingerprint } = await import('@/lib/services/business-processing');
+    const { getTeamForUser } = await import('@/lib/db/queries');
+    const team = await getTeamForUser();
+    
+    if (team) {
+      const canFingerprint = await canRunFingerprint(business as Business, team);
+      if (!canFingerprint) {
+        // Get latest fingerprint for response
+        const [latestFingerprint] = await db
+          .select()
+          .from(llmFingerprints)
+          .where(eq(llmFingerprints.businessId, businessId))
+          .orderBy(desc(llmFingerprints.createdAt))
+          .limit(1);
+        
+        const response = {
+          success: true,
+          fingerprintId: latestFingerprint?.id || null,
+          status: 'skipped',
+          message: 'Fingerprint skipped - frequency limit (check plan frequency)',
+          duplicate: true,
+        };
+        cacheResponse(idempotencyKey, response);
+        return NextResponse.json(response);
+      }
+    }
+    
+    // Check for recent fingerprint (within last 10 minutes) to prevent duplicate analysis
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const [recentFingerprint] = await db
+      .select()
+      .from(llmFingerprints)
+      .where(eq(llmFingerprints.businessId, businessId))
+      .orderBy(desc(llmFingerprints.createdAt))
+      .limit(1);
+
+    if (recentFingerprint && recentFingerprint.createdAt && new Date(recentFingerprint.createdAt) > tenMinutesAgo) {
+      const response = {
+        success: true,
+        fingerprintId: recentFingerprint.id,
+        status: 'completed',
+        duplicate: true,
+        message: 'Recent fingerprint already exists',
+      };
+      cacheResponse(idempotencyKey, response);
+      return NextResponse.json(response);
+    }
+
     // Run fingerprint analysis (async, but we wait for results)
     const analysis = await llmFingerprinter.fingerprint(business as Business);
 
@@ -82,11 +149,16 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({
+    const response = {
       success: true,
       fingerprintId: savedFingerprint.id,
       status: 'completed',
-    });
+    };
+
+    // Cache response for idempotency
+    cacheResponse(idempotencyKey, response);
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error creating fingerprint:', error);
     return NextResponse.json(

@@ -31,10 +31,15 @@ export class WebCrawler {
         crawledAt: new Date(),
       };
     } catch (error) {
-      console.error('Crawl error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown crawl error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      console.error(`[CRAWLER] Crawl error for ${url}:`, errorMessage);
+      if (errorStack) {
+        console.error(`[CRAWLER] Error stack:`, errorStack);
+      }
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown crawl error',
+        error: errorMessage,
         url,
         crawledAt: new Date(),
       };
@@ -70,7 +75,12 @@ export class WebCrawler {
       
       return html;
     } catch (error) {
-      console.error(`❌ Fetch failed for ${url}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown fetch error';
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      console.error(`[CRAWLER] ❌ Fetch failed for ${url}:`, errorName, errorMessage);
+      if (error instanceof Error && error.stack) {
+        console.error(`[CRAWLER] Fetch error stack:`, error.stack);
+      }
       throw error;
     }
   }
@@ -256,20 +266,43 @@ export class WebCrawler {
       // Build comprehensive extraction prompt
       const prompt = this.buildExtractionPrompt(basicData, textContent, url);
       
-      // Query LLM
-      const response = await openRouterClient.query('openai/gpt-4-turbo', prompt);
+      // Query LLM with timeout to prevent hanging
+      const response = await Promise.race([
+        openRouterClient.query('openai/gpt-4-turbo', prompt),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('LLM query timeout')), 30000)
+        )
+      ]);
       
       // Extract JSON from response (handle markdown code blocks)
       const jsonContent = this.extractJSONFromResponse(response.content);
       
-      // Parse structured response
-      const extracted = JSON.parse(jsonContent);
+      // Parse structured response with validation
+      if (!jsonContent || jsonContent.trim().length === 0) {
+        console.warn('LLM returned empty content, using basic extraction');
+        return {};
+      }
+      
+      let extracted;
+      try {
+        extracted = JSON.parse(jsonContent);
+      } catch (parseError) {
+        console.error('LLM JSON parse error:', parseError);
+        console.error('Content received:', jsonContent.substring(0, 200));
+        // Return empty on parse failure - basic data still available
+        return {};
+      }
       
       // Validate and return
       return this.validateExtraction(extracted);
       
     } catch (error) {
-      console.error('LLM extraction error:', error);
+      // Handle timeout and other errors gracefully
+      if (error instanceof Error && error.message === 'LLM query timeout') {
+        console.error('LLM query timed out after 30s');
+      } else {
+        console.error('LLM extraction error:', error);
+      }
       // Return empty on failure - basic data still available
       return {};
     }

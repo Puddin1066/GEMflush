@@ -281,8 +281,8 @@ describe('Stripe Payment Service', () => {
       expect(queries.getTeamByStripeCustomerId).toHaveBeenCalledWith('cus_test123');
       expect(queries.updateTeamSubscription).toHaveBeenCalledWith(1, {
         stripeSubscriptionId: 'sub_test123',
-        stripeProductId: mockProduct,
-        planName: 'Pro',
+        stripeProductId: mockProduct.id, // Fixed: should be product ID string
+        planName: 'pro', // Normalized from "Pro" to "pro"
         subscriptionStatus: 'active',
       });
     });

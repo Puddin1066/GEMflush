@@ -124,7 +124,92 @@ export class OpenRouterClient {
     // Detect prompt type and business name
     let content = '';
     
-    if (lowerPrompt.includes('what do you know about') || lowerPrompt.includes('what information')) {
+    // CRITICAL: Detect notability assessment prompt (requires JSON response)
+    // Check for key phrases that indicate notability assessment
+    const isNotabilityPrompt = 
+      lowerPrompt.includes('assess if these references meet wikidata') ||
+      lowerPrompt.includes('serious and publicly available') ||
+      lowerPrompt.includes('wikidata requires references') ||
+      (lowerPrompt.includes('meetsnotability') && lowerPrompt.includes('seriousreferencecount')) ||
+      (lowerPrompt.includes('references:') && lowerPrompt.includes('wikidata') && lowerPrompt.includes('serious'));
+    
+    if (isNotabilityPrompt) {
+      console.log('[TEST] Detected notability assessment prompt, returning mock assessment');
+      // Notability assessment prompt - return JSON that passes notability checks
+      // This allows e2e tests to verify notability logic works correctly
+      const referenceCount = (prompt.match(/references:/gi) || []).length || 3;
+      content = JSON.stringify({
+        meetsNotability: true,
+        confidence: 0.9,
+        seriousReferenceCount: Math.min(referenceCount, 3),
+        publiclyAvailableCount: Math.min(referenceCount, 3),
+        independentCount: Math.min(referenceCount, 3),
+        summary: 'Business meets Wikidata notability standards with multiple serious, publicly available, and independent references.',
+        references: [
+          {
+            index: 0,
+            isSerious: true,
+            isPubliclyAvailable: true,
+            isIndependent: true,
+            sourceType: 'news',
+            trustScore: 85,
+            reasoning: 'News article from reputable source providing independent coverage.',
+          },
+          {
+            index: 1,
+            isSerious: true,
+            isPubliclyAvailable: true,
+            isIndependent: true,
+            sourceType: 'government',
+            trustScore: 95,
+            reasoning: 'Official government registration provides authoritative verification.',
+          },
+          {
+            index: 2,
+            isSerious: true,
+            isPubliclyAvailable: true,
+            isIndependent: true,
+            sourceType: 'other',
+            trustScore: 70,
+            reasoning: 'Publicly available business directory listing.',
+          },
+        ],
+        recommendations: ['Ready to publish - meets notability standards.'],
+      });
+    } 
+    // CRITICAL: Detect crawler extraction prompt (requires JSON response)
+    else if (lowerPrompt.includes('business intelligence extraction') || 
+        lowerPrompt.includes('extract the following') ||
+        lowerPrompt.includes('return only valid json') ||
+        (lowerPrompt.includes('businessdetails') && lowerPrompt.includes('llmenhanced'))) {
+      // Crawler extraction prompt - return JSON structure matching crawler expectations
+      content = JSON.stringify({
+        businessDetails: {
+          industry: 'Technology',
+          sector: 'Software',
+          legalForm: null,
+          founded: '2020',
+          employeeCount: '10-50',
+          revenue: null,
+          locations: 1,
+          products: null,
+          services: ['Software Development', 'Consulting'],
+          parentCompany: null,
+          ceo: null,
+          awards: null,
+          certifications: null,
+          stockSymbol: null,
+        },
+        llmEnhanced: {
+          extractedEntities: ['Test Business'],
+          businessCategory: 'Technology',
+          serviceOfferings: ['Software Development', 'Consulting'],
+          targetAudience: 'Businesses',
+          keyDifferentiators: ['Innovation', 'Quality'],
+          confidence: 0.8,
+        },
+      });
+    } else if (lowerPrompt.includes('what do you know about') || lowerPrompt.includes('what information')) {
       // Factual prompt
       if (Math.random() > 0.3) {
         content = `Based on available information, this business is a reputable local establishment known for providing quality services. They have been serving the community and maintain a professional reputation. They offer various services and products to their customers and have positive feedback from clients.`;

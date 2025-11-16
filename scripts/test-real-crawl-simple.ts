@@ -5,8 +5,9 @@
  */
 
 import { webCrawler } from '../lib/crawler';
+import { REAL_TEST_SITE_RIDA_FREE_DENTAL } from '../tests/e2e/helpers/real-sites';
 
-const testUrl = process.argv[2] || 'https://www.anthropic.com';
+const testUrl = process.argv[2] || REAL_TEST_SITE_RIDA_FREE_DENTAL;
 
 console.log('🌐 Testing REAL Web Crawling (Basic Extraction Only)');
 console.log('='.repeat(70));

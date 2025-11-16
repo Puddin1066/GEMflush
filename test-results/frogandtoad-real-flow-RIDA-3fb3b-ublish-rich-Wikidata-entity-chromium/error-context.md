@@ -1,0 +1,233 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - link "GEMflush" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]:
+          - img [ref=e7]
+          - generic [ref=e12]: GEMflush
+      - button "t" [ref=e14]:
+        - generic [ref=e16] [cursor=pointer]: t
+    - generic [ref=e18]:
+      - complementary [ref=e19]:
+        - navigation [ref=e20]:
+          - generic [ref=e22]: Pro Plan
+          - generic [ref=e23]:
+            - link "Overview" [ref=e24] [cursor=pointer]:
+              - /url: /dashboard
+              - button "Overview" [ref=e25]:
+                - img
+                - text: Overview
+            - link "Businesses" [ref=e26] [cursor=pointer]:
+              - /url: /dashboard/businesses
+              - button "Businesses" [ref=e27]:
+                - img
+                - text: Businesses
+            - link "Activity" [ref=e28] [cursor=pointer]:
+              - /url: /dashboard/activity
+              - button "Activity" [ref=e29]:
+                - img
+                - text: Activity
+            - link "Settings" [ref=e30] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - button "Settings" [ref=e31]:
+                - img
+                - text: Settings
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - generic [ref=e34]: Current Plan
+              - generic [ref=e35]: Wikidata Publisher
+            - link "Manage Subscription" [ref=e36] [cursor=pointer]:
+              - /url: /dashboard/settings/billing
+              - button "Manage Subscription" [ref=e37]
+      - main [ref=e38]:
+        - generic [ref=e40]:
+          - link "Back to Businesses" [ref=e42] [cursor=pointer]:
+            - /url: /dashboard/businesses
+            - button "Back to Businesses" [ref=e43]:
+              - img
+              - text: Back to Businesses
+          - generic [ref=e44]:
+            - generic [ref=e45]:
+              - generic [ref=e46]:
+                - generic [ref=e47]:
+                  - img [ref=e48]
+                  - text: Get Your Business Into AI Systems
+                - generic [ref=e51]: 50% Complete
+              - generic [ref=e52]: Follow these steps to make your business discoverable by ChatGPT, Claude, and Perplexity
+            - generic [ref=e56]:
+              - generic [ref=e57]:
+                - img [ref=e59]
+                - generic [ref=e63]:
+                  - heading "Crawl Your Website" [level=4] [ref=e64]
+                  - paragraph [ref=e65]: Extract business information from your website
+              - generic [ref=e67]:
+                - img [ref=e69]
+                - generic [ref=e73]:
+                  - heading "Run Fingerprint Analysis" [level=4] [ref=e74]
+                  - paragraph [ref=e75]: See your current AI visibility score
+              - generic [ref=e77]:
+                - generic [ref=e78]: "3"
+                - generic [ref=e80]:
+                  - generic [ref=e81]:
+                    - heading "Publish to Wikidata" [level=4] [ref=e82]
+                    - paragraph [ref=e83]: Make your business discoverable by AI systems (ChatGPT, Claude, Perplexity)
+                  - link "Publish Now" [ref=e84] [cursor=pointer]:
+                    - /url: /dashboard/businesses/452
+                    - button "Publish Now" [ref=e85]:
+                      - text: Publish Now
+                      - img
+              - generic [ref=e87]:
+                - generic [ref=e88]: "4"
+                - generic [ref=e90]:
+                  - generic [ref=e91]:
+                    - heading "Track Improvements" [level=4] [ref=e92]
+                    - paragraph [ref=e93]: Monitor visibility improvements over time
+                  - link "View Results" [ref=e94] [cursor=pointer]:
+                    - /url: /dashboard/businesses/452/fingerprint
+                    - button "View Results" [ref=e95]:
+                      - text: View Results
+                      - img
+          - generic [ref=e96]:
+            - generic [ref=e98]:
+              - generic [ref=e100]:
+                - generic [ref=e101]:
+                  - generic [ref=e102]: 💎
+                  - generic [ref=e103]:
+                    - generic [ref=e104]: RIDA Free Dental Care 1763330683191
+                    - generic [ref=e105]:
+                      - img [ref=e106]
+                      - text: Providence, RI
+                - generic [ref=e109]: Crawled
+              - generic [ref=e111]:
+                - generic [ref=e112]:
+                  - img [ref=e113]
+                  - generic [ref=e116]:
+                    - paragraph [ref=e117]: Website
+                    - link "www.ridental.org/for-the-public/free-and-low-cost-dental-care" [ref=e118] [cursor=pointer]:
+                      - /url: https://www.ridental.org/for-the-public/free-and-low-cost-dental-care
+                      - text: www.ridental.org/for-the-public/free-and-low-cost-dental-care
+                      - img [ref=e119]
+                - generic [ref=e123]:
+                  - img [ref=e124]
+                  - generic [ref=e126]:
+                    - paragraph [ref=e127]: Category
+                    - paragraph [ref=e128]: retail
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - generic [ref=e132]:
+                  - img [ref=e133]
+                  - text: Visibility Intel
+                - generic [ref=e136]: Last analyzed less than a minute ago
+              - generic [ref=e137]:
+                - generic [ref=e139]:
+                  - generic [ref=e140]: 68%
+                  - generic [ref=e141]:
+                    - img [ref=e142]
+                    - generic [ref=e143]: Stable
+                - generic [ref=e144]:
+                  - generic [ref=e145]:
+                    - generic [ref=e146]: 67%
+                    - generic [ref=e147]: Mention Rate
+                  - generic [ref=e148]:
+                    - generic [ref=e149]: 😊 Positive
+                    - generic [ref=e150]: Sentiment
+                  - generic [ref=e151]:
+                    - generic [ref=e152]: 6/9
+                    - generic [ref=e153]: Models
+                  - generic [ref=e154]:
+                    - generic [ref=e155]: N/A
+                    - generic [ref=e156]: Avg Rank
+                - generic [ref=e157]:
+                  - paragraph [ref=e158]: "Top Performing Models:"
+                  - generic [ref=e159]:
+                    - generic [ref=e160]: GPT 4 Turbo
+                    - generic [ref=e161]: Claude 3 Opus
+                    - generic [ref=e162]: GPT 3.5 Turbo
+                - generic [ref=e164]:
+                  - img [ref=e165]
+                  - generic [ref=e167]:
+                    - paragraph [ref=e168]: Boost Your Visibility Score
+                    - paragraph [ref=e169]: Publishing to Wikidata can increase your LLM visibility by up to 340%. Complete the publishing journey to unlock this boost.
+                - button "Run New Analysis" [ref=e170]
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - generic [ref=e174]:
+                  - img [ref=e175]
+                  - text: Competitive Edge
+                - generic [ref=e181]: Based on 3 recommendation queries
+              - generic [ref=e182]:
+                - generic [ref=e183]:
+                  - generic [ref=e184]: "Market Position:"
+                  - generic [ref=e185]:
+                    - generic [ref=e186]: ❓
+                    - generic [ref=e187]: Unknown
+                - generic [ref=e188]:
+                  - generic [ref=e189]:
+                    - generic [ref=e190]: "Your Position:"
+                    - generic [ref=e191]: Not Ranked
+                  - generic [ref=e192]: "Mentioned: 0/3 times (0%)"
+                - generic [ref=e193]:
+                  - paragraph [ref=e194]: "Top Competitor:"
+                  - generic [ref=e197]:
+                    - generic [ref=e198]: 🥇 Providence Place Mall
+                    - generic [ref=e199]: "2 mentions • Avg position: #1.0"
+                - generic [ref=e200]: "Gap to Close: 2 mentions to reach next position"
+                - generic [ref=e201]: "💡 Tip: Insufficient data. Run fingerprinting with recommendation prompts to analyze competitive position."
+                - link "View Full Leaderboard" [ref=e202] [cursor=pointer]:
+                  - /url: /dashboard/businesses/452/competitive
+                  - button "View Full Leaderboard" [ref=e203]:
+                    - text: View Full Leaderboard
+                    - img
+          - generic [ref=e204]:
+            - generic [ref=e207]:
+              - img [ref=e208]
+              - generic [ref=e211]:
+                - generic [ref=e212]: Draft Entity
+                - generic [ref=e213]: Free and Low Cost Dental Care
+            - generic [ref=e214]:
+              - paragraph [ref=e215]: Local business in Providence, RI
+              - generic [ref=e216]:
+                - generic [ref=e217]:
+                  - img [ref=e218]
+                  - generic [ref=e221]: "4"
+                  - generic [ref=e222]: properties
+                - generic [ref=e223]:
+                  - img [ref=e224]
+                  - generic [ref=e227]: "3"
+                  - generic [ref=e228]: references
+                - generic [ref=e231]: high quality
+              - generic [ref=e232]:
+                - generic [ref=e233]:
+                  - img [ref=e234]
+                  - generic [ref=e236]: LLM Visibility
+                - paragraph [ref=e237]: "This entity is now discoverable by:"
+                - generic [ref=e238]:
+                  - generic [ref=e239]: ChatGPT
+                  - generic [ref=e240]: Claude
+                  - generic [ref=e241]: Perplexity
+                  - generic [ref=e242]: Google Gemini
+              - generic [ref=e243]:
+                - button "Publish to Wikidata" [ref=e244]:
+                  - img
+                  - text: Publish to Wikidata
+                - button "Preview JSON" [ref=e245]:
+                  - img
+                  - text: Preview JSON
+              - paragraph [ref=e246]: "Last updated: 2025-11-16T22:05:33.027Z"
+  - alert [ref=e247]
+  - generic [ref=e253] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e254]:
+      - img [ref=e255]
+    - generic [ref=e258]:
+      - button "Open issues overlay" [ref=e259]:
+        - generic [ref=e260]:
+          - generic [ref=e261]: "0"
+          - generic [ref=e262]: "1"
+        - generic [ref=e263]: Issue
+      - button "Collapse issues badge" [ref=e264]:
+        - img [ref=e265]
+```

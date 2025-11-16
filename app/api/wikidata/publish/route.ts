@@ -69,8 +69,9 @@ export async function POST(request: NextRequest) {
 
     // Get DTO with notability check (includes Google Search + LLM assessment)
     const publishData = await getWikidataPublishDTO(businessId);
-
+    
     // Check if can publish (notability + confidence threshold)
+    // Note: In e2e tests, Google Search API is mocked, but notability logic still runs
     if (!publishData.canPublish) {
       return NextResponse.json(
         {
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    
     // Use full entity for publishing
     const entity = publishData.fullEntity;
 

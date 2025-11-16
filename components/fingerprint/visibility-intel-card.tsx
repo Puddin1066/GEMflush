@@ -8,19 +8,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { VisibilityScoreDisplay } from './visibility-score-display';
 import { formatSentiment, formatModelName } from '@/lib/utils/format';
-import { Eye, Sparkles } from 'lucide-react';
+import { Eye, Sparkles, Info } from 'lucide-react';
 import type { FingerprintDetailDTO } from '@/lib/data/types';
 
 interface VisibilityIntelCardProps {
   fingerprint: FingerprintDetailDTO | null;
   loading?: boolean;
   onAnalyze: () => void;
+  isPublished?: boolean;
 }
 
 export function VisibilityIntelCard({
   fingerprint,
   loading = false,
   onAnalyze,
+  isPublished = false,
 }: VisibilityIntelCardProps) {
   // Empty state
   if (!fingerprint && !loading) {
@@ -144,6 +146,24 @@ export function VisibilityIntelCard({
                   {model}
                 </Badge>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Publishing Impact Note */}
+        {!isPublished && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-blue-900 mb-1">
+                  Boost Your Visibility Score
+                </p>
+                <p className="text-xs text-blue-700">
+                  Publishing to Wikidata can increase your LLM visibility by up to 340%. 
+                  Complete the publishing journey to unlock this boost.
+                </p>
+              </div>
             </div>
           </div>
         )}

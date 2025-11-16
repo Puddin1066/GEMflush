@@ -85,7 +85,7 @@ describe('Stripe Checkout API Route', () => {
 
       const mockProduct = {
         id: 'prod_test123',
-        name: 'Pro',
+        name: 'Agency Plan', // Test normalization from "Agency Plan" to "agency"
       } as Stripe.Product;
 
       const mockSubscription = {

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ActivityType } from '@/lib/db/schema';
 import { getActivityLogs } from '@/lib/db/queries';
+import { RelativeTime } from '@/components/activity/relative-time';
 
 const iconMap: Record<ActivityType, LucideIcon> = {
   [ActivityType.SIGN_UP]: UserPlus,
@@ -26,20 +27,6 @@ const iconMap: Record<ActivityType, LucideIcon> = {
   [ActivityType.INVITE_TEAM_MEMBER]: Mail,
   [ActivityType.ACCEPT_INVITATION]: CheckCircle,
 };
-
-function getRelativeTime(date: Date) {
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return 'just now';
-  if (diffInSeconds < 3600)
-    return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-  if (diffInSeconds < 86400)
-    return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-  if (diffInSeconds < 604800)
-    return `${Math.floor(diffInSeconds / 86400)} days ago`;
-  return date.toLocaleDateString();
-}
 
 function formatAction(action: ActivityType): string {
   switch (action) {
@@ -100,7 +87,7 @@ export default async function ActivityPage() {
                         {log.ipAddress && ` from IP ${log.ipAddress}`}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {getRelativeTime(new Date(log.timestamp))}
+                        <RelativeTime date={log.timestamp} />
                       </p>
                     </div>
                   </li>

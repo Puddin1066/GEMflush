@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -14,88 +14,31 @@ import { GemOverviewCard } from '@/components/business/gem-overview-card';
 import { VisibilityIntelCard } from '@/components/fingerprint/visibility-intel-card';
 import { CompetitiveEdgeCard } from '@/components/competitive/competitive-edge-card';
 import { EntityPreviewCard } from '@/components/wikidata/entity-preview-card';
+import { JsonPreviewModal } from '@/components/wikidata/json-preview-modal';
+import { PublishingOnboarding } from '@/components/subscription/publishing-onboarding';
+import { FeatureGate } from '@/components/subscription/feature-gate';
+import { UpgradeCTA } from '@/components/subscription/upgrade-cta';
 import { ArrowLeft } from 'lucide-react';
-import type { FingerprintDetailDTO, CompetitiveLeaderboardDTO, WikidataEntityDetailDTO } from '@/lib/data/types';
-
-interface Business {
-  id: number;
-  name: string;
-  url: string;
-  category?: string | null;
-  location?: {
-    city: string;
-    state: string;
-    country: string;
-  } | null;
-  wikidataQID?: string | null;
-  status: string;
-  createdAt: string;
-  lastCrawledAt?: string | null;
-}
+import type { FingerprintDetailDTO } from '@/lib/data/types';
+import { useBusinessDetail } from '@/lib/hooks/use-business-detail';
 
 export default function BusinessDetailPage() {
   const params = useParams();
   const businessId = parseInt(params.id as string);
-  
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [fingerprint, setFingerprint] = useState<FingerprintDetailDTO | null>(null);
-  const [entity, setEntity] = useState<WikidataEntityDetailDTO | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const {
+    business,
+    fingerprint,
+    entity,
+    loading,
+    error,
+    refresh,
+  } = useBusinessDetail(businessId);
+
   const [crawling, setCrawling] = useState(false);
   const [fingerprinting, setFingerprinting] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadData();
-  }, [businessId]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load business data (SOLID: single responsibility - load business data)
-      const response = await fetch('/api/business');
-      if (!response.ok) {
-        console.error('Failed to fetch businesses:', response.status);
-        setError('Failed to load business data');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-      const businessData = data.businesses?.find((b: Business) => b.id === businessId);
-      
-      if (businessData) {
-        setBusiness(businessData);
-        setError(null); // Clear any previous errors
-        
-        // Load latest fingerprint data if available (DRY: separate concern)
-        try {
-          const fingerprintResponse = await fetch(`/api/fingerprint/business/${businessId}`);
-          if (fingerprintResponse.ok) {
-            const fingerprintData = await fingerprintResponse.json();
-            if (fingerprintData) {
-              setFingerprint(fingerprintData);
-            }
-          }
-          // Fingerprint is optional, so don't treat errors as fatal
-        } catch (error) {
-          console.error('Error loading fingerprint:', error);
-          // Don't set error state for fingerprint failures
-        }
-      } else {
-        // Business not found in list - might be a new business or access issue
-        console.warn(`Business ${businessId} not found in businesses list`);
-        setError(`Business not found. It may have been deleted or you may not have access.`);
-      }
-    } catch (error) {
-      console.error('Error loading business:', error);
-      setError('Failed to load business. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [jsonPreviewOpen, setJsonPreviewOpen] = useState(false);
 
   const handleCrawl = async () => {
     setCrawling(true);
@@ -110,9 +53,10 @@ export default function BusinessDetailPage() {
         throw new Error('Crawl failed');
       }
 
-      // Poll for completion
+      // Poll for completion - reload data to get updated business status
+      // After crawl completes, business status should be 'crawled' and entity will load
       setTimeout(() => {
-        loadData();
+        refresh(); // Reload business data (triggers entity load if status is 'crawled')
         setCrawling(false);
       }, 3000);
     } catch (error) {
@@ -141,7 +85,7 @@ export default function BusinessDetailPage() {
       if (result.fingerprintId) {
         // Wait a bit for fingerprint to be saved, then reload
         setTimeout(() => {
-          loadData();
+          refresh();
           setFingerprinting(false);
         }, 2000);
       } else {
@@ -175,7 +119,7 @@ export default function BusinessDetailPage() {
       }
 
       alert(`Published successfully! QID: ${result.qid}`);
-      loadData();
+      refresh();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Publish failed');
     } finally {
@@ -184,8 +128,9 @@ export default function BusinessDetailPage() {
   };
 
   const handlePreviewJSON = () => {
-    // TODO: Show JSON preview modal
-    alert('JSON preview coming soon!');
+    if (entity) {
+      setJsonPreviewOpen(true);
+    }
   };
 
   if (loading) {
@@ -223,7 +168,7 @@ export default function BusinessDetailPage() {
                   Error Loading Business
                 </h2>
                 <p className="text-red-600 mb-6">{error}</p>
-                <Button onClick={() => loadData()}>Retry</Button>
+                <Button onClick={() => refresh()}>Retry</Button>
               </div>
             </CardContent>
           </Card>
@@ -256,6 +201,10 @@ export default function BusinessDetailPage() {
     return null; // Should not reach here, but satisfy TypeScript
   }
 
+  const hasCrawlData = business.status === 'crawled' || business.status === 'published';
+  const hasFingerprint = fingerprint !== null;
+  const isPublished = business.wikidataQID !== null;
+
   return (
     <div className="flex-1 p-4 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -268,6 +217,16 @@ export default function BusinessDetailPage() {
             </Button>
           </Link>
         </div>
+
+        {/* Publishing Onboarding Journey */}
+        {!isPublished && (
+          <PublishingOnboarding
+            businessId={businessId}
+            hasCrawlData={hasCrawlData}
+            hasFingerprint={hasFingerprint}
+            isPublished={isPublished}
+          />
+        )}
 
         {/* 3-Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -286,6 +245,7 @@ export default function BusinessDetailPage() {
               fingerprint={fingerprint}
               loading={fingerprinting}
               onAnalyze={handleAnalyze}
+              isPublished={isPublished}
             />
           </div>
 
@@ -300,12 +260,42 @@ export default function BusinessDetailPage() {
         </div>
 
         {/* Wikidata Entity Section (Full Width) */}
+        {entity ? (
+          <FeatureGate
+            feature="wikidata"
+            fallback={
+              <div className="space-y-4">
+                <UpgradeCTA feature="wikidata" variant="banner" />
+                <div className="opacity-50 pointer-events-none">
+                  <EntityPreviewCard
+                    entity={entity}
+                    onPublish={handlePublish}
+                    onPreview={handlePreviewJSON}
+                    publishing={publishing}
+                  />
+                </div>
+              </div>
+            }
+          >
+            <EntityPreviewCard
+              entity={entity}
+              onPublish={handlePublish}
+              onPreview={handlePreviewJSON}
+              publishing={publishing}
+            />
+          </FeatureGate>
+        ) : (
+          !hasCrawlData && (
+            <UpgradeCTA feature="wikidata" />
+          )
+        )}
+
+        {/* JSON Preview Modal */}
         {entity && (
-          <EntityPreviewCard
+          <JsonPreviewModal
+            open={jsonPreviewOpen}
+            onOpenChange={setJsonPreviewOpen}
             entity={entity}
-            onPublish={handlePublish}
-            onPreview={handlePreviewJSON}
-            publishing={publishing}
           />
         )}
       </div>

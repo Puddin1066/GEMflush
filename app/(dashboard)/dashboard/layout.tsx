@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Building2, TrendingUp, Database, Settings, Activity, Menu, Sparkles } from 'lucide-react';
 import { GemBadge } from '@/components/ui/gem-icon';
+import { SubscriptionStatus } from '@/components/subscription/subscription-status';
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -20,7 +21,8 @@ export default function DashboardLayout({
   const { data: team } = useSWR('/api/team', fetcher);
 
   // Determine user's plan tier
-  const planTier = team?.planId || 'free';
+  // DRY: Use planName from database (matches team.planName field)
+  const planTier = team?.planName || 'free';
   const isPro = planTier === 'pro' || planTier === 'agency';
 
   const navItems = [
@@ -110,19 +112,8 @@ export default function DashboardLayout({
               })}
             </div>
 
-            {/* Bottom CTA for Free Users */}
-            {!isPro && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="gem-card p-3 text-center space-y-2">
-                  <p className="text-xs font-medium">Unlock Wikidata Publishing</p>
-                  <Link href="/pricing">
-                    <Button size="sm" className="w-full gem-gradient text-white text-xs">
-                      View Plans
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            )}
+            {/* Subscription Status */}
+            <SubscriptionStatus />
           </nav>
         </aside>
 

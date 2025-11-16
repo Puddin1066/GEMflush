@@ -51,6 +51,10 @@
     "test:job": "vitest run job",
     "test:job:watch": "vitest job",
     "test:job:coverage": "vitest run --coverage job",
+    "setup:stripe": "npx tsx scripts/setup-stripe-products.ts",
+    "setup:stripe:cli": "npx tsx scripts/setup-stripe-products.ts --cli",
+    "clean": "rm -rf .next .turbo node_modules/.cache && echo '✅ Build cache cleared'",
+    "clean:build": "./scripts/clean-build.sh",
     "test:team": "vitest run team",
     "test:team:watch": "vitest team",
     "test:team:coverage": "vitest run --coverage team",
@@ -63,9 +67,12 @@
     "db:seed": "npx tsx lib/db/seed.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:migrate:automation": "npx tsx scripts/apply-automation-migration.ts",
+    "db:studio": "drizzle-kit studio",
+    "deploy:check": "npx tsx scripts/deploy-automation.ts"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-progress": "^1.1.8",
     "@react-email/render": "^2.0.0",
     "@tailwindcss/postcss": "4.1.7",

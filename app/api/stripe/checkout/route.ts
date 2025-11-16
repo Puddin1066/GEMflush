@@ -6,6 +6,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/payments/stripe';
 import Stripe from 'stripe';
 
+/**
+ * Normalize Stripe product name to plan ID (DRY: centralized normalization)
+ * SOLID: Single Responsibility - only handles name normalization
+ * 
+ * Stripe product names can be "Pro Plan", "Pro", "Agency Plan", etc.
+ * But plan IDs must be lowercase: "pro", "agency", "free"
+ * 
+ * This matches the logic in lib/payments/stripe.ts (DRY: avoid duplication)
+ */
+function normalizeProductNameToPlanId(productName: string | null | undefined): string {
+  if (!productName) return 'free'; // Default to free if no product name
+  
+  const normalized = productName.toLowerCase().trim();
+  
+  // Map common Stripe product name variations to plan IDs
+  if (normalized.includes('pro') && !normalized.includes('agency')) {
+    return 'pro';
+  } else if (normalized.includes('agency')) {
+    return 'agency';
+  } else if (normalized === 'free' || normalized === 'llm fingerprinter') {
+    return 'free';
+  }
+  
+  // Fallback: try direct match (case-insensitive)
+  const planIds = ['free', 'pro', 'agency'];
+  const matched = planIds.find(id => normalized.includes(id));
+  return matched || normalized; // Return normalized if no match (pragmatic: might still work)
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const sessionId = searchParams.get('session_id');
@@ -43,11 +72,16 @@ export async function GET(request: NextRequest) {
       throw new Error('No plan found for this subscription.');
     }
 
-    const productId = (plan.product as Stripe.Product).id;
+    const product = plan.product as Stripe.Product;
+    const productId = product.id;
 
     if (!productId) {
       throw new Error('No product ID found for this subscription.');
     }
+
+    // DRY: Normalize product name to plan ID
+    // Stripe product names can be "Pro Plan", "Pro", etc., but plan IDs must be "pro", "agency", "free"
+    const planId = normalizeProductNameToPlanId(product.name);
 
     const userId = session.client_reference_id;
     if (!userId) {
@@ -76,22 +110,52 @@ export async function GET(request: NextRequest) {
       throw new Error('User is not associated with any team.');
     }
 
+    // Update team subscription (SOLID: single responsibility)
     await db
       .update(teams)
       .set({
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         stripeProductId: productId,
-        planName: (plan.product as Stripe.Product).name,
+        planName: planId, // Use normalized plan ID, not raw product name
         subscriptionStatus: subscription.status,
         updatedAt: new Date(),
       })
       .where(eq(teams.id, userTeam[0].teamId));
 
+    // Verify update succeeded (SOLID: proper validation)
+    const [updatedTeam] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, userTeam[0].teamId))
+      .limit(1);
+
+    if (!updatedTeam || updatedTeam.planName !== planId) {
+      console.error('Failed to update team subscription:', {
+        teamId: userTeam[0].teamId,
+        expectedPlan: planId,
+        actualPlan: updatedTeam?.planName,
+      });
+      throw new Error('Team subscription update verification failed');
+    }
+
+    console.log('Team subscription updated successfully:', {
+      teamId: userTeam[0].teamId,
+      planName: planId,
+      subscriptionStatus: subscription.status,
+    });
+
     await setSession(user[0]);
     return NextResponse.redirect(new URL('/dashboard', request.url));
   } catch (error) {
     console.error('Error handling successful checkout:', error);
+    // Log full error details for debugging (DRY: comprehensive error logging)
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+    }
     return NextResponse.redirect(new URL('/error', request.url));
   }
 }

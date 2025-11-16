@@ -47,3 +47,50 @@ export function getSignInButton(page: Page): Locator {
   );
 }
 
+/**
+ * Get upgrade CTA (DRY: reusable selector)
+ * Returns the first upgrade button or text found
+ */
+export function getUpgradeCTA(page: Page): Locator {
+  return page.getByRole('button', { name: /upgrade/i }).first().or(
+    page.getByText(/upgrade/i).first()
+  );
+}
+
+/**
+ * Check if upgrade CTA is visible (DRY: reusable assertion helper)
+ * SOLID: Single Responsibility - only checks visibility
+ * Don't overfit: Flexible check for any upgrade-related element
+ */
+export async function expectUpgradeCTAVisible(page: Page): Promise<void> {
+  // Check for upgrade buttons first (most common case)
+  const upgradeButtons = page.getByRole('button', { name: /upgrade/i });
+  const buttonCount = await upgradeButtons.count();
+  
+  if (buttonCount > 0) {
+    // At least one upgrade button exists, verify it's visible
+    const firstButton = upgradeButtons.first();
+    const isVisible = await firstButton.isVisible().catch(() => false);
+    if (isVisible) {
+      return; // Found visible upgrade button
+    }
+  }
+  
+  // Check for upgrade text (headings, paragraphs, etc.)
+  const upgradeText = page.getByText(/upgrade/i).first();
+  const unlockText = page.getByText(/unlock/i).first();
+  
+  const textVisible = await upgradeText.isVisible().catch(() => false);
+  const unlockVisible = await unlockText.isVisible().catch(() => false);
+  
+  if (!textVisible && !unlockVisible) {
+    // Last resort: check if any element with upgrade/unlock is visible
+    const anyUpgrade = page.locator('text=/upgrade|unlock/i').first();
+    const anyVisible = await anyUpgrade.isVisible({ timeout: 1000 }).catch(() => false);
+    
+    if (!anyVisible) {
+      throw new Error('No upgrade CTA found on page');
+    }
+  }
+}
+

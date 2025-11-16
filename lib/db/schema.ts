@@ -7,6 +7,8 @@ import {
   integer,
   jsonb,
   real,
+  boolean,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -164,6 +166,10 @@ export const businesses = pgTable('businesses', {
   lastCrawledAt: timestamp('last_crawled_at'),
   crawlData: jsonb('crawl_data'),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
+  // Automation fields
+  automationEnabled: boolean('automation_enabled').default(false),
+  nextCrawlAt: timestamp('next_crawl_at'),
+  lastAutoPublishedAt: timestamp('last_auto_published_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -283,18 +289,32 @@ export type Competitor = typeof competitors.$inferSelect;
 export type NewCompetitor = typeof competitors.$inferInsert;
 
 // QID Cache table for persistent Wikidata QID lookups
-export const qidCache = pgTable('qid_cache', {
-  id: serial('id').primaryKey(),
-  entityType: varchar('entity_type', { length: 50 }).notNull(),
-  searchKey: varchar('search_key', { length: 255 }).notNull(),
-  qid: varchar('qid', { length: 20 }).notNull(),
-  source: varchar('source', { length: 20 }).notNull(), // 'local_mapping', 'sparql', 'manual'
-  queryCount: integer('query_count').default(1),
-  lastQueriedAt: timestamp('last_queried_at').defaultNow(),
-  validatedAt: timestamp('validated_at').defaultNow(),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
+// SOLID: Single Responsibility - stores cached QID lookups
+// DRY: Prevents duplicate lookups by enforcing unique entity_type + search_key combination
+export const qidCache = pgTable(
+  'qid_cache',
+  {
+    id: serial('id').primaryKey(),
+    entityType: varchar('entity_type', { length: 50 }).notNull(),
+    searchKey: varchar('search_key', { length: 255 }).notNull(),
+    qid: varchar('qid', { length: 20 }).notNull(),
+    source: varchar('source', { length: 20 }).notNull(), // 'local_mapping', 'sparql', 'manual'
+    queryCount: integer('query_count').default(1),
+    lastQueriedAt: timestamp('last_queried_at').defaultNow(),
+    validatedAt: timestamp('validated_at').defaultNow(),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (table) => ({
+    // Composite unique constraint: entity_type + search_key must be unique
+    // This enables ON CONFLICT updates in lib/wikidata/sparql.ts
+    // Matches migration 0003_add_qid_cache.sql: UNIQUE(entity_type, search_key)
+    entityTypeSearchKeyUnique: unique('qid_cache_entity_type_search_key_unique').on(
+      table.entityType,
+      table.searchKey
+    ),
+  })
+);
 
 export type QidCache = typeof qidCache.$inferSelect;
 export type NewQidCache = typeof qidCache.$inferInsert;

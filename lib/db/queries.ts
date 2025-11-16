@@ -163,6 +163,21 @@ export async function getBusinessById(businessId: number) {
   return result.length > 0 ? result[0] : null;
 }
 
+export async function getTeamForBusiness(businessId: number) {
+  const business = await getBusinessById(businessId);
+  if (!business) {
+    return null;
+  }
+
+  const result = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.id, business.teamId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
 export async function createBusiness(businessData: NewBusiness) {
   const result = await db
     .insert(businesses)

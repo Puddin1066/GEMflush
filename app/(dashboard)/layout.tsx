@@ -1,32 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useState, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Home, LogOut } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuGroup
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GemflushLogo } from '@/components/ui/gem-icon';
 import { signOut } from '@/app/(login)/actions';
 import { useRouter } from 'next/navigation';
-import { User } from '@/lib/db/schema';
-import useSWR, { mutate } from 'swr';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { useUser } from '@/lib/hooks/use-user';
 
 function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { data: user } = useSWR<User>('/api/user', fetcher);
+  const { user, refresh } = useUser();
   const router = useRouter();
 
   async function handleSignOut() {
     await signOut();
-    mutate('/api/user');
+    refresh();
     router.push('/');
   }
 
@@ -59,21 +57,19 @@ function UserMenu() {
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="flex flex-col gap-1">
-        <DropdownMenuItem className="cursor-pointer">
-          <Link href="/dashboard" className="flex w-full items-center">
-            <Home className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
-          </Link>
-        </DropdownMenuItem>
-        <form action={handleSignOut} className="w-full">
-          <button type="submit" className="flex w-full">
-            <DropdownMenuItem className="w-full flex-1 cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sign out</span>
-            </DropdownMenuItem>
-          </button>
-        </form>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem className="cursor-pointer" asChild>
+            <Link href="/dashboard" className="flex w-full items-center">
+              <Home className="mr-2 h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer" onSelect={(e) => { e.preventDefault(); handleSignOut(); }}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sign out</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -100,7 +96,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <section className="flex flex-col min-h-screen">
       <Header />
-      {children}
+      {Array.isArray(children) ? (
+        children.map((child, index) => (
+          <React.Fragment key={index}>{child}</React.Fragment>
+        ))
+      ) : (
+        children
+      )}
     </section>
   );
 }

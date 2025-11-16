@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WikidataRubyIcon } from '@/components/ui/gem-icon';
-import { ExternalLink, Rocket, Eye, CheckCircle } from 'lucide-react';
+import { ExternalLink, Rocket, Eye, CheckCircle, Sparkles } from 'lucide-react';
 import type { WikidataEntityDetailDTO } from '@/lib/data/types';
 
 interface EntityPreviewCardProps {
@@ -73,6 +73,29 @@ export function EntityPreviewCard({
             }`} />
             <span className="text-gray-600 capitalize">{entity.stats.referenceQuality} quality</span>
           </div>
+        </div>
+
+        {/* LLM Visibility Section */}
+        <div className="border-t border-gray-200 pt-4 mt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold text-gray-900">LLM Visibility</span>
+          </div>
+          <p className="text-xs text-gray-600 mb-3">
+            This entity is now discoverable by:
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            <Badge variant="secondary" className="text-xs">ChatGPT</Badge>
+            <Badge variant="secondary" className="text-xs">Claude</Badge>
+            <Badge variant="secondary" className="text-xs">Perplexity</Badge>
+            <Badge variant="secondary" className="text-xs">Google Gemini</Badge>
+          </div>
+          {isPublished && (
+            <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Active in knowledge graph • QID: {entity.qid}
+            </p>
+          )}
         </div>
 
         {/* Actions */}

@@ -1,4 +1,4 @@
-CREATE TABLE "businesses" (
+CREATE TABLE IF NOT EXISTS "businesses" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"team_id" integer NOT NULL,
 	"name" varchar(200) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE "businesses" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "competitors" (
+CREATE TABLE IF NOT EXISTS "competitors" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"business_id" integer NOT NULL,
 	"competitor_business_id" integer,
@@ -24,7 +24,7 @@ CREATE TABLE "competitors" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "crawl_jobs" (
+CREATE TABLE IF NOT EXISTS "crawl_jobs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"business_id" integer NOT NULL,
 	"job_type" varchar(50) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE "crawl_jobs" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "llm_fingerprints" (
+CREATE TABLE IF NOT EXISTS "llm_fingerprints" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"business_id" integer NOT NULL,
 	"visibility_score" integer NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE "llm_fingerprints" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "wikidata_entities" (
+CREATE TABLE IF NOT EXISTS "wikidata_entities" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"business_id" integer NOT NULL,
 	"qid" varchar(50) NOT NULL,
@@ -63,9 +63,38 @@ CREATE TABLE "wikidata_entities" (
 	CONSTRAINT "wikidata_entities_qid_unique" UNIQUE("qid")
 );
 --> statement-breakpoint
-ALTER TABLE "businesses" ADD CONSTRAINT "businesses_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "competitors" ADD CONSTRAINT "competitors_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "competitors" ADD CONSTRAINT "competitors_competitor_business_id_businesses_id_fk" FOREIGN KEY ("competitor_business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "crawl_jobs" ADD CONSTRAINT "crawl_jobs_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "llm_fingerprints" ADD CONSTRAINT "llm_fingerprints_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "wikidata_entities" ADD CONSTRAINT "wikidata_entities_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;
+DO $$ BEGIN
+ ALTER TABLE "businesses" ADD CONSTRAINT "businesses_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "competitors" ADD CONSTRAINT "competitors_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "competitors" ADD CONSTRAINT "competitors_competitor_business_id_businesses_id_fk" FOREIGN KEY ("competitor_business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "crawl_jobs" ADD CONSTRAINT "crawl_jobs_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "llm_fingerprints" ADD CONSTRAINT "llm_fingerprints_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "wikidata_entities" ADD CONSTRAINT "wikidata_entities_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;

@@ -16,11 +16,19 @@ This is a starter template for building a SaaS application using **Next.js** wit
 - **Custom UI Components** - Gem icons, badges, cards, and premium styling effects
 - **SPARQL Query Builder** - Direct queries to Wikidata knowledge base
 
-📚 **See additional documentation:**
-- [GEMflush Features & Architecture](./README_GEMFLUSH.md)
-- [Design System Documentation](./DESIGN_SYSTEM.md)
-- [Gem Styling Quick Reference](./GEM_STYLING_GUIDE.md)
-- [Full Implementation Details](./GEMFLUSH.md)
+📚 **Documentation:**
+
+Our documentation is organized in the [`docs/`](./docs/) directory:
+
+- **[Getting Started](docs/getting-started/START_HERE.md)** ⭐ - New to the project? Start here
+- **[Product Documentation](docs/product/)** - Product specs, UX strategy, marketing
+- **[Architecture](docs/architecture/)** - System design and technical architecture
+- **[Development Guides](docs/development/)** - Development roadmap and guides
+- **[Feature Documentation](docs/features/)** - Feature-specific deep dives (Wikidata, LLM, Crawler, Gem)
+- **[Testing](docs/testing/)** - Testing guides and status
+- **[Troubleshooting](docs/troubleshooting/)** - Common issues and solutions
+
+See [docs/README.md](docs/README.md) for the complete documentation index.
 
 ## Features
 

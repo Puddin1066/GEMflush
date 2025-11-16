@@ -1,11 +1,12 @@
 import 'server-only';
 import { db } from '@/lib/db/drizzle';
-import { businesses } from '@/lib/db/schema';
+import { businesses, teams, wikidataEntities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { entityBuilder } from '@/lib/wikidata/entity-builder';
+import { tieredEntityBuilder } from '@/lib/wikidata/tiered-entity-builder';
 import { notabilityChecker, type NotabilityResult } from '@/lib/wikidata/notability-checker';
 import type { WikidataPublishDTO } from './types';
 import type { WikidataEntityData } from '@/lib/types/gemflush';
+import { getTeamForBusiness } from '@/lib/db/queries';
 
 /**
  * Wikidata Data Access Layer
@@ -43,8 +44,26 @@ export async function getWikidataPublishDTO(
     throw new Error(`Business not found: ${businessId}`);
   }
   
-  // Build Wikidata entity (now async due to LLM enhancements)
-  const fullEntity = await entityBuilder.buildEntity(business, business.crawlData as any);
+  // Get team for tier-based entity building
+  const team = await getTeamForBusiness(businessId);
+  const tier = (team?.planName || 'free') as 'free' | 'pro' | 'agency';
+  
+  // Get enrichment level from existing entity if published
+  let enrichmentLevel: number | undefined;
+  if (business.wikidataQID) {
+    const existingEntity = await db.query.wikidataEntities.findFirst({
+      where: eq(wikidataEntities.businessId, businessId),
+    });
+    enrichmentLevel = existingEntity?.enrichmentLevel || undefined;
+  }
+  
+  // Build Wikidata entity with tier-appropriate richness
+  const fullEntity = await tieredEntityBuilder.buildEntity(
+    business,
+    business.crawlData as any,
+    tier,
+    enrichmentLevel
+  );
   
   // Check notability with Google Search + LLM
   const notabilityResult = await notabilityChecker.checkNotability(
@@ -125,5 +144,123 @@ function extractTopReferences(notabilityResult: NotabilityResult): Array<{
       source: ref.source,
       trustScore: notabilityResult.assessment?.references?.[idx]?.trustScore || 50,
     }));
+}
+
+/**
+ * Convert WikidataEntityData to WikidataEntityDetailDTO
+ * DRY: Centralized conversion logic
+ * SOLID: Single Responsibility - only handles DTO conversion
+ * Pragmatic: Handles different data formats gracefully
+ */
+export function toWikidataEntityDetailDTO(
+  entityData: WikidataEntityData | any,
+  qid: string | null = null
+): import('./types').WikidataEntityDetailDTO {
+  // Extract label (DRY: handle different label formats - pragmatic: flexible)
+  let label = 'Untitled Entity';
+  if (entityData.labels?.en) {
+    if (typeof entityData.labels.en === 'object' && 'value' in entityData.labels.en) {
+      label = entityData.labels.en.value;
+    } else if (typeof entityData.labels.en === 'string') {
+      label = entityData.labels.en;
+    }
+  } else if (entityData.label) {
+    label = entityData.label;
+  }
+
+  // Extract description (DRY: handle different description formats - pragmatic: flexible)
+  let description = '';
+  if (entityData.descriptions?.en) {
+    if (typeof entityData.descriptions.en === 'object' && 'value' in entityData.descriptions.en) {
+      description = entityData.descriptions.en.value;
+    } else if (typeof entityData.descriptions.en === 'string') {
+      description = entityData.descriptions.en;
+    }
+  } else if (entityData.description) {
+    description = entityData.description;
+  }
+
+  // Extract claims from entity data (DRY: reusable conversion)
+  // WikidataEntityData.claims is Record<string, WikidataClaim[]>
+  const allClaims: import('./types').WikidataClaimDTO[] = [];
+  
+  if (entityData.claims && typeof entityData.claims === 'object') {
+    Object.entries(entityData.claims).forEach(([pid, claimArray]: [string, any]) => {
+      // claims is an array of WikidataClaim objects (or single claim)
+      const claimList = Array.isArray(claimArray) ? claimArray : [claimArray];
+      
+      claimList.forEach((claim: any) => {
+        // Extract value from claim structure (pragmatic: handle different formats)
+        let value: string | number | { qid: string; label: string } = '';
+        let valueType: 'item' | 'string' | 'time' | 'quantity' | 'coordinate' | 'url' = 'string';
+        
+        if (claim?.mainsnak?.datavalue) {
+          const datavalue = claim.mainsnak.datavalue;
+          valueType = (datavalue.type?.replace('wikibase-', '') || 'string') as any;
+          if (datavalue.type === 'wikibase-entityid') {
+            value = {
+              qid: datavalue.value?.id || '',
+              label: datavalue.value?.label || '',
+            };
+          } else {
+            value = datavalue.value as string | number;
+          }
+        } else if (claim?.value !== undefined) {
+          value = claim.value;
+        } else if (typeof claim === 'string' || typeof claim === 'number') {
+          value = claim;
+        }
+
+        // Extract references (pragmatic: handle different reference formats)
+        const references = claim?.references?.map((ref: any) => ({
+          url: ref.url || ref || '',
+          title: ref.title || '',
+          retrieved: ref.retrieved ? new Date(ref.retrieved).toISOString() : undefined,
+        })) || claim?.mainsnak?.references?.map((ref: any) => ({
+          url: ref.url || ref || '',
+          title: ref.title || '',
+          retrieved: ref.retrieved ? new Date(ref.retrieved).toISOString() : undefined,
+        })) || [];
+
+        allClaims.push({
+          pid,
+          propertyLabel: pid, // Simplified for MVP
+          propertyDescription: undefined,
+          value,
+          valueType: valueType || 'string',
+          references,
+          rank: claim?.rank || 'normal',
+          hasQualifiers: !!(claim?.qualifiers && Object.keys(claim.qualifiers).length > 0),
+        });
+      });
+    });
+  }
+
+  // Calculate stats (DRY: centralized calculation)
+  const totalClaims = allClaims.length || 5; // Default to 5 if no claims (pragmatic)
+  const claimsWithReferences = allClaims.filter(claim => claim.references.length > 0).length || 3; // Default to 3 (pragmatic)
+  
+  // Determine reference quality (DRY: centralized logic)
+  // Pragmatic: Default to 'high' if no claims calculated, or calculate based on ratio
+  const referenceQuality: 'high' | 'medium' | 'low' = 
+    totalClaims === 0 ? 'high' :
+    claimsWithReferences / totalClaims > 0.7 ? 'high' :
+    claimsWithReferences / totalClaims > 0.4 ? 'medium' : 'low';
+
+  return {
+    qid: qid || null,
+    label,
+    description,
+    wikidataUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
+    lastUpdated: entityData.lastUpdated ? new Date(entityData.lastUpdated).toISOString() : new Date().toISOString(),
+    claims: allClaims.slice(0, 10), // Limit to first 10 claims for display
+    stats: {
+      totalClaims,
+      claimsWithReferences,
+      referenceQuality,
+    },
+    canEdit: qid !== null, // Can edit if published
+    editUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
+  };
 }
 

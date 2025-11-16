@@ -1,11 +1,36 @@
 import Stripe from 'stripe';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { Team } from '@/lib/db/schema';
 import {
   getTeamByStripeCustomerId,
   getUser,
   updateTeamSubscription
 } from '@/lib/db/queries';
+
+/**
+ * Get the base URL from request headers or environment variable
+ * SOLID: Single Responsibility - handles URL resolution
+ * DRY: Centralized URL resolution logic
+ */
+async function getBaseUrl(): Promise<string> {
+  // Try to get from request headers first (for server actions/API routes)
+  try {
+    const headersList = await headers();
+    const host = headersList.get('host');
+    const protocol = headersList.get('x-forwarded-proto') || 
+                     (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+    
+    if (host) {
+      return `${protocol}://${host}`;
+    }
+  } catch (error) {
+    // Headers not available in this context, fall back to env var
+  }
+  
+  // Fallback to environment variable
+  return process.env.BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+}
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-04-30.basil'
@@ -35,6 +60,9 @@ export async function createCheckoutSession({
   }
 
   try {
+    // Get base URL dynamically from request (SOLID: use request context)
+    const baseUrl = await getBaseUrl();
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -44,8 +72,8 @@ export async function createCheckoutSession({
         }
       ],
       mode: 'subscription',
-      success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.BASE_URL}/pricing`,
+      success_url: `${baseUrl}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
       customer: team.stripeCustomerId || undefined,
       client_reference_id: user.id.toString(),
       allow_promotion_codes: true,
@@ -60,7 +88,20 @@ export async function createCheckoutSession({
 
     redirect(session.url);
   } catch (error) {
-    // Enhanced error logging for debugging
+    // Next.js redirect() throws NEXT_REDIRECT error - this is expected behavior, not an error
+    // Check if this is a redirect first (digest will be present for Next.js redirects)
+    // Also check for the error message pattern
+    const isRedirect = error && typeof error === 'object' && (
+      'digest' in error || 
+      (error instanceof Error && error.message === 'NEXT_REDIRECT')
+    );
+    
+    if (isRedirect) {
+      // This is a Next.js redirect, re-throw it as-is (don't log as error)
+      throw error;
+    }
+    
+    // Enhanced error logging for debugging (only for actual errors)
     console.error('[createCheckoutSession] Stripe API error', {
       error: error instanceof Error ? error.message : 'Unknown error',
       priceId,
@@ -142,11 +183,39 @@ export async function createCustomerPortalSession(team: Team) {
     });
   }
 
+  const baseUrl = await getBaseUrl();
   return stripe.billingPortal.sessions.create({
     customer: team.stripeCustomerId,
-    return_url: `${process.env.BASE_URL}/dashboard`,
+    return_url: `${baseUrl}/dashboard`,
     configuration: configuration.id
   });
+}
+
+/**
+ * Normalize Stripe product name to plan ID (DRY: centralized normalization)
+ * SOLID: Single Responsibility - only handles name normalization
+ * 
+ * Stripe product names can be "Pro Plan", "Pro", "Agency Plan", etc.
+ * But plan IDs must be lowercase: "pro", "agency", "free"
+ */
+function normalizeProductNameToPlanId(productName: string | null | undefined): string | null {
+  if (!productName) return null;
+  
+  const normalized = productName.toLowerCase().trim();
+  
+  // Map common Stripe product name variations to plan IDs
+  if (normalized.includes('pro') && !normalized.includes('agency')) {
+    return 'pro';
+  } else if (normalized.includes('agency')) {
+    return 'agency';
+  } else if (normalized === 'free' || normalized === 'llm fingerprinter') {
+    return 'free';
+  }
+  
+  // Fallback: try direct match (case-insensitive)
+  const planIds = ['free', 'pro', 'agency'];
+  const matched = planIds.find(id => normalized.includes(id));
+  return matched || normalized; // Return normalized if no match (pragmatic: might still work)
 }
 
 export async function handleSubscriptionChange(
@@ -165,19 +234,69 @@ export async function handleSubscriptionChange(
 
   if (status === 'active' || status === 'trialing') {
     const plan = subscription.items.data[0]?.plan;
-    await updateTeamSubscription(team.id, {
-      stripeSubscriptionId: subscriptionId,
-      stripeProductId: plan?.product as string,
-      planName: (plan?.product as Stripe.Product).name,
-      subscriptionStatus: status
-    });
+    const product = plan?.product as Stripe.Product | string;
+    const productName = typeof product === 'object' ? product.name : null;
+    
+    // DRY: Normalize product name to plan ID
+    const planId = normalizeProductNameToPlanId(productName);
+    
+    try {
+      await updateTeamSubscription(team.id, {
+        stripeSubscriptionId: subscriptionId,
+        stripeProductId: typeof product === 'object' ? product.id : (product as string),
+        planName: planId, // Use normalized plan ID, not raw product name
+        subscriptionStatus: status
+      });
+      
+      // Verify update succeeded (SOLID: proper validation)
+      const updatedTeam = await getTeamByStripeCustomerId(customerId);
+      if (!updatedTeam || updatedTeam.planName !== planId) {
+        console.error('Failed to verify team subscription update:', {
+          teamId: team.id,
+          customerId,
+          expectedPlan: planId,
+          actualPlan: updatedTeam?.planName,
+        });
+      } else {
+        console.log('Team subscription updated successfully:', {
+          teamId: team.id,
+          customerId,
+          planName: planId,
+          subscriptionStatus: status,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating team subscription:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        teamId: team.id,
+        customerId,
+        planId,
+        subscriptionStatus: status,
+      });
+      throw error; // Re-throw to allow webhook retry
+    }
   } else if (status === 'canceled' || status === 'unpaid') {
-    await updateTeamSubscription(team.id, {
-      stripeSubscriptionId: null,
-      stripeProductId: null,
-      planName: null,
-      subscriptionStatus: status
-    });
+    try {
+      await updateTeamSubscription(team.id, {
+        stripeSubscriptionId: null,
+        stripeProductId: null,
+        planName: null,
+        subscriptionStatus: status
+      });
+      console.log('Team subscription cancelled:', {
+        teamId: team.id,
+        customerId,
+        subscriptionStatus: status,
+      });
+    } catch (error) {
+      console.error('Error cancelling team subscription:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        teamId: team.id,
+        customerId,
+        subscriptionStatus: status,
+      });
+      throw error; // Re-throw to allow webhook retry
+    }
   }
 }
 

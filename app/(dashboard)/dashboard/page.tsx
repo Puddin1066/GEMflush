@@ -147,10 +147,11 @@ export default async function DashboardPage() {
     <section className="flex-1 p-4 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
-          AI Visibility Command Center
+          Get Found by AI. Not Just Google.
         </h1>
-        <p className="text-gray-600">
-          Track your business performance across major AI systems
+        <p className="text-gray-600 text-lg">
+          When customers ask ChatGPT, Claude, or Perplexity about businesses like yours, 
+          will they find you? We make sure they do.
         </p>
       </div>
 
@@ -171,12 +172,15 @@ export default async function DashboardPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-600">Wikidata Entities</span>
-              <WikidataRubyIcon size={20} />
+              <span className="text-sm text-gray-600">Visible in LLMs</span>
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div className="text-3xl font-bold gem-text">
               {stats.wikidataEntities}
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Published to Wikidata • Discoverable by AI
+            </p>
           </CardContent>
         </Card>
 
@@ -193,6 +197,39 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Value Explanation Banner */}
+      <Card className="mb-6 bg-gradient-to-r from-primary/5 to-purple-50 border-primary/20">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <WikidataRubyIcon size={32} className="text-primary flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 mb-2">
+                How Wikidata Publishing Makes You Visible to AI
+              </h3>
+              <p className="text-sm text-gray-700 mb-3">
+                When you publish to Wikidata, your business becomes part of the knowledge base 
+                that powers ChatGPT, Claude, Perplexity, and other AI systems. 
+                <strong> This is the only automated service that does this.</strong>
+              </p>
+              <div className="flex gap-4 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                  <span>Automated entity creation</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                  <span>Notability validation</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                  <span>One-click publishing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Businesses Grid */}
       <div className="mb-6 flex items-center justify-between">
@@ -216,12 +253,18 @@ export default async function DashboardPage() {
                     <CardDescription>{business.location}</CardDescription>
                   </div>
                   {business.wikidataQid ? (
-                    <GemBadge variant="ruby" className="text-xs">
-                      Published
-                    </GemBadge>
+                    <div className="flex flex-col items-end gap-1">
+                      <GemBadge variant="ruby" className="text-xs">
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        In LLMs
+                      </GemBadge>
+                      <span className="text-xs text-gray-500">
+                        Discoverable by AI
+                      </span>
+                    </div>
                   ) : (
                     <GemBadge variant="outline" className="text-xs">
-                      Pending
+                      Not in LLMs yet
                     </GemBadge>
                   )}
                 </div>

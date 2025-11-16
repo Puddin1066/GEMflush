@@ -57,9 +57,15 @@ test.describe('Business Creation Form Validation', () => {
   });
 
   authenticatedTest('allows valid form submission', async ({ authenticatedPage }) => {
-    // Fill all required fields correctly
+    // Fill all required fields correctly (DRY: provide valid category to avoid validation errors)
     await getBusinessNameInput(authenticatedPage).fill('Test Business');
     await getBusinessUrlInput(authenticatedPage).fill('https://example.com');
+    // Select category if available
+    const categorySelect = authenticatedPage.locator('select[name="category"]');
+    const categoryExists = await categorySelect.count().catch(() => 0);
+    if (categoryExists > 0) {
+      await categorySelect.selectOption('technology');
+    }
     await authenticatedPage.getByLabel(/city/i).fill('Seattle');
     await authenticatedPage.getByLabel(/state/i).fill('WA');
     await authenticatedPage.getByLabel(/country/i).fill('US');
@@ -212,9 +218,15 @@ test.describe('Form State Management', () => {
   authenticatedTest('clears form after successful submission', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/dashboard/businesses/new');
     
-    // Fill and submit form successfully
+    // Fill and submit form successfully (DRY: provide valid category)
     await getBusinessNameInput(authenticatedPage).fill('Test Business');
     await getBusinessUrlInput(authenticatedPage).fill('https://example.com');
+    // Select category if available
+    const categorySelect = authenticatedPage.locator('select[name="category"]');
+    const categoryExists = await categorySelect.count().catch(() => 0);
+    if (categoryExists > 0) {
+      await categorySelect.selectOption('technology');
+    }
     await authenticatedPage.getByLabel(/city/i).fill('Seattle');
     await authenticatedPage.getByLabel(/state/i).fill('WA');
     
