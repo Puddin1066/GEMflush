@@ -7,6 +7,7 @@
 import { WikidataEntityBuilder } from './entity-builder';
 import { Business } from '@/lib/db/schema';
 import type { CrawledData, WikidataEntityData } from '@/lib/types/gemflush';
+import type { Reference } from './notability-checker';
 import { getEntityRichnessForTier } from '@/lib/services/automation-service';
 
 // Property sets by tier
@@ -37,20 +38,28 @@ const entityBuilder = new WikidataEntityBuilder();
 export class TieredEntityBuilder {
   /**
    * Build entity with tier-appropriate richness
+   * 
+   * @param business - Business data
+   * @param crawledData - Crawled business data
+   * @param tier - Subscription tier
+   * @param enrichmentLevel - Optional enrichment level
+   * @param notabilityReferences - Optional notability references to attach to claims
    */
   async buildEntity(
     business: Business,
     crawledData: CrawledData | undefined,
     tier: 'free' | 'pro' | 'agency',
-    enrichmentLevel?: number
+    enrichmentLevel?: number,
+    notabilityReferences?: Reference[]
   ): Promise<WikidataEntityData> {
-    // Build full entity first
-    const fullEntity = await entityBuilder.buildEntity(business, crawledData);
+    // Build full entity first (with notability references if provided)
+    const fullEntity = await entityBuilder.buildEntity(business, crawledData, notabilityReferences);
     
     // Get property set for tier
     const propertySet = this.getPropertiesForTier(tier, enrichmentLevel);
     
     // Filter claims to only include tier-appropriate properties
+    // Note: References are preserved when filtering claims
     const filteredClaims: WikidataEntityData['claims'] = {};
     for (const pid of propertySet) {
       if (fullEntity.claims[pid]) {

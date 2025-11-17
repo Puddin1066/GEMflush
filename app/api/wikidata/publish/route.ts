@@ -41,7 +41,15 @@ export async function POST(request: NextRequest) {
 
     // Validate request
     const body = await request.json();
-    const { businessId, publishToProduction } = wikidataPublishRequestSchema.parse(body);
+    const { businessId, publishToProduction: requestedProduction } = wikidataPublishRequestSchema.parse(body);
+    
+    // IMPORTANT: Force test.wikidata.org only - bot account is banned from wikidata.org
+    // Never allow production publishing, even if requested
+    const publishToProduction = false;
+    if (requestedProduction) {
+      console.warn('[BLOCKED] Production publishing requested but blocked - bot account is banned from wikidata.org');
+      console.warn('[BLOCKED] Publishing to test.wikidata.org instead');
+    }
 
     // Get business and verify ownership
     const business = await getBusinessById(businessId);
@@ -86,6 +94,16 @@ export async function POST(request: NextRequest) {
     // Use full entity for publishing
     const entity = publishData.fullEntity;
 
+    // Log the entity JSON that will be published to Wikidata
+    console.log('[PUBLISH] Entity JSON to be published to Wikidata:');
+    console.log(JSON.stringify(entity, null, 2));
+    console.log('[PUBLISH] Entity summary:');
+    console.log(`  - Labels: ${Object.keys(entity.labels || {}).length} languages`);
+    console.log(`  - Descriptions: ${Object.keys(entity.descriptions || {}).length} languages`);
+    console.log(`  - Claims: ${Object.keys(entity.claims || {}).length} properties`);
+    const totalClaims = Object.values(entity.claims || {}).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0);
+    console.log(`  - Total statements: ${totalClaims}`);
+
     // Update business status
     await updateBusiness(businessId, {
       status: 'generating',
@@ -102,8 +120,12 @@ export async function POST(request: NextRequest) {
         status: 'error',
       });
 
+      // Include entity JSON in error response for debugging
       return NextResponse.json(
-        { error: publishResult.error || 'Publication failed' },
+        { 
+          error: publishResult.error || 'Publication failed',
+          entity: entity, // Include entity JSON for debugging
+        },
         { status: 500 }
       );
     }
@@ -118,13 +140,15 @@ export async function POST(request: NextRequest) {
       enrichmentLevel: 1,
     });
 
-    // Update business with QID
+    // Update business with QID and published status
+    // FIX: This was unreachable due to early return - moved before return statement
     await updateBusiness(businessId, {
       status: 'published',
       wikidataQID: publishResult.qid,
       wikidataPublishedAt: new Date(),
     });
 
+    // Return success response with entity details
     return NextResponse.json({
       success: true,
       qid: publishResult.qid,
@@ -134,6 +158,7 @@ export async function POST(request: NextRequest) {
         ? `https://www.wikidata.org/wiki/${publishResult.qid}`
         : `https://test.wikidata.org/wiki/${publishResult.qid}`,
       notability: publishData.notability,
+      entity: entity, // Include entity JSON for debugging
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

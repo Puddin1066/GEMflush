@@ -53,26 +53,34 @@ export function EntityPreviewCard({
         {/* Description */}
         <p className="text-sm text-gray-700">{entity.description}</p>
 
-        {/* Stats */}
-        <div className="flex gap-4 text-sm">
-          <div className="flex items-center gap-1">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span className="font-medium">{entity.stats.totalClaims}</span>
-            <span className="text-gray-600">properties</span>
+        {/* Stats - Enhanced visibility and value proposition */}
+        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+          <div className="flex gap-4 text-sm flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <span className="font-semibold text-gray-900">{entity.stats.totalClaims}</span>
+              <span className="text-gray-600">properties</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <span className="font-semibold text-gray-900">{entity.stats.claimsWithReferences}</span>
+              <span className="text-gray-600">with references</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                entity.stats.referenceQuality === 'high' ? 'bg-green-500' :
+                entity.stats.referenceQuality === 'medium' ? 'bg-amber-500' :
+                'bg-red-500'
+              }`} />
+              <span className="text-gray-600 capitalize font-medium">{entity.stats.referenceQuality} quality</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span className="font-medium">{entity.stats.claimsWithReferences}</span>
-            <span className="text-gray-600">references</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className={`h-2 w-2 rounded-full ${
-              entity.stats.referenceQuality === 'high' ? 'bg-green-500' :
-              entity.stats.referenceQuality === 'medium' ? 'bg-amber-500' :
-              'bg-red-500'
-            }`} />
-            <span className="text-gray-600 capitalize">{entity.stats.referenceQuality} quality</span>
-          </div>
+          {isPublished && entity.stats.totalClaims > 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              ✓ Published to Wikidata • {entity.stats.totalClaims} {entity.stats.totalClaims === 1 ? 'property' : 'properties'} 
+              {entity.stats.claimsWithReferences > 0 && ` • ${entity.stats.claimsWithReferences} with references`}
+            </p>
+          )}
         </div>
 
         {/* LLM Visibility Section */}
@@ -91,10 +99,23 @@ export function EntityPreviewCard({
             <Badge variant="secondary" className="text-xs">Google Gemini</Badge>
           </div>
           {isPublished && (
-            <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
-              <CheckCircle className="h-3 w-3" />
-              Active in knowledge graph • QID: {entity.qid}
-            </p>
+            <div className="mt-3 p-2 bg-green-50 rounded border border-green-200">
+              <p className="text-xs text-green-800 font-medium flex items-center gap-1.5">
+                <CheckCircle className="h-3.5 w-3.5" />
+                <span>Published to Wikidata Knowledge Graph</span>
+              </p>
+              <p className="text-xs text-green-700 mt-1 ml-5">
+                QID: <span className="font-mono font-semibold">{entity.qid}</span> • 
+                <a 
+                  href={entity.wikidataUrl || '#'} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="ml-1 underline hover:text-green-900"
+                >
+                  View on Wikidata
+                </a>
+              </p>
+            </div>
           )}
         </div>
 

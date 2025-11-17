@@ -1,16 +1,40 @@
 // Wikidata entity builder - constructs Wikidata JSON entities from business data
+// Uses strict TypeScript contract aligned with Wikibase JSON Specification
 
-import { CrawledData, WikidataEntityData, WikidataClaim } from '@/lib/types/gemflush';
+import { CrawledData } from '@/lib/types/gemflush';
+import { 
+  WikidataEntityDataContract,
+  WikidataClaim,
+  WikidataSnak,
+  WikidataReference,
+  type CleanedWikidataEntity
+} from '@/lib/types/wikidata-contract';
+// Keep loose type for backward compatibility with service contract
+import { WikidataEntityData as WikidataEntityDataLoose } from '@/lib/types/gemflush';
 import { Business } from '@/lib/db/schema';
 import { openRouterClient } from '@/lib/llm/openrouter';
 import { BUSINESS_PROPERTY_MAP, type PropertyMapping } from './property-mapping';
+import type { Reference } from './notability-checker';
+import { IWikidataEntityBuilder } from '@/lib/types/service-contracts';
+import { validateWikidataEntity } from '@/lib/validation/wikidata';
 
-export class WikidataEntityBuilder {
+// Type alias for service contract compatibility (returns strict contract internally)
+type WikidataEntityData = WikidataEntityDataContract;
+
+export class WikidataEntityBuilder implements IWikidataEntityBuilder {
   /**
    * Build a Wikidata entity from business and crawled data
-   * Enhanced with LLM property suggestions
+   * Enhanced with LLM property suggestions and notability references
+   * 
+   * @param business - Business data
+   * @param crawledData - Crawled business data
+   * @param notabilityReferences - Optional array of notability references to attach to claims
    */
-  async buildEntity(business: Business, crawledData?: CrawledData): Promise<WikidataEntityData> {
+  async buildEntity(
+    business: Business, 
+    crawledData?: CrawledData,
+    notabilityReferences?: Reference[]
+  ): Promise<WikidataEntityData> {
     // Build basic claims (existing logic)
     const basicClaims = this.buildClaims(business, crawledData);
     
@@ -19,6 +43,12 @@ export class WikidataEntityBuilder {
     
     // Merge claims (basic + suggested)
     const allClaims = this.mergeClaims(basicClaims, suggestedClaims);
+    
+    // Attach multiple notability references to claims if provided
+    // This ensures multiple references are published to Wikidata
+    if (notabilityReferences && notabilityReferences.length > 0) {
+      this.attachNotabilityReferences(allClaims, notabilityReferences, business.url);
+    }
     
     // Calculate quality metrics
     const qualityScore = this.calculateQualityScore(allClaims);
@@ -30,7 +60,11 @@ export class WikidataEntityBuilder {
       claims: allClaims,
       llmSuggestions: {
         suggestedProperties: suggestedClaims.suggestions,
-        suggestedReferences: [],
+        suggestedReferences: notabilityReferences?.map(ref => ({
+          url: ref.url,
+          title: ref.title,
+          relevance: 1.0,
+        })) || [],
         qualityScore,
         completeness,
         model: 'openai/gpt-4-turbo',
@@ -38,16 +72,73 @@ export class WikidataEntityBuilder {
       },
     };
     
+    // Validate entity structure according to Wikibase Data Model before returning
+    // This ensures entities conform to Wikibase JSON specification
+    // DRY: Reuse validation logic
+    this.validateEntity(entity);
+    
     return entity;
   }
   
+  /**
+   * Validate entity structure according to Wikibase Data Model
+   * Implements IWikidataEntityBuilder contract
+   * Uses Zod schema validation based on Wikibase JSON specification
+   * 
+   * References:
+   * - Wikibase Data Model: https://www.mediawiki.org/wiki/Wikibase/DataModel
+   * - Wikibase JSON Spec: https://doc.wikimedia.org/Wikibase/master/php/md_docs_topics_json.html
+   * 
+   * @param entity - Entity data to validate
+   * @returns true if valid, throws error if invalid
+   */
+  validateEntity(entity: WikidataEntityData): boolean {
+    const validation = validateWikidataEntity(entity);
+    
+    if (!validation.success) {
+      console.error('[ENTITY BUILDER] Entity validation failed:', validation.errors);
+      throw new Error(
+        `Entity validation failed: ${validation.errors?.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Normalize business name by removing test timestamps and trailing numbers
+   * DRY: Centralized name normalization (matches notability-checker logic)
+   * SOLID: Single Responsibility - name cleaning only
+   * 
+   * Removes patterns like:
+   * - "Business Name 1763324055284" (timestamp suffix)
+   * - "Business Name 123" (trailing numbers)
+   * 
+   * @param name - Raw business name (may include test timestamps)
+   * @returns Cleaned name suitable for Wikidata labels
+   */
+  private normalizeBusinessName(name: string): string {
+    // Remove trailing timestamps (13+ digit numbers) or shorter number sequences
+    // Pattern: space followed by digits at the end
+    // Examples: "Alpha Dental Center 1763324055284" -> "Alpha Dental Center"
+    //           "Business Name 123" -> "Business Name"
+    return name.replace(/\s+\d{6,}$/, '').trim();
+  }
+  
   private buildLabels(business: Business, crawledData?: CrawledData): WikidataEntityData['labels'] {
-    const name = crawledData?.name || business.name;
+    // Use crawled name if available, otherwise use business name
+    // DRY: Normalize name to remove test timestamps before using in Wikidata
+    const rawName = crawledData?.name || business.name;
+    const normalizedName = this.normalizeBusinessName(rawName);
+    
+    if (rawName !== normalizedName) {
+      console.log(`[ENTITY BUILDER] Normalized business name for label: "${rawName}" -> "${normalizedName}"`);
+    }
     
     return {
       en: {
         language: 'en',
-        value: name,
+        value: normalizedName,
       },
     };
   }
@@ -92,7 +183,12 @@ export class WikidataEntityBuilder {
     // For now, we'll skip this as it requires SPARQL lookup
     
     // P1448: official name
-    const officialName = crawledData?.name || business.name;
+    // DRY: Normalize name to remove test timestamps before using in Wikidata
+    const rawOfficialName = crawledData?.name || business.name;
+    const officialName = this.normalizeBusinessName(rawOfficialName);
+    if (rawOfficialName !== officialName) {
+      console.log(`[ENTITY BUILDER] Normalized business name for P1448: "${rawOfficialName}" -> "${officialName}"`);
+    }
     claims.P1448 = [this.createStringClaim('P1448', officialName, business.url)];
     
     // P1329: phone number
@@ -163,7 +259,8 @@ export class WikidataEntityBuilder {
           : parseInt(String(crawledData.businessDetails.employeeCount));
         
         if (!isNaN(count) && count > 0) {
-          claims.P1128 = [this.createQuantityClaim('P1128', count, business.url)];
+          // P1128 (number of employees) should use unit Q11573 (person), not "1" (dimensionless)
+          claims.P1128 = [this.createQuantityClaim('P1128', count, business.url, 'Q11573')];
         }
       }
       
@@ -338,6 +435,8 @@ export class WikidataEntityBuilder {
             time: `+${today}T00:00:00Z`,
             precision: 11, // day precision
             timezone: 0,
+            before: 0, // Required by contract - 0 for exact dates
+            after: 0, // Required by contract - 0 for exact dates
             calendarmodel: 'http://www.wikidata.org/entity/Q1985727',
           },
           type: 'time',
@@ -520,27 +619,39 @@ Return ONLY valid JSON array:
       if (!mapping) continue;
       
       // Resolve QID if needed
+      // CRITICAL: Only resolve QIDs for 'item' dataType properties
+      // String/URL properties should NEVER have QID resolution
       let value = suggestion.value;
       if (mapping.dataType === 'item' && mapping.qidResolver) {
         const qid = await mapping.qidResolver(value);
         if (!qid) {
-          console.warn(`QID not found for: ${value} (${suggestion.pid})`);
+          console.warn(`[ENTITY BUILDER] QID not found for: ${value} (${suggestion.pid})`);
           continue;
         }
         value = qid;
+        // Validate QID format
+        if (typeof value !== 'string' || !value.startsWith('Q')) {
+          console.warn(`[ENTITY BUILDER] Invalid QID format for ${suggestion.pid}: ${value}. Expected QID (e.g., Q123).`);
+          continue;
+        }
+      } else if (mapping.dataType !== 'item' && (typeof value === 'string' && value.startsWith('Q'))) {
+        // Safety check: If a non-item property has a QID value, it's likely a mistake
+        console.warn(`[ENTITY BUILDER] Property ${suggestion.pid} (dataType: ${mapping.dataType}) has QID value ${value}. This may cause type mismatch.`);
+        // Don't fail, but log the warning - the validator will catch it if it's truly invalid
       }
       
       // Validate value
       if (mapping.validator && !mapping.validator(value)) {
-        console.warn(`Invalid value for ${suggestion.pid}: ${value}`);
+        console.warn(`[ENTITY BUILDER] Invalid value for ${suggestion.pid}: ${value}`);
         continue;
       }
       
-      // Create claim
+      // Create claim with validated dataType
+      // Use mapping.dataType (authoritative) not suggestion.dataType (may be wrong)
       const claim = this.createClaimFromSuggestion(
         suggestion.pid,
         value,
-        mapping.dataType,
+        mapping.dataType, // Use mapping dataType, not suggestion dataType
         referenceUrl
       );
       
@@ -555,6 +666,7 @@ Return ONLY valid JSON array:
   /**
    * Create claim from suggestion
    * Reuses existing claim creation logic (DRY)
+   * SOLID: Single Responsibility - claim creation from suggestions
    */
   private createClaimFromSuggestion(
     pid: string,
@@ -564,14 +676,31 @@ Return ONLY valid JSON array:
   ): WikidataClaim | null {
     switch (dataType) {
       case 'item':
+        // Validate: value should be a QID (starts with Q)
+        if (typeof value !== 'string' || !value.startsWith('Q')) {
+          console.warn(`[ENTITY BUILDER] Invalid QID for ${pid}: ${value}. Expected QID format (e.g., Q123).`);
+          return null;
+        }
         return this.createItemClaim(pid, value, referenceUrl);
       case 'string':
+      case 'url':
+        // URLs are stored as strings in Wikidata API
+        // Validate: value should be a string
+        if (typeof value !== 'string') {
+          console.warn(`[ENTITY BUILDER] Invalid string value for ${pid}: ${value}. Expected string.`);
+          return null;
+        }
         return this.createStringClaim(pid, value, referenceUrl);
       case 'time':
         return this.createTimeClaim(pid, value, referenceUrl);
       case 'quantity':
         return this.createQuantityClaim(pid, value, referenceUrl);
+      case 'coordinate':
+        // Coordinates need lat/lng, handled separately in buildClaims
+        console.warn(`[ENTITY BUILDER] Coordinate claims must be created with createCoordinateClaim. Skipping ${pid}.`);
+        return null;
       default:
+        console.warn(`[ENTITY BUILDER] Unknown dataType '${dataType}' for ${pid}. Skipping.`);
         return null;
     }
   }
@@ -592,6 +721,8 @@ Return ONLY valid JSON array:
             time: `+${date}-00-00T00:00:00Z`,
             precision,
             timezone: 0,
+            before: 0, // Required by contract - 0 for exact dates
+            after: 0, // Required by contract - 0 for exact dates
             calendarmodel: 'http://www.wikidata.org/entity/Q1985727',
           },
           type: 'time',
@@ -604,16 +735,34 @@ Return ONLY valid JSON array:
   
   /**
    * Create quantity claim (for numbers)
+   * DRY: Centralized quantity claim creation
+   * SOLID: Single Responsibility - quantity formatting only
+   * 
+   * @param property - Property ID (e.g., P1128 for number of employees)
+   * @param amount - Numeric value
+   * @param referenceUrl - Reference URL for the claim
+   * @param unit - Optional unit QID (defaults to "1" for dimensionless, use "Q11573" for person count)
    */
-  private createQuantityClaim(property: string, amount: number, referenceUrl: string): WikidataClaim {
+  private createQuantityClaim(
+    property: string, 
+    amount: number, 
+    referenceUrl: string,
+    unit: string = '1' // Default to dimensionless
+  ): WikidataClaim {
+    // Validate unit format: should be "1" or a QID string
+    if (unit !== '1' && (!unit.startsWith('Q') || !/^Q\d+$/.test(unit))) {
+      console.warn(`[ENTITY BUILDER] Invalid unit format for ${property}: ${unit}. Using "1" (dimensionless).`);
+      unit = '1';
+    }
+    
     return {
       mainsnak: {
         snaktype: 'value',
         property,
         datavalue: {
           value: {
-            amount: `+${amount}`,
-            unit: '1', // Unitless
+            amount: `+${amount}`, // Must be string with + or - prefix
+            unit: unit, // String: "1" for dimensionless or QID like "Q11573" for units
           },
           type: 'quantity',
         },
@@ -680,6 +829,98 @@ Return ONLY valid JSON array:
     const includedProps = Object.keys(claims).length;
     
     return Math.round((includedProps / allPossibleProps) * 100);
+  }
+  
+  /**
+   * Attach multiple notability references to claims
+   * Distributes references across different claims to ensure multiple are published
+   * Follows DRY: Reuses createReference method
+   * SOLID: Single Responsibility - only handles reference attachment
+   * 
+   * Strategy:
+   * - Prioritize core claims (P31, P856, P1448) with best references
+   * - Distribute remaining references across other claims
+   * - Ensure at least 2-3 different references are used
+   * - Always include business URL as fallback reference
+   * 
+   * @param claims - Claims to attach references to
+   * @param notabilityReferences - Array of notability references (typically top 3-5)
+   * @param businessUrl - Business URL as fallback reference
+   */
+  private attachNotabilityReferences(
+    claims: Record<string, WikidataClaim[]>,
+    notabilityReferences: Reference[],
+    businessUrl: string
+  ): void {
+    if (notabilityReferences.length === 0) return;
+    
+    // Priority order for attaching references (core claims first)
+    const priorityPIDs = ['P31', 'P856', 'P1448', 'P625', 'P159', 'P452', 'P571', 'P1128'];
+    
+    // Get all PIDs in priority order, then others
+    const allPIDs = [
+      ...priorityPIDs.filter(pid => claims[pid]),
+      ...Object.keys(claims).filter(pid => !priorityPIDs.includes(pid))
+    ];
+    
+    // Distribute references across claims
+    // Strategy: Use top references for priority claims, distribute others
+    const referencesToUse = notabilityReferences.slice(0, Math.min(5, notabilityReferences.length));
+    
+    // Always include business URL as a reference option
+    const allReferences = [
+      ...referencesToUse,
+      { url: businessUrl, title: 'Official website', snippet: '', source: 'company' }
+    ];
+    
+    // Attach references to claims, ensuring multiple different references are used
+    allPIDs.forEach((pid, index) => {
+      const claimArray = claims[pid];
+      if (!claimArray || claimArray.length === 0) return;
+      
+      // Select reference(s) for this claim
+      // Use different references for different claims to ensure multiple are published
+      const refIndex = index % allReferences.length;
+      const selectedRef = allReferences[refIndex];
+      
+      // For each claim with this PID, add the selected reference
+      claimArray.forEach(claim => {
+        // Add to existing references or create new array
+        if (!claim.references) {
+          claim.references = [];
+        }
+        
+        // Check if this reference URL already exists in the claim's references
+        const hasDuplicate = claim.references.some(existingRef => {
+          const existingUrl = this.extractReferenceUrl([existingRef]);
+          return existingUrl === selectedRef.url;
+        });
+        
+        // Only add if not a duplicate
+        if (!hasDuplicate) {
+          const reference = this.createReference(selectedRef);
+          claim.references.push(reference);
+        }
+      });
+    });
+    
+    console.log(`[REFERENCE] Attached ${referencesToUse.length} notability references across ${allPIDs.length} claims`);
+  }
+  
+  /**
+   * Extract URL from reference for duplicate checking
+   * Helper method following Single Responsibility
+   */
+  private extractReferenceUrl(references: any[]): string | null {
+    if (!references || references.length === 0) return null;
+    
+    // Try to extract URL from first reference's snaks
+    const firstRef = references[0];
+    if (firstRef?.snaks?.P854?.[0]?.datavalue?.value) {
+      return firstRef.snaks.P854[0].datavalue.value;
+    }
+    
+    return null;
   }
 }
 

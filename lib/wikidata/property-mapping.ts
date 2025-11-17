@@ -10,7 +10,7 @@ export interface PropertyMapping {
   pid: string;
   label: string;
   description: string;
-  dataType: 'item' | 'string' | 'time' | 'quantity' | 'url' | 'coordinate';
+  dataType: 'item' | 'string' | 'time' | 'quantity' | 'url' | 'coordinate' | 'monolingualtext';
   required: boolean;
   validator?: (value: any) => boolean;
   qidResolver?: (value: string) => Promise<string | null>;
@@ -256,7 +256,7 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     pid: 'P1476',
     label: 'title',
     description: 'title of referenced work',
-    dataType: 'string',
+    dataType: 'monolingualtext', // P1476 uses monolingualtext type (text + language)
     required: false,
   },
 };

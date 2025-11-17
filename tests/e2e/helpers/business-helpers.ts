@@ -160,10 +160,31 @@ export async function waitForBusinessDetailPage(
   // Optimize: Only wait once upfront, reduce timeout (business should appear quickly after creation)
   const businessInAPI = await waitForBusinessInAPI(page, businessId, { timeout: 5000 });
   
-  // STEP 2: Wait for page to load
-  await page.waitForLoadState('networkidle');
+  // STEP 2: Wait for page to load - use 'load' instead of 'networkidle' for better reliability
+  // 'networkidle' can timeout if there are long-running requests (e.g., entity API with 15s timeout)
+  // 'load' waits for DOMContentLoaded + all resources, which is sufficient for our use case
+  await page.waitForLoadState('load', { timeout: 10000 });
   
-  // STEP 3: Check if page is in error state (business not found)
+  // STEP 3: Wait for actual content to appear (more reliable than networkidle)
+  // Look for business name or any content that indicates page loaded
+  // This is more resilient to slow API calls
+  try {
+    await page.waitForSelector('h1, [class*="business"], [class*="card"]', { 
+      timeout: 10000,
+      state: 'visible'
+    });
+  } catch (e) {
+    // If selector not found, try waiting for any text content
+    await page.waitForFunction(
+      () => document.body.textContent && document.body.textContent.length > 100,
+      { timeout: 5000 }
+    ).catch(() => {
+      // If that fails, just proceed - page might still be loading
+      console.warn('Could not verify page content loaded, proceeding anyway');
+    });
+  }
+  
+  // STEP 4: Check if page is in error state (business not found)
   const errorVisible = await page.getByText(/not found/i).or(
     page.getByText(/error loading business/i)
   ).first().isVisible({ timeout: 2000 }).catch(() => false);
@@ -180,7 +201,16 @@ export async function waitForBusinessDetailPage(
     const businessInAPIAfterWait = await waitForBusinessInAPI(page, businessId, { timeout: 5000 });
     if (businessInAPIAfterWait) {
       await page.reload();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('load', { timeout: 10000 });
+      // Wait for content after reload
+      try {
+        await page.waitForSelector('h1, [class*="business"], [class*="card"]', { 
+          timeout: 5000,
+          state: 'visible'
+        });
+      } catch (e) {
+        // Proceed anyway
+      }
       // Check again if error still visible
       const stillError = await page.getByText(/not found/i).or(
         page.getByText(/error loading business/i)

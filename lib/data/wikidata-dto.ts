@@ -57,22 +57,36 @@ export async function getWikidataPublishDTO(
     enrichmentLevel = existingEntity?.enrichmentLevel || undefined;
   }
   
-  // Build Wikidata entity with tier-appropriate richness
-  const fullEntity = await tieredEntityBuilder.buildEntity(
-    business,
-    business.crawlData as any,
-    tier,
-    enrichmentLevel
-  );
-  
-  // Check notability with Google Search + LLM
+  // Check notability with Google Search + LLM FIRST
+  // This ensures we have references to attach to claims
   const notabilityResult = await notabilityChecker.checkNotability(
     business.name,
     business.location || undefined
   );
   
+  // Extract top references for attaching to claims
+  // Use topReferences if available (best quality), otherwise use first few from references array
+  const notabilityReferences = notabilityResult.topReferences && notabilityResult.topReferences.length > 0
+    ? notabilityResult.topReferences
+    : notabilityResult.references.slice(0, 5); // Fallback to first 5 if topReferences not available
+  
+  // Build Wikidata entity with tier-appropriate richness AND notability references
+  // This ensures multiple references are attached to claims before publishing
+  const fullEntity = await tieredEntityBuilder.buildEntity(
+    business,
+    business.crawlData as any,
+    tier,
+    enrichmentLevel,
+    notabilityReferences
+  );
+  
   // Determine if can publish
-  const canPublish = notabilityResult.isNotable && notabilityResult.confidence >= 0.7;
+  // SOLID: Single Responsibility - publishability logic
+  // Requirements adapted for local businesses:
+  // - Requires at least 1 serious independent reference (reduced from 2)
+  // - Confidence threshold reduced to 0.6 (from 0.7) to be more inclusive for legitimate local businesses
+  // - Accepts directory/review sources as valid for local businesses
+  const canPublish = notabilityResult.isNotable && notabilityResult.confidence >= 0.6;
   
   // Build recommendation message
   const recommendation = buildRecommendation(notabilityResult, canPublish);

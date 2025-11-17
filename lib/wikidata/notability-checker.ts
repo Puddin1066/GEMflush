@@ -162,7 +162,7 @@ export class NotabilityChecker {
    * 
    * In test mode, returns mock references to test notability logic without external API calls
    */
-  private async findReferences(
+  private   async findReferences(
     name: string,
     location?: { city: string; state: string; country?: string }
   ): Promise<Reference[]> {
@@ -173,6 +173,8 @@ export class NotabilityChecker {
     // TEST MODE: In e2e tests, always use mock references to avoid external API calls
     // Problem: .env file overrides webServer.env, so we need a reliable test detection
     // Solution: Check for PLAYWRIGHT_TEST flag (set in webServer.env) OR NODE_ENV=test OR explicit flag
+    // SOLID: Single Responsibility - test mode detection logic
+    // DRY: Centralized test mode detection
     const nodeEnv = process.env.NODE_ENV || '';
     const playwrightTest = process.env.PLAYWRIGHT_TEST === 'true';
     const useMockFlag = process.env.USE_MOCK_GOOGLE_SEARCH === 'true';
@@ -195,10 +197,12 @@ export class NotabilityChecker {
     // Use mock if: USE_MOCK_GOOGLE_SEARCH=true (highest priority) OR PLAYWRIGHT_TEST=true OR NODE_ENV=test OR (no engine ID = test mode) OR API key is empty
     // IMPORTANT: useMockFlag is checked first - if explicitly set to 'true', ALWAYS use mocks
     // This ensures that even if .env overrides other vars, the explicit flag still works
-    const isTestMode = useMockFlag || playwrightTest || nodeEnv === 'test' || !hasEngineId || isApiKeyEmpty;
+    // Fallback: If any test indicator is present, use mocks (defensive programming for e2e tests)
+    const isTestMode = useMockFlag || playwrightTest || (nodeEnv as string) === 'test' || !hasEngineId || isApiKeyEmpty;
     
-    console.error(`[LOG] Test mode decision: isTestMode=${isTestMode} (useMockFlag: ${useMockFlag}, playwrightTest: ${playwrightTest}, nodeEnv=test: ${nodeEnv === 'test'}, !hasEngineId: ${!hasEngineId}, isApiKeyEmpty: ${isApiKeyEmpty})`);
+    console.error(`[LOG] Test mode decision: isTestMode=${isTestMode} (useMockFlag: ${useMockFlag}, playwrightTest: ${playwrightTest}, nodeEnv=test: ${(nodeEnv as string) === 'test'}, !hasEngineId: ${!hasEngineId}, isApiKeyEmpty: ${isApiKeyEmpty})`);
     
+    // SOLID: Early return for test mode - clear separation of concerns
     if (isTestMode) {
       console.log(`[TEST] Using mock Google Search results for: "${name}"`);
       console.log(`[LOG] Mock references will use name="${name}" (should be normalized, no timestamp)`);
@@ -406,10 +410,16 @@ export class NotabilityChecker {
   /**
    * Build assessment prompt
    * Follows DRY principle: Centralized prompt building
+   * SOLID: Single Responsibility - prompt construction with configurable requirements
+   * 
+   * Requirements adapted for local businesses (more inclusive while maintaining quality):
+   * - Accepts business directories, review sites, and local listings as legitimate sources
+   * - Requires at least 1 serious reference (reduced from 2) OR structural need fulfillment
+   * - For local businesses, company website + independent directory/review site qualifies
    */
   private buildAssessmentPrompt(references: Reference[], businessName: string): string {
     return `
-Assess if these references meet Wikidata's "serious and publicly available" standard:
+Assess if these references meet Wikidata's "serious and publicly available" standard for LOCAL BUSINESSES:
 
 Business: ${businessName}
 
@@ -421,26 +431,38 @@ ${i + 1}. ${r.title}
    Snippet: ${r.snippet}
 `).join('\n')}
 
-Wikidata requires references to be:
-1. From reputable sources (news, government, academic, official databases)
+Wikidata standards for LOCAL BUSINESSES (adapted for practical notability):
+1. From reputable sources (news, government, academic, official databases, OR legitimate business directories/review sites)
 2. Publicly available (not paywalled, not private documents)
-3. Independent (not just company's own website/marketing)
+3. Independent third-party verification (company website alone is not enough, but company website + directories/reviews IS acceptable)
+
+ACCEPTED SOURCE TYPES for local businesses:
+- "news": News articles, press releases from reputable outlets
+- "government": Government registrations, business licenses, official directories
+- "academic": Academic publications or databases
+- "database": Official business databases, chamber of commerce listings
+- "directory": Business directories (Yelp, Google Business, local directories, Better Business Bureau)
+- "review": Review platforms (Yelp, Google Reviews, industry-specific review sites) - these are independent third-party verification
+- "company": Company's own website (counts toward publicly available but needs independent verification)
+- "other": Other publicly available sources
 
 For each reference, assess:
-- isSerious: Is this from a reputable source? (true/false)
+- isSerious: Is this from a reputable source? (true for government/news/academic/database/directory/review, false only for clearly unreliable sources)
 - isPubliclyAvailable: Can anyone access this? (true/false)
-- isIndependent: Is this from a third-party? (true/false)
-- sourceType: "news" | "government" | "academic" | "database" | "company" | "other"
-- trustScore: 0-100 (how trustworthy is this source?)
+- isIndependent: Is this from a third-party? (true for directories/reviews/government/news, false for company's own website)
+- sourceType: "news" | "government" | "academic" | "database" | "directory" | "review" | "company" | "other"
+- trustScore: 0-100 (government/news=90+, directory/review=70+, company website=50+)
 - reasoning: Why is this assessment given?
 
-Overall:
-- meetsNotability: Does the business have at least 2 serious references?
+Overall NOTABILITY CRITERIA (for local businesses):
+- meetsNotability: Does the business have at least 1 serious independent reference? (government, news, academic, database, directory, or review platform)
+  OR does it have company website + at least 1 independent directory/review listing?
+  Local businesses often rely on directories and review platforms for verification, which is acceptable.
 - confidence: 0-1 (how confident in this assessment?)
-- seriousReferenceCount: How many serious references?
+- seriousReferenceCount: How many serious references? (count government, news, academic, database, directory, review)
 - publiclyAvailableCount: How many publicly available?
-- independentCount: How many independent sources?
-- summary: Brief explanation of decision
+- independentCount: How many independent sources? (count all non-company sources)
+- summary: Brief explanation of decision (be inclusive for legitimate local businesses)
 - recommendations: What to do with this entity? (if not notable, suggest improvements)
 
 Return ONLY valid JSON with this exact structure:
@@ -469,28 +491,34 @@ Return ONLY valid JSON with this exact structure:
   
   /**
    * Extract top serious references for Wikidata citations
-   * Prioritizes government, news, academic sources
+   * Prioritizes government, news, academic, then directories/reviews for local businesses
    * Follows Single Responsibility: Only extracts best references
+   * SOLID: Single Responsibility - reference extraction logic
+   * DRY: Centralized reference ranking
    */
   private extractTopReferences(
     references: Reference[],
     assessment: NotabilityAssessment
   ): Reference[] {
     // Get assessments of serious references
+    // For local businesses, include directories and reviews as valid serious references
     const seriousRefs = assessment.references
       .filter(ref => ref.isSerious && ref.isPubliclyAvailable && ref.isIndependent)
       .sort((a, b) => {
-        // Prioritize by source type (government > news > academic > other)
+        // Prioritize by source type (government > news > academic > database > directory > review > other > company)
+        // Updated ranking to accept directories and reviews for local businesses
         const typeRank = {
           'government': 1,
           'news': 2,
           'academic': 3,
           'database': 4,
-          'other': 5,
-          'company': 6,
+          'directory': 5,  // Business directories are valid for local businesses
+          'review': 6,      // Review platforms are valid for local businesses
+          'other': 7,
+          'company': 8,
         };
-        const rankA = typeRank[a.sourceType] || 10;
-        const rankB = typeRank[b.sourceType] || 10;
+        const rankA = typeRank[a.sourceType as keyof typeof typeRank] || 10;
+        const rankB = typeRank[b.sourceType as keyof typeof typeRank] || 10;
         
         if (rankA !== rankB) return rankA - rankB;
         

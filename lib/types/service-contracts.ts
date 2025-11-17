@@ -8,6 +8,10 @@ import {
   WikidataEntityData,
   WikidataPublishResult,
 } from './gemflush';
+import { 
+  WikidataEntityDataContract,
+  WikidataClaim as WikidataClaimStrict
+} from './wikidata-contract';
 import { Business } from '@/lib/db/schema';
 
 /**
@@ -46,8 +50,9 @@ export interface IOpenRouterClient {
  * Implementation: lib/wikidata/entity-builder.ts
  */
 export interface IWikidataEntityBuilder {
-  buildEntity(business: Business | any): WikidataEntityData;
-  validateEntity(entity: WikidataEntityData): boolean;
+  // Use strict contract type for better type safety
+  buildEntity(business: Business | any): WikidataEntityDataContract;
+  validateEntity(entity: WikidataEntityDataContract): boolean;
 }
 
 /**
@@ -55,8 +60,9 @@ export interface IWikidataEntityBuilder {
  * Implementation: lib/wikidata/publisher.ts
  */
 export interface IWikidataPublisher {
+  // Use strict contract type for better type safety
   publish(
-    entity: WikidataEntityData,
+    entity: WikidataEntityDataContract,
     target: 'test' | 'production'
   ): Promise<WikidataPublishResult>;
 }

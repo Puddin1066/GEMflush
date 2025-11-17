@@ -65,6 +65,14 @@ export interface CrawledData {
 }
 
 // Wikidata types
+// NOTE: These are loose types for backward compatibility.
+// For strict type safety, use types from './wikidata-contract.ts'
+// The strict contract ensures compile-time type safety and matches Wikibase JSON spec exactly.
+
+/**
+ * @deprecated Use WikidataEntityDataContract from './wikidata-contract' for strict typing
+ * This type is kept for backward compatibility but uses loose types (unknown, string)
+ */
 export interface WikidataEntityData {
   labels: Record<string, { language: string; value: string }>;
   descriptions: Record<string, { language: string; value: string }>;
@@ -90,12 +98,16 @@ export interface WikidataEntityData {
   };
 }
 
+/**
+ * @deprecated Use WikidataClaim from './wikidata-contract' for strict typing
+ * This type uses unknown for datavalue.value - use the contract for type safety
+ */
 export interface WikidataClaim {
   mainsnak: {
     snaktype: string;
     property: string;
     datavalue: {
-      value: unknown;
+      value: unknown; // Loose type - use WikidataDatavalue from contract for type safety
       type: string;
     };
   };
@@ -104,8 +116,12 @@ export interface WikidataClaim {
   references?: WikidataReference[];
 }
 
+/**
+ * @deprecated Use WikidataReference from './wikidata-contract' for strict typing
+ * This type uses unknown[] for snaks - use the contract for type safety
+ */
 export interface WikidataReference {
-  snaks: Record<string, unknown[]>;
+  snaks: Record<string, unknown[]>; // Loose type - use WikidataReferenceSnak[] from contract
 }
 
 // LLM Fingerprinting types

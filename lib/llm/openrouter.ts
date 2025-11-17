@@ -140,41 +140,41 @@ export class OpenRouterClient {
       const referenceCount = (prompt.match(/references:/gi) || []).length || 3;
       content = JSON.stringify({
         meetsNotability: true,
-        confidence: 0.9,
+        confidence: 0.85,
         seriousReferenceCount: Math.min(referenceCount, 3),
         publiclyAvailableCount: Math.min(referenceCount, 3),
         independentCount: Math.min(referenceCount, 3),
-        summary: 'Business meets Wikidata notability standards with multiple serious, publicly available, and independent references.',
+        summary: 'Business meets Wikidata notability standards for local businesses with serious, publicly available, and independent references including directories and review platforms.',
         references: [
           {
             index: 0,
             isSerious: true,
             isPubliclyAvailable: true,
             isIndependent: true,
-            sourceType: 'news',
-            trustScore: 85,
-            reasoning: 'News article from reputable source providing independent coverage.',
+            sourceType: 'directory',
+            trustScore: 75,
+            reasoning: 'Business directory listing (Yelp/Google Business) provides independent third-party verification for local businesses.',
           },
           {
             index: 1,
             isSerious: true,
             isPubliclyAvailable: true,
             isIndependent: true,
-            sourceType: 'government',
-            trustScore: 95,
-            reasoning: 'Official government registration provides authoritative verification.',
+            sourceType: 'review',
+            trustScore: 70,
+            reasoning: 'Review platform listing provides independent verification of business existence and operations.',
           },
           {
             index: 2,
             isSerious: true,
             isPubliclyAvailable: true,
             isIndependent: true,
-            sourceType: 'other',
-            trustScore: 70,
-            reasoning: 'Publicly available business directory listing.',
+            sourceType: 'government',
+            trustScore: 90,
+            reasoning: 'Official government registration provides authoritative verification (if available).',
           },
         ],
-        recommendations: ['Ready to publish - meets notability standards.'],
+        recommendations: ['Ready to publish - meets notability standards for local businesses.'],
       });
     } 
     // CRITICAL: Detect crawler extraction prompt (requires JSON response)
