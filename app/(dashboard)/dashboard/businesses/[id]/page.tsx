@@ -118,8 +118,15 @@ export default function BusinessDetailPage() {
         throw new Error(result.error || 'Publish failed');
       }
 
+      // DRY: Wait a bit for database to update before refreshing
+      // SOLID: Single Responsibility - ensure data consistency before refresh
+      // Pragmatic: Give database time to commit the publish transaction
       alert(`Published successfully! QID: ${result.qid}`);
-      refresh();
+      
+      // Refresh after a short delay to ensure database is updated
+      setTimeout(() => {
+        refresh();
+      }, 1000);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Publish failed');
     } finally {

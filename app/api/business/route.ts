@@ -8,8 +8,9 @@ import {
   getBusinessCountByTeam,
 } from '@/lib/db/queries';
 import { canAddBusiness, getMaxBusinesses } from '@/lib/gemflush/permissions';
-import { createBusinessSchema } from '@/lib/validation/business';
+import { createBusinessSchema, createBusinessFromUrlSchema } from '@/lib/validation/business';
 import { z } from 'zod';
+import { webCrawler } from '@/lib/crawler';
 import {
   getIdempotencyKey,
   getCachedResponse,
@@ -88,7 +89,76 @@ export async function POST(request: NextRequest) {
 
     // Validate request body
     const body = await request.json();
-    const validatedData = createBusinessSchema.parse(body);
+    
+    // NEW: If only URL provided, crawl first to extract data
+    let validatedData;
+    
+    if (body.url && (!body.name || !body.location)) {
+      console.log('[BUSINESS] URL-only creation detected, crawling to extract data...');
+      
+      // Crawl URL to extract business data
+      const crawlResult = await webCrawler.crawl(body.url);
+      
+      if (!crawlResult.success || !crawlResult.data) {
+        return NextResponse.json(
+          { error: 'Failed to crawl URL. Please provide business details manually.' },
+          { status: 400 }
+        );
+      }
+      
+      const crawled = crawlResult.data;
+      
+      // Helper: Map LLM category to enum
+      const mapCategoryToEnum = (llmCategory: string | undefined): string | undefined => {
+        if (!llmCategory) return undefined;
+        
+        const categoryMap: Record<string, string> = {
+          'restaurant': 'restaurant',
+          'retail': 'retail',
+          'healthcare': 'healthcare',
+          'professional services': 'professional_services',
+          'home services': 'home_services',
+          'automotive': 'automotive',
+          'beauty': 'beauty',
+          'fitness': 'fitness',
+          'entertainment': 'entertainment',
+          'education': 'education',
+          'real estate': 'real_estate',
+          'technology': 'technology',
+        };
+        
+        const normalized = llmCategory.toLowerCase();
+        return categoryMap[normalized] || 'other';
+      };
+      
+      // Merge crawled data with user-provided data (user data takes precedence)
+      const mergedData = {
+        url: body.url,
+        name: body.name || crawled.name || 'Unknown Business',
+        category: body.category || mapCategoryToEnum(crawled.llmEnhanced?.businessCategory),
+        location: body.location || (crawled.location ? {
+          address: crawled.location.address,
+          city: crawled.location.city || 'Unknown',
+          state: crawled.location.state || 'Unknown',
+          country: crawled.location.country || 'US',
+          // Include coordinates if available (for P625 claim)
+          coordinates: (crawled.location.lat && crawled.location.lng) ? {
+            lat: crawled.location.lat,
+            lng: crawled.location.lng,
+          } : undefined,
+        } : {
+          city: 'Unknown',
+          state: 'Unknown',
+          country: 'US',
+        }),
+      };
+      
+      // Validate merged data
+      validatedData = createBusinessSchema.parse(mergedData);
+    } else {
+      // Standard validation for full data
+      validatedData = createBusinessSchema.parse(body);
+    }
 
     // Idempotency check: Check for idempotency key or duplicate URL
     const idempotencyKey = getIdempotencyKey(request) || 

@@ -24,42 +24,20 @@ import {
   WikidataSnak,
   WikidataReference
 } from '@/lib/types/wikidata-contract';
-// Keep loose type for backward compatibility with service contract
-import { WikidataEntityData as WikidataEntityDataLoose, WikidataPublishResult } from '@/lib/types/gemflush';
+import { WikidataPublishResult } from '@/lib/types/gemflush';
 import { IWikidataPublisher } from '@/lib/types/service-contracts';
 import { validateWikidataEntity } from '@/lib/validation/wikidata';
 import { BUSINESS_PROPERTY_MAP } from './property-mapping';
-
-// Type alias for service contract compatibility (accepts loose type, uses strict internally)
-type WikidataEntityData = WikidataEntityDataContract;
 
 export class WikidataPublisher implements IWikidataPublisher {
   // Configurable API URLs via environment variables (with sensible defaults)
   private testBaseUrl = process.env.WIKIDATA_TEST_API_URL || 'https://test.wikidata.org/w/api.php';
   private prodBaseUrl = process.env.WIKIDATA_PROD_API_URL || 'https://www.wikidata.org/w/api.php';
   private sessionCookies: string | null = null; // Cache session cookies (SOLID: single responsibility)
+  private propertyTypeCache = new Map<string, Map<string, string>>(); // Cache property types per baseUrl
+  private cookieExpiry: number | null = null; // Track cookie expiration (30 minutes)
+  private readonly COOKIE_TTL = 30 * 60 * 1000; // 30 minutes
   
-  /**
-   * Publish entity to Wikidata (test or production)
-   * 
-   * SOLID: Single Responsibility - handles publication to Wikidata
-   * DRY: Centralized publication logic
-   * 
-   * The enriched entity JSON structure (PIDs, QIDs, notability, references) is preserved
-   * when switching between test.wikidata.org and wikidata.org. Only the base URL changes.
-   * 
-   * @param entity - Enriched Wikidata entity data (same structure for test and production)
-   * @param production - If true, publish to wikidata.org; if false, publish to test.wikidata.org
-   * @returns QID and success status
-   * 
-   * Environment behavior:
-   * - test.wikidata.org (production=false):
-   *   - If WIKIDATA_PUBLISH_MODE='mock': Returns mock QID (for tests)
-   *   - If WIKIDATA_PUBLISH_MODE='real': Real API call to test.wikidata.org (requires credentials)
-   * - wikidata.org (production=true):
-   *   - Currently mocked until test entities are verified
-   *   - Future: Real API call to wikidata.org (requires production credentials)
-   */
   /**
    * Publish entity to Wikidata (implements IWikidataPublisher contract)
    * Wrapper around publishEntity for contract compliance
@@ -129,264 +107,83 @@ export class WikidataPublisher implements IWikidataPublisher {
               return { qid, success: true };
             }
             
-            // PRODUCTION MODE: Currently mocked and DISABLED
-            // IMPORTANT: Bot account is banned from wikidata.org - only use test.wikidata.org
-            // Production publishing is permanently disabled to prevent accidental real Wikidata publishing
+            // PRODUCTION MODE: Can be enabled via WIKIDATA_ENABLE_PRODUCTION env var
+            // IMPORTANT: Only enable if you have valid production credentials and bot account
+            // By default, production is disabled to prevent accidental real Wikidata publishing
             if (production) {
-              console.warn(`[BLOCKED] Production publishing to wikidata.org is DISABLED`);
-              console.warn(`[BLOCKED] Bot account is banned from wikidata.org - only test.wikidata.org is available`);
-              console.log(`[MOCK] Publishing entity to ${environment} (production mode - blocked and mocked)`);
-              console.log(`[MOCK] Entity data (ready for production):`, JSON.stringify(entity, null, 2));
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              const qid = this.generateMockQID(production);
-              console.log(`[MOCK] Returning mock QID (production publishing disabled): ${qid}`);
-              return { qid, success: true };
+              const enableProduction = process.env.WIKIDATA_ENABLE_PRODUCTION === 'true';
+              if (!enableProduction) {
+                console.warn(`[BLOCKED] Production publishing to wikidata.org is DISABLED`);
+                console.warn(`[BLOCKED] Set WIKIDATA_ENABLE_PRODUCTION=true to enable production publishing`);
+                console.warn(`[BLOCKED] Only use this if you have valid production credentials and bot account`);
+                console.log(`[MOCK] Publishing entity to ${environment} (production mode - blocked and mocked)`);
+                console.log(`[MOCK] Entity data (ready for production):`, JSON.stringify(entity, null, 2));
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const qid = this.generateMockQID(production);
+                console.log(`[MOCK] Returning mock QID (production publishing disabled): ${qid}`);
+                return { qid, success: true };
+              }
+              // Production enabled - continue with real API call
+              console.log(`[REAL] Production publishing ENABLED - publishing to wikidata.org`);
             }
             
             // REAL API CALL: Publish to test.wikidata.org
             // The enriched entity JSON (PIDs, QIDs, notability, references) is sent as-is
-            // This same structure can later be published to wikidata.org by setting production=true
             console.log(`[REAL] Publishing entity to ${environment}`);
-            console.log(`[REAL] Entity data (same structure for production):`, JSON.stringify(entity, null, 2));
             
-            // Check if credentials are available and valid before attempting auth
-            // SOLID: Fail fast with clear error if credentials missing or invalid
-            // DRY: Centralized credential validation
-            const botUsername = process.env.WIKIDATA_BOT_USERNAME;
-            const botPassword = process.env.WIKIDATA_BOT_PASSWORD;
-            
-            // Detect placeholder/invalid credentials (common in .env templates)
-            // Note: Bot passwords from Wikidata can be various lengths, so we only check for obvious placeholders
-            const isPlaceholder = 
-              !botUsername || 
-              !botPassword ||
-              botUsername.includes('YourBot') ||
-              botUsername.includes('example') ||
-              botUsername.includes('placeholder') ||
-              botPassword.includes('the_full_bot_password') ||
-              botPassword.includes('example') ||
-              botPassword.includes('placeholder') ||
-              botPassword.length < 5; // Minimum reasonable length (bot passwords are typically 8+ chars, but can be shorter)
-            
-            if (isPlaceholder) {
+            // Check credentials before attempting auth (DRY: centralized validation)
+            if (this.hasInvalidCredentials()) {
               console.warn(`[REAL] Wikidata credentials not configured or are placeholders. Falling back to mock mode.`);
               console.warn(`[REAL] To enable real publishing, set valid WIKIDATA_BOT_USERNAME and WIKIDATA_BOT_PASSWORD`);
               console.warn(`[REAL] Create bot account at https://test.wikidata.org/wiki/Special:BotPasswords`);
-              // Fall back to mock mode when credentials are missing/invalid (better UX than hard failure)
               const qid = this.generateMockQID(production);
               console.log(`[REAL] Returning mock QID (credentials not configured): ${qid}`);
               return { qid, success: true };
             }
             
-            // Get CSRF token and session cookies (required for write operations)
-            const { token, cookies } = await this.getCSRFTokenAndCookies(baseUrl);
-      
-      if (!token) {
-        throw new Error('Failed to obtain CSRF token. Please check authentication.');
-      }
-      
-      // Clean entity data - remove internal metadata fields (llmSuggestions, etc.)
-      // DRY: Use centralized cleaning method
-      const cleanedEntity = this.cleanEntityForWikidata(entity);
-      
-      // Validate entity structure according to Wikibase Data Model
-      // Uses Zod schema based on Wikibase JSON specification
-      // References:
-      // - Wikibase Data Model: https://www.mediawiki.org/wiki/Wikibase/DataModel
-      // - Wikibase JSON Spec: https://doc.wikimedia.org/Wikibase/master/php/md_docs_topics_json.html
-      const validation = validateWikidataEntity(cleanedEntity);
-      if (!validation.success) {
-        console.error('[REAL] Entity validation failed:', validation.errors);
-        throw new Error(
-          `Entity validation failed: ${validation.errors?.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
-        );
-      }
-      
-      // Query PRODUCTION Wikidata property info to verify expected types
-      // We build entities for production Wikidata, but may publish to test.wikidata.org
-      // test.wikidata.org should accept any properties since it's test data
-      // IMPORTANT: Always validate against production property definitions
-      const productionBaseUrl = this.prodBaseUrl;
-      console.error('[REAL] Querying PRODUCTION Wikidata property info to verify types...');
-      console.error(`[REAL] Building entity for production (${productionBaseUrl}), publishing to ${baseUrl === productionBaseUrl ? 'production' : 'test'}`);
-      const propertyTypeMap = await this.verifyPropertyTypes(cleanedEntity, productionBaseUrl);
-      
-      // Validate entity against production property types (for logging/debugging)
-      // But DON'T filter - test.wikidata.org should accept any properties
-      if (propertyTypeMap.size > 0 && baseUrl === productionBaseUrl) {
-        // Only validate (and potentially filter) when publishing to production
-        console.error('[REAL] Validating entity against production property types...');
-        try {
-          this.validateEntityAgainstPropertyTypes(cleanedEntity, propertyTypeMap);
-          console.error('[REAL] Entity matches production property types');
-        } catch (validationError) {
-          console.error('[REAL] WARNING: Entity does not match production property types:', validationError);
-          // For production, we should fail or filter
-          // But for now, let's just log and continue (API will reject if needed)
-        }
-      } else if (baseUrl !== productionBaseUrl) {
-        // Publishing to test - remove properties that don't match test's schema
-        // test.wikidata.org has incorrect property definitions for many properties
-        // Properties to remove on test (wrong types):
-        // - P31: url (should be wikibase-item)
-        // - P856: globe-coordinate (should be url/string)
-        // - P1128: url (should be quantity)
-        // - P2003: quantity (should be string)
-        const propertiesToRemove = ['P31', 'P856', 'P1128', 'P2003'];
-        for (const pid of propertiesToRemove) {
-          if (cleanedEntity.claims[pid]) {
-            console.warn(`[REAL] Removing ${pid} for test.wikidata.org - wrong property type`);
-            delete cleanedEntity.claims[pid];
-          }
-        }
-        
-        // Remove all references - test.wikidata.org has wrong types for reference properties (P854, P813, P1476)
-        // This allows mainsnaks to be published while avoiding reference type mismatches
-        console.warn(`[REAL] Removing all references for test.wikidata.org - reference properties have wrong types`);
+            // DRY: Reuse shared entity processing
+            const { cleanedEntity, token, cookies } = await this.prepareEntityForApi(entity, baseUrl, production);
+            
+            // Log entity data for debugging
+      // Final check: ensure no references exist before serialization
+      const finalCheck = Object.values(cleanedEntity.claims || {})
+        .flat()
+        .some((claim: any) => claim.references && claim.references.length > 0);
+      if (finalCheck) {
+        console.error('[REAL] CRITICAL: References still exist before API call! Force removing...');
         for (const [pid, claimArray] of Object.entries(cleanedEntity.claims)) {
-          for (const claim of claimArray) {
-            if (claim.references) {
-              claim.references = [];
-            }
-          }
+          cleanedEntity.claims[pid] = (claimArray as any[]).map(claim => {
+            const { references, ...cleanClaim } = claim as any;
+            return cleanClaim;
+          });
         }
-        
-        // Make labels/descriptions unique for test to avoid duplicate errors
-        // Add timestamp suffix to ensure uniqueness
-        const timestamp = Date.now();
-        if (cleanedEntity.labels?.en) {
-          cleanedEntity.labels.en.value = `${cleanedEntity.labels.en.value} [${timestamp}]`;
-        }
-        if (cleanedEntity.descriptions?.en) {
-          cleanedEntity.descriptions.en.value = `${cleanedEntity.descriptions.en.value} [test ${timestamp}]`;
-        }
-        
-        const remainingProps = Object.keys(cleanedEntity.claims).length;
-        console.log(`[REAL] Publishing to test.wikidata.org - ${remainingProps} properties remaining (P31, P856, P1128, P2003 removed, all references removed, labels made unique)`);
       }
       
-      // Additional runtime validation for Wikibase-specific constraints
-      // SOLID: Single Responsibility - validation logic
-      console.error('[REAL] Starting runtime validation for Wikibase-specific constraints...');
-      try {
-        this.validateEntityForWikidata(cleanedEntity);
-        console.error('[REAL] Runtime validation completed successfully');
-      } catch (validationError) {
-        console.error('[REAL] Runtime validation failed:', validationError);
-        throw validationError;
-      }
-      
-      // Prepare entity data for API
       const entityJson = JSON.stringify(cleanedEntity);
       console.log('[REAL] Entity JSON length:', entityJson.length, 'characters');
-      console.log('[REAL] Entity JSON preview (first 500 chars):', entityJson.substring(0, 500));
+      console.log('[REAL] Entity JSON preview (first 1000 chars):', entityJson.substring(0, 1000));
       
-      // Create entity via Wikidata Action API
-      const response = await fetch(baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'GEMflush/1.0 (https://github.com/your-repo)',
-          ...(cookies ? { 'Cookie': cookies } : {}),
-        },
-        body: new URLSearchParams({
+      // Verify no "references" in JSON string
+      if (entityJson.includes('"references"')) {
+        console.error('[REAL] CRITICAL ERROR: Entity JSON still contains "references" keyword!');
+        console.error('[REAL] This will cause API validation errors on test.wikidata.org');
+      }
+      
+            // DRY: Reuse API call logic
+            const result = await this.callWikidataApi(baseUrl, {
           action: 'wbeditentity',
           new: 'item',
           data: entityJson,
           token,
           format: 'json',
-          // Note: bot='1' requires the account to have the bot flag
-          // For test.wikidata.org, you can publish without bot flag (lower rate limits)
-          // For production wikidata.org, bot flag is strongly recommended
-          // Set WIKIDATA_USE_BOT_FLAG=true if your account has the bot flag
           ...(process.env.WIKIDATA_USE_BOT_FLAG === 'true' ? { bot: '1' } : {}),
           summary: 'Created via GEMflush - Automated business entity generation',
-        }),
-      });
+            }, cookies);
       
-      const result = await response.json();
-      
-      // Check for API errors
+            // DRY: Reuse error handling
       if (result.error) {
-        console.error('[REAL] Wikidata API error:', JSON.stringify(result.error, null, 2));
-        
-        // Enhanced error logging for type mismatch errors
-        if (result.error.info?.includes('Bad value type')) {
-          console.error('[REAL] Type mismatch detected. Analyzing entity claims...');
-          this.logEntityClaimTypes(cleanedEntity);
-          
-          // Log all reference snaks in detail
-          console.error('[REAL] Checking all reference snaks for type mismatches...');
-          this.logAllReferenceSnaks(cleanedEntity);
-        }
-        
-        // Extract property information from error messages if available
-        let errorMessage = result.error.info || 'Unknown error publishing entity';
-        if (result.error.code) {
-          errorMessage = `${result.error.code}: ${errorMessage}`;
-        }
-        
-        // Try to extract property ID from error messages
-        // Wikidata error messages often include property IDs or context in parameters
-        if (result.error.messages && Array.isArray(result.error.messages)) {
-          for (const msg of result.error.messages) {
-            console.error(`[REAL] Error message: ${msg.name}`, JSON.stringify(msg, null, 2));
-            if (msg.parameters && Array.isArray(msg.parameters)) {
-              // Look for property IDs (P####) in parameters
-              const propertyParams = msg.parameters.filter((p: any) => 
-                typeof p === 'string' && /^P\d+$/.test(p)
-              );
-              if (propertyParams.length > 0) {
-                errorMessage += `\n\nProperties that may have issues: ${propertyParams.join(', ')}`;
-                console.error(`[REAL] Properties with potential issues: ${propertyParams.join(', ')}`);
-                
-                // Log details for each potentially problematic property
-                for (const pid of propertyParams) {
-                  this.logPropertyDetails(cleanedEntity, pid);
-                }
-              }
-              
-              // Also check for any QID values in parameters (might indicate which value is wrong)
-              const qidParams = msg.parameters.filter((p: any) => 
-                typeof p === 'string' && /^Q\d+$/.test(p)
-              );
-              if (qidParams.length > 0) {
-                console.error(`[REAL] QIDs mentioned in error: ${qidParams.join(', ')}`);
-              }
-              
-              // Log all parameters for debugging
-              console.error(`[REAL] All error parameters:`, JSON.stringify(msg.parameters, null, 2));
-            }
-          }
-        }
-        
-        // Also check the full error object for any property references
-        console.error(`[REAL] Full error object:`, JSON.stringify(result.error, null, 2));
-        
-        // Try to find property references in error info
-        if (result.error.info) {
-          const infoStr = String(result.error.info);
-          const propertyMatches = infoStr.match(/P\d+/g);
-          if (propertyMatches) {
-            const uniqueProperties = [...new Set(propertyMatches)];
-            console.error(`[REAL] Properties found in error info: ${uniqueProperties.join(', ')}`);
-            errorMessage += `\n\nProperties mentioned in error: ${uniqueProperties.join(', ')}`;
-            
-            // Log details for each property found in error
-            for (const pid of uniqueProperties) {
-              this.logPropertyDetails(cleanedEntity, pid);
-            }
-          }
-        }
-        
-        // Add helpful context for common errors
-        if (result.error.info?.includes('Bad value type')) {
-          errorMessage += '\n\nThis usually means a property expects a string but received a QID (or vice versa).';
-          errorMessage += '\nCheck the entity builder logs above for type mismatches.';
-          errorMessage += '\nThe issue may be in a reference snak, not the mainsnak.';
-        }
-        
-        throw new Error(errorMessage);
+              this.handleApiError(result.error, cleanedEntity, 'publication');
+              throw new Error(this.extractErrorMessage(result.error));
       }
       
       // Verify successful creation
@@ -720,6 +517,7 @@ export class WikidataPublisher implements IWikidataPublisher {
     
     console.log(`[REAL] Successfully authenticated as ${username}`);
     this.sessionCookies = cookies; // Cache for reuse (DRY: avoid re-login)
+    this.cookieExpiry = Date.now() + this.COOKIE_TTL; // Set expiration
     
     return cookies;
   }
@@ -819,7 +617,7 @@ export class WikidataPublisher implements IWikidataPublisher {
    * @param snak - Snak to validate
    * @param context - Context string for error messages (e.g., "mainsnak", "reference[0].snaks.P854[0]")
    */
-  private validateSnak(pid: string, snak: any, context: string): void {
+  private validateSnak(pid: string, snak: WikidataSnak, context: string): void {
     if (!snak?.datavalue) {
       return;
     }
@@ -1031,21 +829,40 @@ export class WikidataPublisher implements IWikidataPublisher {
   }
   
   /**
-   * Query Wikidata property info API to verify expected data types
-   * This helps identify type mismatches before sending to API
-   * IMPORTANT: test.wikidata.org may have different property definitions than production
-   * DRY: Centralized property verification
-   * SOLID: Single Responsibility - property type verification only
+   * Get property types with caching for efficiency
+   * DRY: Centralized property type retrieval with caching
+   * SOLID: Single Responsibility - property type retrieval only
    * 
    * @param entity - Entity to verify
    * @param baseUrl - Wikidata API base URL
    * @returns Map of property ID to expected API type
    */
-  private async verifyPropertyTypes(entity: CleanedWikidataEntity, baseUrl: string): Promise<Map<string, string>> {
-    const allPropertyIds = new Set<string>();
-    const propertyTypeMap = new Map<string, string>();
+  private async getPropertyTypes(entity: CleanedWikidataEntity, baseUrl: string): Promise<Map<string, string>> {
+    // Check cache first (efficiency improvement)
+    const cached = this.propertyTypeCache.get(baseUrl);
+    if (cached) {
+      // Verify we have all needed properties in cache
+      const neededProps = this.collectPropertyIds(entity);
+      const hasAllProps = Array.from(neededProps).every(pid => cached.has(pid));
+      if (hasAllProps) {
+        console.error(`[REAL] Using cached property types for ${baseUrl}`);
+        return cached;
+      }
+    }
     
-    // Collect all property IDs from mainsnaks
+    // Cache miss or incomplete - fetch and cache
+    const propertyTypeMap = await this.verifyPropertyTypes(entity, baseUrl);
+    this.propertyTypeCache.set(baseUrl, propertyTypeMap);
+    return propertyTypeMap;
+  }
+
+  /**
+   * Collect all property IDs from entity (mainsnaks and references)
+   * DRY: Centralized property ID collection
+   */
+  private collectPropertyIds(entity: CleanedWikidataEntity): Set<string> {
+    const allPropertyIds = new Set<string>();
+    
     for (const [pid, claimArray] of Object.entries(entity.claims || {})) {
       allPropertyIds.add(pid);
       
@@ -1063,6 +880,25 @@ export class WikidataPublisher implements IWikidataPublisher {
       }
     }
     
+    return allPropertyIds;
+  }
+
+  /**
+   * Query Wikidata property info API to verify expected data types
+   * This helps identify type mismatches before sending to API
+   * IMPORTANT: test.wikidata.org may have different property definitions than production
+   * DRY: Centralized property verification
+   * SOLID: Single Responsibility - property type verification only
+   * 
+   * @param entity - Entity to verify
+   * @param baseUrl - Wikidata API base URL
+   * @returns Map of property ID to expected API type
+   */
+  private async verifyPropertyTypes(entity: CleanedWikidataEntity, baseUrl: string): Promise<Map<string, string>> {
+    // DRY: Reuse collectPropertyIds instead of re-collecting
+    const allPropertyIds = this.collectPropertyIds(entity);
+    const propertyTypeMap = new Map<string, string>();
+    
     if (allPropertyIds.size === 0) {
       return propertyTypeMap;
     }
@@ -1074,15 +910,14 @@ export class WikidataPublisher implements IWikidataPublisher {
     try {
       console.error(`[REAL] Querying property info for: ${propertyIds}`);
       const response = await fetch(propertyInfoUrl);
-      const data = await response.json();
+      const data = await response.json() as { entities?: Record<string, { datatype?: string }> };
       
       if (data.entities) {
         for (const [pid, propertyInfo] of Object.entries(data.entities)) {
-          const info = propertyInfo as any;
-          if (info.datatype) {
-            const expectedType = this.mapWikidataDatatypeToApiType(info.datatype);
+          if (propertyInfo.datatype) {
+            const expectedType = this.mapWikidataDatatypeToApiType(propertyInfo.datatype);
             propertyTypeMap.set(pid, expectedType);
-            console.error(`[REAL] Property ${pid} expects datatype: ${info.datatype} (API type: ${expectedType})`);
+            console.error(`[REAL] Property ${pid} expects datatype: ${propertyInfo.datatype} (API type: ${expectedType})`);
             
             // Check if our mapping matches
             const mapping = BUSINESS_PROPERTY_MAP[pid];
@@ -1091,7 +926,7 @@ export class WikidataPublisher implements IWikidataPublisher {
               if (ourExpectedType && ourExpectedType !== expectedType) {
                 console.error(`[REAL] WARNING: Property ${pid} type mismatch!`);
                 console.error(`[REAL]   Our mapping says: ${mapping.dataType} -> ${ourExpectedType}`);
-                console.error(`[REAL]   Wikidata says: ${info.datatype} -> ${expectedType}`);
+                console.error(`[REAL]   Wikidata says: ${propertyInfo.datatype} -> ${expectedType}`);
                 console.error(`[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)`);
               }
             }
@@ -1298,12 +1133,13 @@ export class WikidataPublisher implements IWikidataPublisher {
    */
   private async getCSRFTokenAndCookies(baseUrl: string): Promise<{ token: string; cookies: string }> {
     try {
-      // Get or reuse session cookies
+      // Get or reuse session cookies (with expiration check)
       let cookies = this.sessionCookies;
       
-      if (!cookies) {
-        // Login if we don't have cookies yet
+      if (!cookies || !this.cookieExpiry || Date.now() > this.cookieExpiry) {
+        // Login if we don't have cookies or they've expired
         cookies = await this.login(baseUrl);
+        this.cookieExpiry = Date.now() + this.COOKIE_TTL;
       }
       
       // Get CSRF token using authenticated session
@@ -1321,7 +1157,9 @@ export class WikidataPublisher implements IWikidataPublisher {
         if (response.status === 401 || response.status === 403) {
           console.log(`[REAL] Session expired, re-authenticating...`);
           this.sessionCookies = null; // Clear cached cookies
+            this.cookieExpiry = null; // Clear expiry
           cookies = await this.login(baseUrl);
+            this.cookieExpiry = Date.now() + this.COOKIE_TTL;
           
           // Retry token fetch with new cookies
           const retryResponse = await fetch(tokenUrl, {
@@ -1377,6 +1215,7 @@ export class WikidataPublisher implements IWikidataPublisher {
       console.error('[REAL] Error obtaining CSRF token:', error);
       // Clear cached cookies on error (they may be invalid)
       this.sessionCookies = null;
+      this.cookieExpiry = null;
       throw error instanceof Error 
         ? error 
         : new Error('Failed to obtain CSRF token');
@@ -1386,72 +1225,48 @@ export class WikidataPublisher implements IWikidataPublisher {
   /**
    * Update an existing entity
    * SOLID: Single Responsibility - handles entity updates
-   * DRY: Reuses CSRF token logic from publishEntity
+   * DRY: Reuses shared logic from publishEntity
+   * 
+   * Note: Wikidata's wbeditentity expects full entity structure, not partial updates
+   * The entity should include all claims, labels, and descriptions (full replacement)
    */
   async updateEntity(
     qid: string,
-    updates: Partial<WikidataEntityDataContract>,
+    entity: WikidataEntityDataContract,
     production: boolean = false
   ): Promise<{ success: boolean; error?: string }> {
     const baseUrl = production ? this.prodBaseUrl : this.testBaseUrl;
+    const environment = production ? 'wikidata.org' : 'test.wikidata.org';
     
     try {
-      // Mock mode: bypass real API calls
-      if (process.env.WIKIDATA_PUBLISH_MODE === 'mock') {
-        const environment = production ? 'wikidata.org' : 'test.wikidata.org';
+      // DRY: Reuse mock mode check
+      if (this.shouldUseMockMode(production)) {
         console.log(`[MOCK] Updating entity ${qid} on ${environment} (mock mode)`);
         await new Promise(resolve => setTimeout(resolve, 800));
         return { success: true };
       }
       
-      // Production is still mocked (even in real mode)
-      if (production) {
-        console.log(`[MOCK] Updating entity ${qid} on production Wikidata (mocked)`);
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return { success: true };
-      }
-      
-      // Real API call to test.wikidata.org or wikidata.org
-      const environment = production ? 'wikidata.org' : 'test.wikidata.org';
       console.log(`[REAL] Updating entity ${qid} on ${environment}`);
       
-      const { token, cookies } = await this.getCSRFTokenAndCookies(baseUrl);
+      // DRY: Reuse shared entity processing
+      const { cleanedEntity, token, cookies } = await this.prepareEntityForApi(entity, baseUrl, production);
       
-      if (!token) {
-        throw new Error('Failed to obtain CSRF token for update');
-      }
-      
-      const response = await fetch(baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'GEMflush/1.0 (https://github.com/your-repo)',
-          'Cookie': cookies,
-        },
-        body: new URLSearchParams({
-          action: 'wbeditentity',
-          id: qid,
-          data: JSON.stringify(
-            // Clean updates - remove internal metadata fields if present
-            // DRY: Use centralized cleaning method
-            this.cleanEntityForWikidata(updates as WikidataEntityDataContract)
-          ),
-          token,
-          format: 'json',
-          // Note: bot='1' requires the account to have the bot flag
-          ...(process.env.WIKIDATA_USE_BOT_FLAG === 'true' ? { bot: '1' } : {}),
-          summary: 'Updated via GEMflush',
-        }),
-      });
-      
-      const result = await response.json();
+      // DRY: Reuse API call logic
+      const result = await this.callWikidataApi(baseUrl, {
+        action: 'wbeditentity',
+        id: qid,
+        data: JSON.stringify(cleanedEntity),
+        clear: 'true',
+        token,
+        format: 'json',
+        ...(process.env.WIKIDATA_USE_BOT_FLAG === 'true' ? { bot: '1' } : {}),
+        summary: 'Updated via GEMflush',
+      }, cookies);
       
       if (result.error) {
-        throw new Error(
-          result.error.code 
-            ? `${result.error.code}: ${result.error.info || 'Unknown error'}`
-            : result.error.info || 'Unknown error updating entity'
-        );
+        // DRY: Reuse error handling
+        this.handleApiError(result.error, cleanedEntity, `update for ${qid}`);
+        throw new Error(this.extractErrorMessage(result.error));
       }
       
       if (result.success) {
@@ -1463,11 +1278,283 @@ export class WikidataPublisher implements IWikidataPublisher {
       
     } catch (error) {
       console.error('Wikidata update error:', error);
-    return {
+      return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-    };
+      };
     }
+  }
+
+  /**
+   * Check if mock mode should be used
+   * DRY: Centralized mock mode check
+   */
+  private shouldUseMockMode(production: boolean): boolean {
+    if (process.env.WIKIDATA_PUBLISH_MODE === 'mock') {
+      return true;
+    }
+    // Production is still mocked (even in real mode)
+    return production;
+  }
+
+  /**
+   * Check if credentials are invalid or placeholders
+   * DRY: Centralized credential validation
+   */
+  private hasInvalidCredentials(): boolean {
+    const botUsername = process.env.WIKIDATA_BOT_USERNAME;
+    const botPassword = process.env.WIKIDATA_BOT_PASSWORD;
+    
+    if (!botUsername || !botPassword) {
+      return true;
+    }
+    
+    // Detect placeholder/invalid credentials (common in .env templates)
+    return (
+      botUsername.includes('YourBot') ||
+      botUsername.includes('example') ||
+      botUsername.includes('placeholder') ||
+      botPassword.includes('the_full_bot_password') ||
+      botPassword.includes('example') ||
+      botPassword.includes('placeholder') ||
+      botPassword.length < 5 // Minimum reasonable length
+    );
+  }
+
+  /**
+   * Prepare entity for API call (clean, validate, get auth)
+   * DRY: Shared logic for publishEntity and updateEntity
+   */
+  private async prepareEntityForApi(
+    entity: WikidataEntityDataContract,
+    baseUrl: string,
+    production: boolean
+  ): Promise<{
+    cleanedEntity: CleanedWikidataEntity;
+    token: string;
+    cookies: string;
+  }> {
+    // Clean entity data
+      const cleanedEntity = this.cleanEntityForWikidata(entity);
+      
+    // Validate entity structure
+    const validation = validateWikidataEntity(cleanedEntity);
+    if (!validation.success) {
+      console.error('[REAL] Entity validation failed:', validation.errors);
+      throw new Error(
+        `Entity validation failed: ${validation.errors?.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+      );
+    }
+    
+    // CRITICAL: Query property types from TARGET environment (not production)
+    // test.wikidata.org has different property definitions than production
+    // We must query the target environment to know what it expects
+    console.log(`[REAL] Querying property types from ${baseUrl.includes('test.wikidata.org') ? 'test.wikidata.org' : 'production wikidata.org'}`);
+    const targetPropertyTypeMap = await this.getPropertyTypes(cleanedEntity, baseUrl);
+    
+    // Also query production types for comparison/logging
+    const productionBaseUrl = this.prodBaseUrl;
+    const productionPropertyTypeMap = await this.getPropertyTypes(cleanedEntity, productionBaseUrl);
+    
+    // Log differences between test and production
+    if (baseUrl !== productionBaseUrl && targetPropertyTypeMap.size > 0) {
+      console.log(`[REAL] Property type differences between test and production:`);
+      for (const [pid, testType] of targetPropertyTypeMap.entries()) {
+        const prodType = productionPropertyTypeMap.get(pid);
+        if (prodType && prodType !== testType) {
+          console.log(`[REAL]   ${pid}: test expects ${testType}, production expects ${prodType}`);
+        }
+      }
+    }
+    
+    // Adapt entity to match TARGET environment's property types
+    if (baseUrl !== productionBaseUrl) {
+      // Publishing to test.wikidata.org - adapt to test's property definitions
+      console.log(`[REAL] Adapting entity for test.wikidata.org property definitions...`);
+      this.adaptEntityForEnvironment(cleanedEntity, targetPropertyTypeMap, 'test');
+    } else {
+      // Publishing to production - validate against production types
+      if (targetPropertyTypeMap.size > 0) {
+        try {
+          this.validateEntityAgainstPropertyTypes(cleanedEntity, targetPropertyTypeMap);
+          console.log('[REAL] Entity matches production property types');
+        } catch (validationError) {
+          console.error('[REAL] WARNING: Entity does not match production property types:', validationError);
+        }
+      }
+    }
+    
+    // Runtime validation
+    this.validateEntityForWikidata(cleanedEntity);
+    
+    // Get authentication
+    const { token, cookies } = await this.getCSRFTokenAndCookies(baseUrl);
+    if (!token) {
+      throw new Error('Failed to obtain CSRF token');
+    }
+    
+    return { cleanedEntity, token, cookies };
+  }
+
+  /**
+   * Adapt entity for target environment (test or production)
+   * Queries property types from target environment and filters entity to match
+   * DRY: Centralized environment adaptation
+   * SOLID: Single Responsibility - adapts entity for target environment
+   * 
+   * @param cleanedEntity - Entity to adapt
+   * @param targetPropertyTypeMap - Property types from target environment
+   * @param environment - 'test' or 'production'
+   */
+  private adaptEntityForEnvironment(
+    cleanedEntity: CleanedWikidataEntity,
+    targetPropertyTypeMap: Map<string, string>,
+    environment: 'test' | 'production'
+  ): void {
+    const isTest = environment === 'test';
+    const removedProperties: string[] = [];
+    let referenceCount = 0;
+    
+    // Filter properties based on what target environment expects
+    for (const [pid, claimArray] of Object.entries(cleanedEntity.claims)) {
+      const expectedType = targetPropertyTypeMap.get(pid);
+      
+      // Check if property type matches what target expects
+      let shouldRemove = false;
+      if (expectedType) {
+        // Verify each claim's type matches expected
+        for (const claim of claimArray || []) {
+          const actualType = claim.mainsnak?.datavalue?.type;
+          if (actualType && actualType !== expectedType) {
+            console.warn(`[REAL] Property ${pid} type mismatch for ${environment}: expected ${expectedType}, got ${actualType}`);
+            shouldRemove = true;
+            break;
+          }
+        }
+      } else if (isTest) {
+        // For test, if we don't know the type, be conservative and remove
+        // Known problematic properties on test
+        const knownProblematic = ['P31', 'P856', 'P1128', 'P2003'];
+        if (knownProblematic.includes(pid)) {
+          shouldRemove = true;
+        }
+      }
+      
+      if (shouldRemove) {
+        removedProperties.push(pid);
+        delete cleanedEntity.claims[pid];
+      } else {
+        // Remove references - test.wikidata.org has wrong types for reference properties
+        // Production can keep references
+        if (isTest) {
+          for (const claim of claimArray || []) {
+            if (claim.references && claim.references.length > 0) {
+              referenceCount += claim.references.length;
+              delete claim.references;
+            }
+          }
+        }
+      }
+    }
+    
+    if (removedProperties.length > 0) {
+      console.log(`[REAL] Removed ${removedProperties.length} properties for ${environment}: ${removedProperties.join(', ')}`);
+    }
+    
+    if (referenceCount > 0) {
+      console.log(`[REAL] Removed ${referenceCount} references for ${environment}`);
+    }
+    
+    const remainingProps = Object.keys(cleanedEntity.claims).length;
+    console.log(`[REAL] Publishing to ${environment} - ${remainingProps} properties remaining, ${isTest ? '0' : 'with'} references`);
+  }
+
+  /**
+   * Call Wikidata API with error handling
+   * DRY: Centralized API call logic
+   */
+  private async callWikidataApi(
+    baseUrl: string,
+    params: Record<string, string>,
+    cookies: string
+  ): Promise<{ success?: boolean; error?: { code?: string; info?: string; messages?: Array<{ name?: string; parameters?: unknown[] }> }; entity?: { id?: string } }> {
+      const response = await fetch(baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'GEMflush/1.0 (https://github.com/your-repo)',
+          'Cookie': cookies,
+        },
+      body: new URLSearchParams(params),
+    });
+    
+    return await response.json();
+  }
+
+  /**
+   * Handle API errors with detailed logging
+   * DRY: Centralized error handling
+   */
+  private handleApiError(
+    error: { code?: string; info?: string; messages?: Array<{ name?: string; parameters?: unknown[] }> },
+    entity: CleanedWikidataEntity,
+    context: string
+  ): void {
+    console.error(`[REAL] Wikidata API error for ${context}:`, JSON.stringify(error, null, 2));
+    
+    if (error.info?.includes('Bad value type')) {
+          console.error('[REAL] Type mismatch detected. Analyzing entity claims...');
+      this.logEntityClaimTypes(entity);
+      this.logAllReferenceSnaks(entity);
+    }
+    
+    // Extract property IDs from error messages
+    if (error.messages && Array.isArray(error.messages)) {
+      for (const msg of error.messages) {
+        if (msg.parameters && Array.isArray(msg.parameters)) {
+          const propertyParams = msg.parameters.filter((p): p is string => 
+            typeof p === 'string' && /^P\d+$/.test(p)
+          );
+          if (propertyParams.length > 0) {
+            console.error(`[REAL] Properties with potential issues: ${propertyParams.join(', ')}`);
+            for (const pid of propertyParams) {
+              this.logPropertyDetails(entity, pid);
+            }
+          }
+        }
+      }
+    }
+    
+    // Check error info for property references
+    if (error.info) {
+      const propertyMatches = error.info.match(/P\d+/g);
+      if (propertyMatches) {
+        const uniqueProperties = [...new Set(propertyMatches)];
+        console.error(`[REAL] Properties found in error info: ${uniqueProperties.join(', ')}`);
+        for (const pid of uniqueProperties) {
+          this.logPropertyDetails(entity, pid);
+        }
+      }
+    }
+  }
+
+  /**
+   * Extract error message from API error response
+   * DRY: Centralized error message extraction
+   */
+  private extractErrorMessage(error: { code?: string; info?: string }): string {
+    let errorMessage = error.info || 'Unknown error';
+    if (error.code) {
+      errorMessage = `${error.code}: ${errorMessage}`;
+    }
+    
+    if (error.info?.includes('Bad value type')) {
+      errorMessage += '\n\nThis usually means a property expects a string but received a QID (or vice versa).';
+      errorMessage += '\nCheck the entity builder logs above for type mismatches.';
+      errorMessage += '\nThe issue may be in a reference snak, not the mainsnak.';
+    }
+    
+    return errorMessage;
   }
 }
 

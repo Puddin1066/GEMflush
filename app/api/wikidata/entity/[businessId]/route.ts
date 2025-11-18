@@ -78,7 +78,38 @@ export async function GET(
         existingEntity.entityData as any,
         business.wikidataQID || null
       );
-      return NextResponse.json(entityDTO);
+      
+      // DRY: Include notability and canPublish for published entities
+      // SOLID: Single Responsibility - entity endpoint should include publish readiness
+      // OPTIMIZATION: For published entities, use stored entityData instead of recalculating
+      // For published entities, canPublish is true by definition, but we still need notability
+      // Only recalculate notability if not stored (pragmatic: balance performance vs accuracy)
+      let notabilityData;
+      let canPublishValue = true; // Published entities can always be republished
+      
+      try {
+        // Try to get notability from publishDTO (may be cached)
+        const publishData = await getWikidataPublishDTO(businessIdNum);
+        notabilityData = publishData.notability;
+        canPublishValue = publishData.canPublish;
+      } catch (error) {
+        // If notability check fails, use defaults for published entities
+        // SOLID: Graceful degradation - published entities should still be viewable
+        console.warn(`[ENTITY] Could not recalculate notability for published entity ${businessIdNum}:`, error);
+        notabilityData = {
+          isNotable: true, // Assume notable if already published
+          confidence: 0.8,
+          reasons: ['Entity already published to Wikidata'],
+          seriousReferenceCount: 1,
+          topReferences: [],
+        };
+      }
+      
+      return NextResponse.json({
+        ...entityDTO,
+        notability: notabilityData,
+        canPublish: canPublishValue,
+      });
     }
 
     // Entity doesn't exist yet - build it from business data (lazy loading)
@@ -100,7 +131,15 @@ export async function GET(
       
       // Convert to EntityDetailDTO (DRY: reuse DTO conversion)
       const entityDTO = toWikidataEntityDetailDTO(publishData.fullEntity, business.wikidataQID || null);
-      return NextResponse.json(entityDTO);
+      
+      // DRY: Include notability and canPublish from publishData (already calculated)
+      // SOLID: Single Responsibility - entity endpoint should include publish readiness
+      // Pragmatic: More efficient than separate API call, UI needs this info
+      return NextResponse.json({
+        ...entityDTO,
+        notability: publishData.notability,
+        canPublish: publishData.canPublish,
+      });
     } catch (error) {
       console.error('Error building entity:', error);
       // If entity building fails, return error (entity may not be ready)

@@ -15,6 +15,15 @@ export interface CrawledData {
   phone?: string;
   email?: string;
   address?: string;
+  location?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    postalCode?: string;
+    lat?: number;
+    lng?: number;
+  };
   socialLinks?: {
     facebook?: string;
     instagram?: string;
@@ -28,28 +37,29 @@ export interface CrawledData {
   services?: string[];
   imageUrl?: string;
   // Rich business details
+  // Note: Fields can be null (LLM returns null for missing data)
   businessDetails?: {
-    industry?: string;
-    sector?: string;
-    businessType?: string;
-    legalForm?: string;
-    founded?: string;
-    dissolved?: string;
-    employeeCount?: number | string;
-    revenue?: string;
-    locations?: number;
-    products?: string[];
-    services?: string[];
-    brands?: string[];
-    parentCompany?: string;
-    subsidiaries?: string[];
-    partnerships?: string[];
-    awards?: string[];
-    certifications?: string[];
-    targetMarket?: string;
-    headquarters?: string;
-    ceo?: string;
-    stockSymbol?: string;
+    industry?: string | null;
+    sector?: string | null;
+    businessType?: string | null;
+    legalForm?: string | null;
+    founded?: string | null;
+    dissolved?: string | null;
+    employeeCount?: number | string | null;
+    revenue?: string | null;
+    locations?: number | null;
+    products?: string[] | null;
+    services?: string[] | null;
+    brands?: string[] | null;
+    parentCompany?: string | null;
+    subsidiaries?: string[] | null;
+    partnerships?: string[] | null;
+    awards?: string[] | null;
+    certifications?: string[] | null;
+    targetMarket?: string | null;
+    headquarters?: string | null;
+    ceo?: string | null;
+    stockSymbol?: string | null;
   };
   // LLM-enhanced extraction
   llmEnhanced?: {
@@ -60,69 +70,12 @@ export interface CrawledData {
     keyDifferentiators: string[];
     confidence: number;
     model: string;
-    processedAt: Date;
+    processedAt: Date | string; // Can be Date or ISO string
   };
 }
 
-// Wikidata types
-// NOTE: These are loose types for backward compatibility.
-// For strict type safety, use types from './wikidata-contract.ts'
-// The strict contract ensures compile-time type safety and matches Wikibase JSON spec exactly.
-
-/**
- * @deprecated Use WikidataEntityDataContract from './wikidata-contract' for strict typing
- * This type is kept for backward compatibility but uses loose types (unknown, string)
- */
-export interface WikidataEntityData {
-  labels: Record<string, { language: string; value: string }>;
-  descriptions: Record<string, { language: string; value: string }>;
-  claims: Record<string, WikidataClaim[]>;
-  // LLM-generated suggestions
-  llmSuggestions?: {
-    suggestedProperties: Array<{
-      property: string;
-      propertyLabel: string;
-      suggestedValue: string;
-      confidence: number;
-      reasoning: string;
-    }>;
-    suggestedReferences: Array<{
-      url: string;
-      title: string;
-      relevance: number;
-    }>;
-    qualityScore: number;
-    completeness: number;
-    model: string;
-    generatedAt: Date;
-  };
-}
-
-/**
- * @deprecated Use WikidataClaim from './wikidata-contract' for strict typing
- * This type uses unknown for datavalue.value - use the contract for type safety
- */
-export interface WikidataClaim {
-  mainsnak: {
-    snaktype: string;
-    property: string;
-    datavalue: {
-      value: unknown; // Loose type - use WikidataDatavalue from contract for type safety
-      type: string;
-    };
-  };
-  type: string;
-  rank?: string;
-  references?: WikidataReference[];
-}
-
-/**
- * @deprecated Use WikidataReference from './wikidata-contract' for strict typing
- * This type uses unknown[] for snaks - use the contract for type safety
- */
-export interface WikidataReference {
-  snaks: Record<string, unknown[]>; // Loose type - use WikidataReferenceSnak[] from contract
-}
+// Wikidata types have been migrated to lib/types/wikidata-contract.ts
+// Use WikidataEntityDataContract, WikidataClaim, and WikidataReference from './wikidata-contract' for strict typing
 
 // LLM Fingerprinting types
 export interface LLMResult {

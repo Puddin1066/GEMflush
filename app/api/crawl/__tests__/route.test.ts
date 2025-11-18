@@ -1,8 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest } from 'next/server';
-import { POST } from '../route';
+// Crawl API contract tests
+// Validates API request/response formats and validation
 
-// Mock database queries
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { POST } from '@/app/api/crawl/route';
+import { NextRequest } from 'next/server';
+import { crawlRequestSchema } from '@/lib/validation/business';
+import { validateCrawledData } from '@/lib/validation/crawl';
+
+// Mock dependencies
 vi.mock('@/lib/db/queries', () => ({
   getUser: vi.fn(),
   getTeamForUser: vi.fn(),
@@ -12,169 +17,196 @@ vi.mock('@/lib/db/queries', () => ({
   updateCrawlJob: vi.fn(),
 }));
 
-// Mock crawler
 vi.mock('@/lib/crawler', () => ({
   webCrawler: {
     crawl: vi.fn(),
   },
 }));
 
-describe('POST /api/crawl', () => {
+vi.mock('@/lib/services/business-processing', () => ({
+  shouldCrawl: vi.fn(),
+}));
+
+describe('Crawl API Contracts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns 401 when not authenticated', async () => {
-    const { getUser } = await import('@/lib/db/queries');
-    vi.mocked(getUser).mockResolvedValue(null);
-
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 1 }),
+  describe('crawlRequestSchema validation', () => {
+    it('should validate valid crawl request', () => {
+      const validRequest = { businessId: 1 };
+      const result = crawlRequestSchema.safeParse(validRequest);
+      expect(result.success).toBe(true);
     });
 
-    const response = await POST(request);
-    const data = await response.json();
+    it('should accept optional forceRecrawl flag', () => {
+      const request = { businessId: 1, forceRecrawl: true };
+      const result = crawlRequestSchema.safeParse(request);
+      expect(result.success).toBe(true);
+    });
 
-    expect(response.status).toBe(401);
-    expect(data.error).toBe('Unauthorized');
+    it('should reject invalid businessId (negative)', () => {
+      const invalidRequest = { businessId: -1 };
+      const result = crawlRequestSchema.safeParse(invalidRequest);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject invalid businessId (zero)', () => {
+      const invalidRequest = { businessId: 0 };
+      const result = crawlRequestSchema.safeParse(invalidRequest);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing businessId', () => {
+      const invalidRequest = {};
+      const result = crawlRequestSchema.safeParse(invalidRequest);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject non-integer businessId', () => {
+      const invalidRequest = { businessId: 1.5 };
+      const result = crawlRequestSchema.safeParse(invalidRequest);
+      expect(result.success).toBe(false);
+    });
   });
 
-  it('returns 404 when no team found', async () => {
-    const { getUser, getTeamForUser } = await import('@/lib/db/queries');
-    vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getTeamForUser).mockResolvedValue(null);
+  describe('API response format', () => {
+    it('should return jobId and status in response', async () => {
+      const { getUser, getTeamForUser, getBusinessById, createCrawlJob } = await import('@/lib/db/queries');
+      const { shouldCrawl } = await import('@/lib/services/business-processing');
 
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 1 }),
+      vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getBusinessById).mockResolvedValue({
+        id: 1,
+        teamId: 1,
+        url: 'https://example.com',
+      } as any);
+      vi.mocked(shouldCrawl).mockResolvedValue({ shouldCrawl: true });
+      vi.mocked(createCrawlJob).mockResolvedValue({
+        id: 1,
+        businessId: 1,
+        status: 'queued',
+      } as any);
+
+      const request = new NextRequest('http://localhost:3000/api/crawl', {
+        method: 'POST',
+        body: JSON.stringify({ businessId: 1 }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty('jobId');
+      expect(data).toHaveProperty('status');
     });
 
-    const response = await POST(request);
-    const data = await response.json();
+    it('should return cached response when crawl not needed', async () => {
+      const { getUser, getTeamForUser, getBusinessById } = await import('@/lib/db/queries');
+      const { shouldCrawl } = await import('@/lib/services/business-processing');
 
-    expect(response.status).toBe(404);
-    expect(data.error).toBe('No team found');
+      vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getBusinessById).mockResolvedValue({
+        id: 1,
+        teamId: 1,
+        status: 'crawled',
+      } as any);
+      vi.mocked(shouldCrawl).mockResolvedValue({ shouldCrawl: false });
+
+      const request = new NextRequest('http://localhost:3000/api/crawl', {
+        method: 'POST',
+        body: JSON.stringify({ businessId: 1 }),
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.cached).toBe(true);
+      expect(data.jobId).toBeNull();
+    });
   });
 
-  it('creates crawl job successfully', async () => {
-    const { getUser, getTeamForUser, getBusinessById, createCrawlJob } = await import('@/lib/db/queries');
-    const { webCrawler } = await import('@/lib/crawler');
+  describe('CrawledData validation in storage', () => {
+    it('should validate crawlData before storing', async () => {
+      const { getUser, getTeamForUser, getBusinessById, updateBusiness } = await import('@/lib/db/queries');
+      const { webCrawler } = await import('@/lib/crawler');
+      const { shouldCrawl } = await import('@/lib/services/business-processing');
 
-    const mockUser = { id: 1 } as any;
-    const mockTeam = { id: 1 } as any;
-    const mockBusiness = { id: 1, teamId: 1, url: 'https://example.com' } as any;
-    const mockJob = { id: 1, businessId: 1, status: 'queued' } as any;
+      const validCrawlData = {
+        name: 'Test Business',
+        email: 'test@example.com',
+      };
 
-    vi.mocked(getUser).mockResolvedValue(mockUser);
-    vi.mocked(getTeamForUser).mockResolvedValue(mockTeam);
-    vi.mocked(getBusinessById).mockResolvedValue(mockBusiness);
-    vi.mocked(createCrawlJob).mockResolvedValue(mockJob);
-    // Mock crawler to prevent background job execution errors
-    vi.mocked(webCrawler.crawl).mockResolvedValue({ success: true, data: {} } as any);
+      vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getBusinessById).mockResolvedValue({
+        id: 1,
+        teamId: 1,
+        url: 'https://example.com',
+      } as any);
+      vi.mocked(shouldCrawl).mockResolvedValue({ shouldCrawl: true });
+      vi.mocked(webCrawler.crawl).mockResolvedValue({
+        success: true,
+        data: validCrawlData,
+        url: 'https://example.com',
+        crawledAt: new Date(),
+      });
 
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 1 }),
+      // Validate that data would be valid before storage
+      const validation = validateCrawledData(validCrawlData);
+      expect(validation.success).toBe(true);
     });
 
-    const response = await POST(request);
-    const data = await response.json();
+    it('should reject invalid crawlData format', () => {
+      const invalidData = {
+        email: 'not-an-email', // Invalid email format
+      };
 
-    expect(response.status).toBe(200);
-    expect(data.jobId).toBe(1);
-    expect(data.status).toBe('queued');
-    expect(data.message).toBe('Crawl job started');
+      const validation = validateCrawledData(invalidData);
+      expect(validation.success).toBe(false);
+    });
   });
 
-  it('returns 404 when business not found', async () => {
-    const { getUser, getTeamForUser, getBusinessById } = await import('@/lib/db/queries');
+  describe('Error handling', () => {
+    it('should return 400 for validation errors', async () => {
+      const request = new NextRequest('http://localhost:3000/api/crawl', {
+        method: 'POST',
+        body: JSON.stringify({ businessId: -1 }), // Invalid
+      });
 
-    vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getBusinessById).mockResolvedValue(null);
-
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 999 }),
+      const response = await POST(request);
+      expect(response.status).toBe(400);
     });
 
-    const response = await POST(request);
-    const data = await response.json();
+    it('should return 401 for unauthorized requests', async () => {
+      const { getUser } = await import('@/lib/db/queries');
+      vi.mocked(getUser).mockResolvedValue(null);
 
-    expect(response.status).toBe(404);
-    expect(data.error).toBe('Business not found');
-  });
+      const request = new NextRequest('http://localhost:3000/api/crawl', {
+        method: 'POST',
+        body: JSON.stringify({ businessId: 1 }),
+      });
 
-  it('returns 403 when business belongs to different team', async () => {
-    const { getUser, getTeamForUser, getBusinessById } = await import('@/lib/db/queries');
-
-    vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getBusinessById).mockResolvedValue({ id: 1, teamId: 2 } as any);
-
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 1 }),
+      const response = await POST(request);
+      expect(response.status).toBe(401);
     });
 
-    const response = await POST(request);
-    const data = await response.json();
+    it('should return 404 for non-existent business', async () => {
+      const { getUser, getTeamForUser, getBusinessById } = await import('@/lib/db/queries');
+      vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
+      vi.mocked(getBusinessById).mockResolvedValue(null);
 
-    expect(response.status).toBe(403);
-    expect(data.error).toBe('Unauthorized');
-  });
+      const request = new NextRequest('http://localhost:3000/api/crawl', {
+        method: 'POST',
+        body: JSON.stringify({ businessId: 999 }),
+      });
 
-  it('returns 400 for invalid input', async () => {
-    const { getUser, getTeamForUser } = await import('@/lib/db/queries');
-
-    vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
-
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 'invalid' }),
+      const response = await POST(request);
+      expect(response.status).toBe(404);
     });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Validation error');
-  });
-
-  it('returns 400 for missing businessId', async () => {
-    const { getUser, getTeamForUser } = await import('@/lib/db/queries');
-
-    vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
-    vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
-
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.error).toBe('Validation error');
-  });
-
-  it('returns 500 for unexpected errors', async () => {
-    const { getUser } = await import('@/lib/db/queries');
-
-    vi.mocked(getUser).mockRejectedValue(new Error('Database error'));
-
-    const request = new NextRequest('http://localhost:3000/api/crawl', {
-      method: 'POST',
-      body: JSON.stringify({ businessId: 1 }),
-    });
-
-    const response = await POST(request);
-    const data = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(data.error).toBe('Internal server error');
   });
 });

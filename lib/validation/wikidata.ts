@@ -128,6 +128,62 @@ export type WikidataEntityDataInput = z.input<typeof wikidataEntityDataSchema>;
 export type WikidataEntityDataOutput = z.output<typeof wikidataEntityDataSchema>;
 
 /**
+ * Notability Assessment Schema
+ * Validates notability assessment data
+ * DRY: Centralized notability validation
+ * SOLID: Single Responsibility - notability validation only
+ */
+export const notabilityAssessmentSchema = z.object({
+  isNotable: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  recommendation: z.string(),
+});
+
+/**
+ * Stored Entity Metadata Schema
+ * Validates metadata for stored entities ready for manual publication
+ * DRY: Centralized metadata validation
+ * SOLID: Single Responsibility - metadata validation only
+ */
+export const storedEntityMetadataSchema = z.object({
+  businessId: z.number().int().positive(),
+  businessName: z.string().min(1),
+  storedAt: z.string().datetime(), // ISO 8601 timestamp
+  entityFileName: z.string().regex(/^entity-\d+-.+\.json$/), // entity-{businessId}-{timestamp}.json
+  metadataFileName: z.string().regex(/^entity-\d+-.+\.metadata\.json$/), // entity-{businessId}-{timestamp}.metadata.json
+  canPublish: z.boolean(),
+  notability: notabilityAssessmentSchema.optional(),
+});
+
+/**
+ * Type inference from schemas
+ */
+export type NotabilityAssessmentInput = z.input<typeof notabilityAssessmentSchema>;
+export type NotabilityAssessmentOutput = z.output<typeof notabilityAssessmentSchema>;
+export type StoredEntityMetadataInput = z.input<typeof storedEntityMetadataSchema>;
+export type StoredEntityMetadataOutput = z.output<typeof storedEntityMetadataSchema>;
+
+/**
+ * Validate stored entity metadata
+ * DRY: Reusable validation function
+ * SOLID: Single Responsibility - metadata validation only
+ * 
+ * @param data - Metadata to validate
+ * @returns Validation result
+ */
+export function validateStoredEntityMetadata(
+  data: unknown
+): { success: boolean; data?: StoredEntityMetadataOutput; errors?: z.ZodError } {
+  const result = storedEntityMetadataSchema.safeParse(data);
+  
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  
+  return { success: false, errors: result.error };
+}
+
+/**
  * Validate Wikidata entity data
  * DRY: Reusable validation function
  * SOLID: Single Responsibility - validation only

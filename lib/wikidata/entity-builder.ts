@@ -9,8 +9,6 @@ import {
   WikidataReference,
   type CleanedWikidataEntity
 } from '@/lib/types/wikidata-contract';
-// Keep loose type for backward compatibility with service contract
-import { WikidataEntityData as WikidataEntityDataLoose } from '@/lib/types/gemflush';
 import { Business } from '@/lib/db/schema';
 import { openRouterClient } from '@/lib/llm/openrouter';
 import { BUSINESS_PROPERTY_MAP, type PropertyMapping } from './property-mapping';
@@ -170,13 +168,85 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     }
     
     // P625: coordinate location
+    // Check both business.location and crawledData.location for coordinates
+    // Location data MUST be included when available (user requirement)
+    let lat: number | undefined;
+    let lng: number | undefined;
+    let locationSource: string | undefined;
+    
     if (business.location?.coordinates?.lat && business.location?.coordinates?.lng) {
+      lat = business.location.coordinates.lat;
+      lng = business.location.coordinates.lng;
+      locationSource = 'business.location.coordinates';
+    } else if (crawledData?.location?.lat && crawledData?.location?.lng) {
+      // Use location data from crawl if business.location doesn't have coordinates
+      lat = crawledData.location.lat;
+      lng = crawledData.location.lng;
+      locationSource = 'crawledData.location';
+    }
+    
+    if (lat !== undefined && lng !== undefined) {
       claims.P625 = [this.createCoordinateClaim(
         'P625',
-        business.location.coordinates.lat,
-        business.location.coordinates.lng,
+        lat,
+        lng,
         business.url
       )];
+      console.log(`[ENTITY BUILDER] ✓ Added P625 (coordinate location) from ${locationSource}: lat=${lat}, lng=${lng}`);
+    } else {
+      // Log why location wasn't added (for debugging)
+      const hasBusinessLocation = !!business.location;
+      const hasCrawlLocation = !!crawledData?.location;
+      const businessHasCoords = !!(business.location?.coordinates?.lat && business.location?.coordinates?.lng);
+      const crawlHasCoords = !!(crawledData?.location?.lat && crawledData?.location?.lng);
+      console.log(`[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: ${hasBusinessLocation}, business.coords: ${businessHasCoords}, crawl.location: ${hasCrawlLocation}, crawl.coords: ${crawlHasCoords}`);
+      if (crawledData?.location) {
+        console.log(`[ENTITY BUILDER]   Crawl location data:`, JSON.stringify(crawledData.location, null, 2));
+      }
+    }
+    
+    // P6375: street address (MUST be included when available - user requirement)
+    // Check multiple sources for address data
+    let streetAddress: string | undefined;
+    if (crawledData?.location?.address) {
+      streetAddress = crawledData.location.address;
+    } else if (crawledData?.address) {
+      // Fallback to top-level address field
+      streetAddress = crawledData.address;
+    } else if (business.location?.address) {
+      // Fallback to business location address
+      streetAddress = business.location.address;
+    }
+    
+    // If no explicit address, construct from location components (city, state, country)
+    // This ensures location data is included even without a street address
+    if (!streetAddress) {
+      const city = crawledData?.location?.city || business.location?.city;
+      const state = crawledData?.location?.state || business.location?.state;
+      const country = crawledData?.location?.country || business.location?.country;
+      if (city && state) {
+        // Construct a location string for P6375
+        streetAddress = `${city}, ${state}${country && country !== 'US' ? `, ${country}` : ''}`;
+      }
+    }
+    
+    if (streetAddress && !claims.P6375) {
+      claims.P6375 = [this.createStringClaim('P6375', streetAddress, business.url)];
+      console.log(`[ENTITY BUILDER] ✓ Added P6375 (street address): ${streetAddress.substring(0, 50)}...`);
+    } else if (!streetAddress) {
+      console.log(`[ENTITY BUILDER] ⚠ P6375 (street address) NOT added - no address data found in crawl or business location`);
+    }
+    
+    // P131: located in (administrative territorial entity)
+    // Note: This requires city QID lookup, but we can add the claim structure
+    // The QID resolution can happen later or be added manually
+    // For now, we'll log that location data is available for future enhancement
+    if (crawledData?.location?.city || business.location?.city) {
+      const city = crawledData?.location?.city || business.location?.city;
+      const state = crawledData?.location?.state || business.location?.state;
+      const country = crawledData?.location?.country || business.location?.country || 'US';
+      console.log(`[ENTITY BUILDER] Location data available: ${city}, ${state}, ${country} (P131 QID lookup needed for full implementation)`);
+      // TODO: Add P131 claim once city QID lookup is implemented
     }
     
     // P159: headquarters location (city QID would need to be looked up)
@@ -507,7 +577,19 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       }
       
       // Parse suggestions
-      const suggestions = JSON.parse(content);
+      const parsed = JSON.parse(content);
+      
+      // Handle different response formats (DRY: normalize to array)
+      // LLM might return array directly or object with suggestions property
+      const suggestions = Array.isArray(parsed) 
+        ? parsed 
+        : (parsed.suggestions || parsed.properties || []);
+      
+      // Ensure suggestions is an array (SOLID: defensive programming)
+      if (!Array.isArray(suggestions)) {
+        console.warn('[ENTITY BUILDER] Suggestions is not an array, using empty array');
+        return { claims: {}, suggestions: [] };
+      }
       
       // Convert suggestions to claims with QID resolution
       const claims = await this.convertSuggestionsToClaims(suggestions, business.url);

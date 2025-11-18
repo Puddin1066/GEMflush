@@ -12,6 +12,7 @@ import { llmFingerprints } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getFingerprintFrequency } from '@/lib/gemflush/permissions';
 import { getAutomationConfig, shouldAutoPublish, calculateNextCrawlDate } from './automation-service';
+import { validateCrawledData } from '@/lib/validation/crawl';
 
 /**
  * Check if crawl is needed (cache logic)
@@ -107,12 +108,26 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
     console.log(`[PROCESSING] Crawl completed for business ${businessId}: success=${result.success}`);
     
     if (result.success && result.data) {
+      // Validate crawl data before storage (DRY: use validation schema)
+      const validation = validateCrawledData(result.data);
+      if (!validation.success) {
+        console.error(`[PROCESSING] Crawl data validation failed for business ${businessId}:`, validation.errors);
+        throw new Error(
+          `Crawl data validation failed: ${validation.errors?.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
+        );
+      }
+      
       // Get team for automation config
       const team = await getTeamForBusiness(businessId);
       const config = getAutomationConfig(team);
       
       // Update business with crawled data
-      const updateData: any = {
+      const updateData: {
+        status: string;
+        crawlData: typeof result.data;
+        lastCrawledAt: Date;
+        nextCrawlAt?: Date;
+      } = {
         status: 'crawled',
         crawlData: result.data,
         lastCrawledAt: new Date(),
@@ -137,13 +152,17 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
       }
       
       // Trigger auto-publish if enabled (fire and forget)
+      // Use callback pattern to avoid circular dependency
       if (shouldAutoPublish(business, team)) {
         console.log(`[PROCESSING] Scheduling auto-publish for business ${businessId}`);
-        // Import and call auto-publish handler (will be created in scheduler)
+        // Use dynamic import to avoid circular dependency
+        // This is acceptable for event-driven patterns
         import('./scheduler-service').then(({ handleAutoPublish }) => {
           handleAutoPublish(businessId).catch(error => {
             console.error(`[PROCESSING] Auto-publish failed for business ${businessId}:`, error);
           });
+        }).catch(error => {
+          console.error(`[PROCESSING] Failed to load scheduler service for auto-publish:`, error);
         });
       }
     } else {
@@ -158,9 +177,25 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
     }
   } catch (error) {
     console.error(`[PROCESSING] Crawl job error for business ${businessId}:`, error);
+    
+    // Update job status if job exists
+    if (jobId) {
+      await updateCrawlJob(jobId, {
+        status: 'failed',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        completedAt: new Date(),
+      }).catch(err => {
+        console.error(`[PROCESSING] Failed to update crawl job ${jobId} status:`, err);
+      });
+    }
+    
+    // Update business status
     await updateBusiness(businessId, {
       status: 'error',
-    }).catch(() => {}); // Ignore errors updating status
+    }).catch(err => {
+      console.error(`[PROCESSING] Failed to update business ${businessId} status:`, err);
+    });
+    
     throw error;
   }
 }
@@ -168,8 +203,10 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
 /**
  * Execute fingerprint (extracted from route for reuse)
  * SOLID: Single Responsibility - handles fingerprint execution
+ * 
+ * @param business - Business to fingerprint
  */
-async function executeFingerprint(business: Business): Promise<void> {
+export async function executeFingerprint(business: Business): Promise<void> {
   try {
     console.log(`[PROCESSING] Starting fingerprint for business ${business.id}`);
     
@@ -184,8 +221,8 @@ async function executeFingerprint(business: Business): Promise<void> {
       sentimentScore: analysis.sentimentScore,
       accuracyScore: analysis.accuracyScore,
       avgRankPosition: analysis.avgRankPosition,
-      llmResults: analysis.llmResults as any,
-      competitiveLeaderboard: analysis.competitiveLeaderboard as any,
+      llmResults: analysis.llmResults as unknown as Record<string, unknown>,
+      competitiveLeaderboard: analysis.competitiveLeaderboard as unknown as Record<string, unknown>,
       createdAt: new Date(),
     });
     

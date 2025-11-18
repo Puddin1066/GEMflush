@@ -396,3 +396,4 @@ pnpm test:e2e wikidata-value-proposition --ui
 - Highlight LLM-suggested properties
 - Show entity discoverability metrics
 
+

@@ -6,16 +6,13 @@
  */
 
 import { setupStripeProducts } from '../../scripts/setup-stripe-products';
+import type { EnsureStripeProductsResult } from './types';
 
 /**
  * Ensure Stripe products exist, create if missing
  * Returns true if products were created, false if they already existed
  */
-export async function ensureStripeProducts(): Promise<{
-  created: boolean;
-  proPriceId?: string;
-  agencyPriceId?: string;
-}> {
+export async function ensureStripeProducts(): Promise<EnsureStripeProductsResult> {
   try {
     const result = await setupStripeProducts({ skipEnv: true });
     return {
@@ -29,6 +26,9 @@ export async function ensureStripeProducts(): Promise<{
     return { created: false };
   }
 }
+
+
+
 
 
 

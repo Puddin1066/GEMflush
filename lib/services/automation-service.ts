@@ -9,7 +9,7 @@ import { GEMFLUSH_PLANS } from '@/lib/gemflush/plans';
 import type { SubscriptionPlan } from '@/lib/types/gemflush';
 
 export interface AutomationConfig {
-  crawlFrequency: 'manual' | 'weekly' | 'daily';
+  crawlFrequency: 'manual' | 'monthly' | 'weekly' | 'daily';
   fingerprintFrequency: 'manual' | 'monthly' | 'weekly';
   autoPublish: boolean;
   entityRichness: 'basic' | 'enhanced' | 'complete';
@@ -34,22 +34,22 @@ export function getAutomationConfig(team: Team | null): AutomationConfig {
     };
   }
 
-  // Pro tier: automated weekly
+  // Pro tier: automated monthly
   if (planTier === 'pro') {
     return {
-      crawlFrequency: 'weekly',
-      fingerprintFrequency: 'weekly',
+      crawlFrequency: 'monthly',
+      fingerprintFrequency: 'monthly',
       autoPublish: true,
       entityRichness: 'enhanced',
       progressiveEnrichment: false,
     };
   }
 
-  // Agency tier: automated weekly with enrichment
+  // Agency tier: automated monthly with enrichment
   if (planTier === 'agency') {
     return {
-      crawlFrequency: 'weekly',
-      fingerprintFrequency: 'weekly',
+      crawlFrequency: 'monthly',
+      fingerprintFrequency: 'monthly',
       autoPublish: true,
       entityRichness: 'complete',
       progressiveEnrichment: true,
@@ -124,10 +124,12 @@ export function shouldAutoPublish(business: Business, team: Team | null): boolea
 /**
  * Calculate next crawl date based on frequency
  */
-export function calculateNextCrawlDate(frequency: 'weekly' | 'daily'): Date {
+export function calculateNextCrawlDate(frequency: 'monthly' | 'weekly' | 'daily'): Date {
   const next = new Date();
   
-  if (frequency === 'weekly') {
+  if (frequency === 'monthly') {
+    next.setMonth(next.getMonth() + 1);
+  } else if (frequency === 'weekly') {
     next.setDate(next.getDate() + 7);
   } else if (frequency === 'daily') {
     next.setDate(next.getDate() + 1);

@@ -5,14 +5,22 @@ import {
   CrawlResult,
   CrawledData,
   FingerprintAnalysis,
-  WikidataEntityData,
   WikidataPublishResult,
 } from './gemflush';
 import { 
   WikidataEntityDataContract,
-  WikidataClaim as WikidataClaimStrict
+  WikidataClaim as WikidataClaimStrict,
+  StoredEntityMetadata,
+  NotabilityAssessment
 } from './wikidata-contract';
 import { Business } from '@/lib/db/schema';
+import type {
+  StripePriceDTO,
+  StripeProductDTO,
+  CreateCheckoutSessionInput,
+  UpdateTeamSubscriptionInput,
+} from '@/lib/payments/types';
+import Stripe from 'stripe';
 
 /**
  * Web Crawler Service Contract
@@ -65,6 +73,85 @@ export interface IWikidataPublisher {
     entity: WikidataEntityDataContract,
     target: 'test' | 'production'
   ): Promise<WikidataPublishResult>;
+}
+
+/**
+ * Manual Publish Storage Service Contract
+ * Implementation: lib/wikidata/manual-publish-storage.ts
+ */
+export interface IManualPublishStorage {
+  /**
+   * Store entity JSON for manual publication
+   * @param businessId - Business ID
+   * @param businessName - Business name
+   * @param entity - Assembled entity JSON
+   * @param canPublish - Whether entity meets publication criteria
+   * @param notability - Optional notability assessment
+   */
+  storeEntityForManualPublish(
+    businessId: number,
+    businessName: string,
+    entity: WikidataEntityDataContract,
+    canPublish: boolean,
+    notability?: NotabilityAssessment
+  ): Promise<void>;
+
+  /**
+   * List all stored entities
+   * @returns Array of stored entity metadata
+   */
+  listStoredEntities(): Promise<StoredEntityMetadata[]>;
+
+  /**
+   * Load stored entity JSON
+   * @param metadata - Entity metadata
+   * @returns Entity JSON
+   */
+  loadStoredEntity(metadata: StoredEntityMetadata): Promise<WikidataEntityDataContract>;
+
+  /**
+   * Delete stored entity files
+   * @param metadata - Entity metadata
+   */
+  deleteStoredEntity(metadata: StoredEntityMetadata): Promise<void>;
+}
+
+/**
+ * Payment Service Contract
+ * Implementation: lib/payments/stripe.ts
+ */
+export interface IPaymentService {
+  /**
+   * Create a Stripe checkout session
+   * @param input - Checkout session input parameters
+   * @throws Redirects to Stripe checkout or sign-up page
+   */
+  createCheckoutSession(input: CreateCheckoutSessionInput): Promise<void>;
+
+  /**
+   * Create a Stripe customer portal session
+   * @param team - Team with Stripe customer ID
+   * @returns Portal session with URL
+   */
+  createCustomerPortalSession(team: { stripeCustomerId: string | null; stripeProductId: string | null }): Promise<{ url: string }>;
+
+  /**
+   * Handle subscription change from Stripe webhook
+   * @param subscription - Stripe subscription object
+   */
+  handleSubscriptionChange(subscription: Stripe.Subscription): Promise<void>;
+
+  /**
+   * Get all active Stripe prices
+   * @returns Array of Stripe price DTOs
+   */
+  getStripePrices(): Promise<StripePriceDTO[]>;
+
+  /**
+   * Get all active Stripe products
+   * @returns Array of Stripe product DTOs
+   */
+  getStripeProducts(): Promise<StripeProductDTO[]>;
 }
 
 /**
@@ -123,6 +210,13 @@ export class WikidataError extends ServiceError {
   constructor(message: string, details?: any) {
     super(message, 'WIKIDATA_ERROR', 500, details);
     this.name = 'WikidataError';
+  }
+}
+
+export class PaymentError extends ServiceError {
+  constructor(message: string, details?: any) {
+    super(message, 'PAYMENT_ERROR', 500, details);
+    this.name = 'PaymentError';
   }
 }
 

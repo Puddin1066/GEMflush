@@ -11,6 +11,17 @@ export const businessLocationSchema = z.object({
   lng: z.number().min(-180).max(180).optional(),
 });
 
+// Enhanced location extraction schema (for crawled data)
+export const extractedLocationSchema = z.object({
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional().default('US'),
+  postalCode: z.string().optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+});
+
 export const businessCategorySchema = z.enum([
   'restaurant',
   'retail',
@@ -32,6 +43,15 @@ export const createBusinessSchema = z.object({
   url: z.string().url('Must be a valid URL'),
   category: businessCategorySchema.optional(),
   location: businessLocationSchema,
+});
+
+// New schema for URL-only creation (frictionless onboarding)
+export const createBusinessFromUrlSchema = z.object({
+  url: z.string().url('Must be a valid URL'),
+  // All other fields optional - will be extracted from crawl
+  name: z.string().min(2).max(200).optional(),
+  category: businessCategorySchema.optional(),
+  location: businessLocationSchema.optional(),
 });
 
 export const updateBusinessSchema = createBusinessSchema.partial();

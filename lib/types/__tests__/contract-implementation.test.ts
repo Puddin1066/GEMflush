@@ -6,7 +6,8 @@ import type {
   IWikidataEntityBuilder,
   IWikidataPublisher,
 } from '../service-contracts';
-import type { CrawlResult, FingerprintAnalysis, WikidataEntityData, WikidataPublishResult } from '../gemflush';
+import type { CrawlResult, FingerprintAnalysis, WikidataPublishResult } from '../gemflush';
+import type { WikidataEntityDataContract } from '../wikidata-contract';
 import type { Business } from '@/lib/db/schema';
 
 /**
@@ -101,14 +102,14 @@ describe('Service Contract Implementation', () => {
   describe('IWikidataEntityBuilder Contract', () => {
     it('should match EntityBuilder implementation signature', () => {
       const mockBuilder: IWikidataEntityBuilder = {
-        buildEntity: (business: Business | any): WikidataEntityData => {
+        buildEntity: (business: Business | any): WikidataEntityDataContract => {
           return {
             labels: { en: { language: 'en', value: business.name } },
             descriptions: { en: { language: 'en', value: 'A business' } },
             claims: {},
           };
         },
-        validateEntity: (entity: WikidataEntityData): boolean => {
+        validateEntity: (entity: WikidataEntityDataContract): boolean => {
           return !!entity.labels && !!entity.descriptions;
         },
       };
@@ -138,7 +139,7 @@ describe('Service Contract Implementation', () => {
   describe('IWikidataPublisher Contract', () => {
     it('should match Publisher implementation signature', async () => {
       const mockPublisher: IWikidataPublisher = {
-        publish: async (entity: WikidataEntityData, target: 'test' | 'production'): Promise<WikidataPublishResult> => {
+        publish: async (entity: WikidataEntityDataContract, target: 'test' | 'production'): Promise<WikidataPublishResult> => {
           return {
             qid: 'Q123',
             entityId: 1,
@@ -147,7 +148,7 @@ describe('Service Contract Implementation', () => {
         },
       };
 
-      const mockEntity: WikidataEntityData = {
+      const mockEntity: WikidataEntityDataContract = {
         labels: { en: { language: 'en', value: 'Test' } },
         descriptions: { en: { language: 'en', value: 'A test' } },
         claims: {},

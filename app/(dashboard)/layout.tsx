@@ -59,13 +59,13 @@ function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer" asChild>
+          <DropdownMenuItem key="dashboard" className="cursor-pointer" asChild>
             <Link href="/dashboard" className="flex w-full items-center">
               <Home className="mr-2 h-4 w-4" />
               <span>Dashboard</span>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" onSelect={(e) => { e.preventDefault(); handleSignOut(); }}>
+          <DropdownMenuItem key="sign-out" className="cursor-pointer" onSelect={(e) => { e.preventDefault(); handleSignOut(); }}>
             <LogOut className="mr-2 h-4 w-4" />
             <span>Sign out</span>
           </DropdownMenuItem>
@@ -96,13 +96,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <section className="flex flex-col min-h-screen">
       <Header />
-      {Array.isArray(children) ? (
-        children.map((child, index) => (
-          <React.Fragment key={index}>{child}</React.Fragment>
-        ))
-      ) : (
-        children
-      )}
+      {children}
     </section>
   );
 }

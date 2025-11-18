@@ -79,3 +79,4 @@ async function checkUserTier(email: string) {
 const email = process.argv[2] || 'test@test.com';
 checkUserTier(email);
 
+

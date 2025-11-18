@@ -7,6 +7,12 @@ import {
   getUser,
   updateTeamSubscription
 } from '@/lib/db/queries';
+import type {
+  StripePriceDTO,
+  StripeProductDTO,
+  CreateCheckoutSessionInput,
+  UpdateTeamSubscriptionInput,
+} from './types';
 
 /**
  * Get the base URL from request headers or environment variable
@@ -39,10 +45,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export async function createCheckoutSession({
   team,
   priceId
-}: {
-  team: Team | null;
-  priceId: string;
-}) {
+}: CreateCheckoutSessionInput) {
   const user = await getUser();
 
   // Defensive: Validate priceId before making Stripe API call
@@ -241,12 +244,13 @@ export async function handleSubscriptionChange(
     const planId = normalizeProductNameToPlanId(productName);
     
     try {
-      await updateTeamSubscription(team.id, {
+      const updateData: UpdateTeamSubscriptionInput = {
         stripeSubscriptionId: subscriptionId,
         stripeProductId: typeof product === 'object' ? product.id : (product as string),
         planName: planId, // Use normalized plan ID, not raw product name
         subscriptionStatus: status
-      });
+      };
+      await updateTeamSubscription(team.id, updateData);
       
       // Verify update succeeded (SOLID: proper validation)
       const updatedTeam = await getTeamByStripeCustomerId(customerId);
@@ -277,12 +281,13 @@ export async function handleSubscriptionChange(
     }
   } else if (status === 'canceled' || status === 'unpaid') {
     try {
-      await updateTeamSubscription(team.id, {
+      const updateData: UpdateTeamSubscriptionInput = {
         stripeSubscriptionId: null,
         stripeProductId: null,
         planName: null,
         subscriptionStatus: status
-      });
+      };
+      await updateTeamSubscription(team.id, updateData);
       console.log('Team subscription cancelled:', {
         teamId: team.id,
         customerId,
@@ -300,37 +305,37 @@ export async function handleSubscriptionChange(
   }
 }
 
-export async function getStripePrices() {
+export async function getStripePrices(): Promise<StripePriceDTO[]> {
   const prices = await stripe.prices.list({
     expand: ['data.product'],
     active: true,
     type: 'recurring'
   });
 
-  return prices.data.map((price) => ({
+  return prices.data.map((price): StripePriceDTO => ({
     id: price.id,
     productId:
       typeof price.product === 'string' ? price.product : price.product.id,
     unitAmount: price.unit_amount,
     currency: price.currency,
-    interval: price.recurring?.interval,
-    trialPeriodDays: price.recurring?.trial_period_days
+    interval: price.recurring?.interval || null,
+    trialPeriodDays: price.recurring?.trial_period_days || null
   }));
 }
 
-export async function getStripeProducts() {
+export async function getStripeProducts(): Promise<StripeProductDTO[]> {
   const products = await stripe.products.list({
     active: true,
     expand: ['data.default_price']
   });
 
-  return products.data.map((product) => ({
+  return products.data.map((product): StripeProductDTO => ({
     id: product.id,
     name: product.name,
     description: product.description,
     defaultPriceId:
       typeof product.default_price === 'string'
         ? product.default_price
-        : product.default_price?.id
+        : product.default_price?.id || null
   }));
 }

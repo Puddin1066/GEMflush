@@ -44,10 +44,17 @@ export function toFingerprintDetailDTO(
     : 'neutral';
 
   // Determine top performing models (highest mention rate)
+  // Defensive: ensure llmResults is an array
+  const llmResults = Array.isArray(normalizedAnalysis.llmResults) 
+    ? normalizedAnalysis.llmResults 
+    : [];
+  
   const modelPerformance = new Map<string, number>();
-  normalizedAnalysis.llmResults.forEach((result) => {
-    const current = modelPerformance.get(result.model) || 0;
-    modelPerformance.set(result.model, current + (result.mentioned ? 1 : 0));
+  llmResults.forEach((result) => {
+    if (result && result.model) {
+      const current = modelPerformance.get(result.model) || 0;
+      modelPerformance.set(result.model, current + (result.mentioned ? 1 : 0));
+    }
   });
 
   const topModels = Array.from(modelPerformance.entries())
@@ -60,6 +67,11 @@ export function toFingerprintDetailDTO(
   const sentiment: 'positive' | 'neutral' | 'negative' =
     avgSentiment > 0.7 ? 'positive' : avgSentiment < 0.4 ? 'negative' : 'neutral';
 
+  // Ensure results array is safe to map
+  const safeLlmResults = Array.isArray(normalizedAnalysis.llmResults) 
+    ? normalizedAnalysis.llmResults 
+    : [];
+
   return {
     visibilityScore: Math.round(normalizedAnalysis.visibilityScore),
     trend,
@@ -69,7 +81,7 @@ export function toFingerprintDetailDTO(
       topModels,
       averageRank: normalizedAnalysis.avgRankPosition,
     },
-    results: normalizedAnalysis.llmResults.map(toFingerprintResultDTO),
+    results: safeLlmResults.map(toFingerprintResultDTO),
     competitiveLeaderboard: normalizedAnalysis.competitiveLeaderboard
       ? toCompetitiveLeaderboardDTO(normalizedAnalysis.competitiveLeaderboard, normalizedAnalysis.businessName)
       : null,
@@ -92,6 +104,10 @@ function normalizeFingerprintAnalysis(
     ? (generatedAt instanceof Date ? generatedAt : new Date(generatedAt))
     : new Date();
 
+  // Ensure llmResults is always an array (handle null/undefined from database)
+  const llmResults = analysis.llmResults || (analysis as any).llmResults;
+  const safeLlmResults = Array.isArray(llmResults) ? llmResults : [];
+
   return {
     businessId: analysis.businessId || (analysis as any).businessId || 0,
     businessName: analysis.businessName || (analysis as any).businessName || 'Unknown',
@@ -100,7 +116,7 @@ function normalizeFingerprintAnalysis(
     sentimentScore: analysis.sentimentScore ?? (analysis as any).sentimentScore ?? 0,
     accuracyScore: analysis.accuracyScore ?? (analysis as any).accuracyScore ?? 0,
     avgRankPosition: analysis.avgRankPosition ?? (analysis as any).avgRankPosition ?? null,
-    llmResults: analysis.llmResults || (analysis as any).llmResults || [],
+    llmResults: safeLlmResults,
     generatedAt: validGeneratedAt instanceof Date && !isNaN(validGeneratedAt.getTime()) 
       ? validGeneratedAt 
       : new Date(),
@@ -115,12 +131,26 @@ function normalizeFingerprintAnalysis(
  * Removes rawResponse and other technical fields
  */
 function toFingerprintResultDTO(result: any): FingerprintResultDTO {
+  // Defensive: handle missing or malformed result data
+  if (!result || typeof result !== 'object') {
+    console.warn('Invalid LLM result data:', result);
+    return {
+      model: 'Unknown',
+      mentioned: false,
+      sentiment: 'neutral',
+      confidence: 0,
+      rankPosition: null,
+    };
+  }
+
   return {
-    model: formatModelName(result.model),
-    mentioned: result.mentioned,
-    sentiment: result.sentiment,
-    confidence: Math.round(result.accuracy * 100),
-    rankPosition: result.rankPosition,
+    model: formatModelName(result.model || 'Unknown'),
+    mentioned: result.mentioned ?? false,
+    sentiment: result.sentiment || 'neutral',
+    confidence: result.accuracy !== undefined && result.accuracy !== null
+      ? Math.round(result.accuracy * 100)
+      : 0,
+    rankPosition: result.rankPosition ?? null,
   };
 }
 

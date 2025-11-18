@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { tieredEntityBuilder } from '@/lib/wikidata/tiered-entity-builder';
 import { notabilityChecker, type NotabilityResult } from '@/lib/wikidata/notability-checker';
 import type { WikidataPublishDTO } from './types';
-import type { WikidataEntityData } from '@/lib/types/gemflush';
+import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
 import { getTeamForBusiness } from '@/lib/db/queries';
 
 /**
@@ -34,7 +34,7 @@ import { getTeamForBusiness } from '@/lib/db/queries';
  */
 export async function getWikidataPublishDTO(
   businessId: number
-): Promise<WikidataPublishDTO & { fullEntity: WikidataEntityData }> {
+): Promise<WikidataPublishDTO & { fullEntity: WikidataEntityDataContract }> {
   // Fetch business from database
   const business = await db.query.businesses.findFirst({
     where: eq(businesses.id, businessId),
@@ -72,7 +72,7 @@ export async function getWikidataPublishDTO(
   
   // Build Wikidata entity with tier-appropriate richness AND notability references
   // This ensures multiple references are attached to claims before publishing
-  const fullEntity = await tieredEntityBuilder.buildEntity(
+  const fullEntity: WikidataEntityDataContract = await tieredEntityBuilder.buildEntity(
     business,
     business.crawlData as any,
     tier,
@@ -82,11 +82,15 @@ export async function getWikidataPublishDTO(
   
   // Determine if can publish
   // SOLID: Single Responsibility - publishability logic
-  // Requirements adapted for local businesses:
+  // Requirements adapted for local businesses (more lenient):
   // - Requires at least 1 serious independent reference (reduced from 2)
-  // - Confidence threshold reduced to 0.6 (from 0.7) to be more inclusive for legitimate local businesses
+  // - Confidence threshold reduced to 0.3 (from 0.6) to be more inclusive for legitimate local businesses
   // - Accepts directory/review sources as valid for local businesses
-  const canPublish = notabilityResult.isNotable && notabilityResult.confidence >= 0.6;
+  // - More lenient: Allow publishing if notable OR if confidence is reasonable (>= 0.3)
+  // - Even more lenient: If we have any references at all, allow with lower confidence
+  const canPublish = notabilityResult.isNotable || 
+    (notabilityResult.confidence >= 0.3) ||
+    (notabilityResult.references.length > 0 && notabilityResult.confidence >= 0.2);
   
   // Build recommendation message
   const recommendation = buildRecommendation(notabilityResult, canPublish);
@@ -167,7 +171,7 @@ function extractTopReferences(notabilityResult: NotabilityResult): Array<{
  * Pragmatic: Handles different data formats gracefully
  */
 export function toWikidataEntityDetailDTO(
-  entityData: WikidataEntityData | any,
+  entityData: WikidataEntityDataContract | any,
   qid: string | null = null
 ): import('./types').WikidataEntityDetailDTO {
   // Extract label (DRY: handle different label formats - pragmatic: flexible)

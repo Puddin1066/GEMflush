@@ -56,12 +56,16 @@ export function SubscriptionStatus() {
 
       {planTier === 'free' && (
         <div className="mt-3 space-y-2">
-          {businessCount !== null && (
-            <div className="text-xs text-gray-600 flex items-center gap-1">
-              <Check className="h-3 w-3" />
-              {businessCount}/{maxBusinesses} businesses
-            </div>
-          )}
+          {/* Always show business limit for free tier (SOLID: clear value proposition) */}
+          {/* DRY: Use data attribute for testability */}
+          <div 
+            className="text-xs text-gray-600 flex items-center gap-1"
+            data-testid="business-limit"
+            data-tier="free"
+          >
+            <Check className="h-3 w-3" />
+            <span>{businessCount !== null ? `${businessCount}/${maxBusinesses}` : `0/${maxBusinesses}`} businesses</span>
+          </div>
           <Link href="/pricing">
             <Button size="sm" className="w-full gem-gradient text-white text-xs">
               <Sparkles className="mr-1 h-3 w-3" />
@@ -72,13 +76,26 @@ export function SubscriptionStatus() {
       )}
 
       {isPro && (
-        <Link href="/dashboard/settings/billing">
-          <Button size="sm" variant="ghost" className="w-full text-xs">
-            Manage Subscription
-          </Button>
-        </Link>
+        <div className="mt-3 space-y-2">
+          {/* Show business limit for pro tier too (SOLID: consistent UX, clear value proposition) */}
+          {/* DRY: Use data attribute for testability */}
+          <div 
+            className="text-xs text-gray-600 flex items-center gap-1"
+            data-testid="business-limit"
+            data-tier="pro"
+          >
+            <Check className="h-3 w-3" />
+            <span>{businessCount !== null ? `${businessCount}/${maxBusinesses}` : `0/${maxBusinesses}`} businesses</span>
+          </div>
+          <Link href="/dashboard/settings/billing">
+            <Button size="sm" variant="ghost" className="w-full text-xs">
+              Manage Subscription
+            </Button>
+          </Link>
+        </div>
       )}
     </div>
   );
 }
+
 

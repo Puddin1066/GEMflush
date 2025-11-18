@@ -6,7 +6,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TieredEntityBuilder } from '../tiered-entity-builder';
 import type { Business } from '@/lib/db/schema';
-import type { CrawledData, WikidataEntityData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/gemflush';
+import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
 
 // Mock the entity builder
 vi.mock('../entity-builder', () => {

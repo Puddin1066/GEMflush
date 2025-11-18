@@ -7,10 +7,14 @@ import { openRouterClient } from './openrouter';
 export class LLMFingerprinter {
   // Models confirmed to work with OpenRouter API
   // Note: Model availability depends on your OpenRouter API tier
+  // Limited to 3 models (one per provider) to control costs while maintaining diversity
   private models = [
+    // OpenAI - ChatGPT
     'openai/gpt-4-turbo',
+    // Anthropic - Claude
     'anthropic/claude-3-opus',
-    'openai/gpt-3.5-turbo',  // Faster, cheaper alternative
+    // Google - Gemini
+    'google/gemini-pro',
   ];
   
   /**

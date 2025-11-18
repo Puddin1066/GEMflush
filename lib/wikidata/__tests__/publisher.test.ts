@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WikidataPublisher } from '../publisher';
-import { WikidataEntityData } from '@/lib/types/gemflush';
+import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -9,7 +9,7 @@ describe('WikidataPublisher', () => {
   let publisher: WikidataPublisher;
   const originalEnv = process.env;
 
-  const mockEntity: WikidataEntityData = {
+  const mockEntity: WikidataEntityDataContract = {
     labels: {
       en: {
         language: 'en',

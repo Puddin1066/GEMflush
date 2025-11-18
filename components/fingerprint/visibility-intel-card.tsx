@@ -82,6 +82,24 @@ export function VisibilityIntelCard({
     return null;
   }
 
+  // Defensive check: ensure summary exists (may be missing if DTO transformation failed)
+  if (!fingerprint.summary) {
+    console.error('Fingerprint missing summary property:', fingerprint);
+    return (
+      <Card className="gem-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Visibility Intel
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600">Fingerprint data is incomplete. Please run analysis again.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const sentiment = formatSentiment(fingerprint.summary.sentiment);
 
   return (

@@ -6,10 +6,9 @@ import {
   getBusinessById,
   updateBusiness,
   createCrawlJob,
-  updateCrawlJob,
 } from '@/lib/db/queries';
-import { webCrawler } from '@/lib/crawler';
 import { crawlRequestSchema } from '@/lib/validation/business';
+import { executeCrawlJob } from '@/lib/services/business-processing';
 import { z } from 'zod';
 import {
   getIdempotencyKey,
@@ -155,72 +154,6 @@ export async function POST(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     );
-  }
-}
-
-// Background crawl execution
-async function executeCrawlJob(jobId: number, businessId: number) {
-  try {
-    console.log(`[CRAWL] Starting crawl job ${jobId} for business ${businessId}`);
-    
-    // Update job status
-    await updateCrawlJob(jobId, {
-      status: 'processing',
-    });
-
-    // Update business status
-    await updateBusiness(businessId, {
-      status: 'crawling',
-    });
-    console.log(`[CRAWL] Business ${businessId} status updated to 'crawling'`);
-
-    // Get business details
-    const business = await getBusinessById(businessId);
-    if (!business) {
-      throw new Error('Business not found');
-    }
-
-    console.log(`[CRAWL] Executing crawl for URL: ${business.url}`);
-    // Execute crawl
-    const result = await webCrawler.crawl(business.url);
-    console.log(`[CRAWL] Crawl completed for business ${businessId}: success=${result.success}`);
-
-    if (result.success && result.data) {
-      console.log(`[CRAWL] Crawl successful for business ${businessId}, updating status to 'crawled'`);
-      // Update business with crawled data
-      await updateBusiness(businessId, {
-        status: 'crawled',
-        crawlData: result.data,
-        lastCrawledAt: new Date(),
-      });
-      console.log(`[CRAWL] Business ${businessId} status updated to 'crawled'`);
-
-      // Update job as completed
-      await updateCrawlJob(jobId, {
-        status: 'completed',
-        progress: 100,
-        result: { crawledData: result.data },
-        completedAt: new Date(),
-      });
-      console.log(`[CRAWL] Crawl job ${jobId} marked as completed`);
-    } else {
-      console.error(`[CRAWL] Crawl failed for business ${businessId}: ${result.error || 'Unknown error'}`);
-      throw new Error(result.error || 'Crawl failed');
-    }
-  } catch (error) {
-    console.error(`[CRAWL] Crawl job ${jobId} execution error for business ${businessId}:`, error);
-
-    // Update job as failed
-    await updateCrawlJob(jobId, {
-      status: 'failed',
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      completedAt: new Date(),
-    });
-
-    // Update business status
-    await updateBusiness(businessId, {
-      status: 'error',
-    });
   }
 }
 

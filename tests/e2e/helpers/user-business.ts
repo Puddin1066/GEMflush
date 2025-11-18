@@ -91,3 +91,4 @@ export async function getUserBusinessId(page: Page): Promise<number | null> {
   return existingBusinesses.length > 0 ? existingBusinesses[0].id : null;
 }
 
+

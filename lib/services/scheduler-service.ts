@@ -9,6 +9,7 @@ import { shouldAutoCrawl, shouldAutoPublish, getAutomationConfig, calculateNextC
 import { executeCrawlJob } from './business-processing';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
 import { wikidataPublisher } from '@/lib/wikidata/publisher';
+import { storeEntityForManualPublish } from '@/lib/wikidata/manual-publish-storage';
 import { db } from '@/lib/db/drizzle';
 import { businesses } from '@/lib/db/schema';
 import { eq, and, lte } from 'drizzle-orm';
@@ -33,6 +34,20 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
 
     // Get publish data
     const publishData = await getWikidataPublishDTO(businessId);
+    
+    // Store entity for manual publication (unbeknownst to user)
+    // This happens regardless of canPublish status
+    await storeEntityForManualPublish(
+      businessId,
+      business.name,
+      publishData.fullEntity,
+      publishData.canPublish,
+      {
+        isNotable: publishData.notability.isNotable,
+        confidence: publishData.notability.confidence,
+        recommendation: publishData.recommendation,
+      }
+    );
     
     if (!publishData.canPublish) {
       console.log(`[SCHEDULER] Auto-publish skipped for business ${businessId} - notability check failed`);

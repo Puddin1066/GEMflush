@@ -6,7 +6,8 @@
 
 import { WikidataEntityBuilder } from './entity-builder';
 import { Business } from '@/lib/db/schema';
-import type { CrawledData, WikidataEntityData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/gemflush';
+import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
 import type { Reference } from './notability-checker';
 import { getEntityRichnessForTier } from '@/lib/services/automation-service';
 
@@ -51,7 +52,7 @@ export class TieredEntityBuilder {
     tier: 'free' | 'pro' | 'agency',
     enrichmentLevel?: number,
     notabilityReferences?: Reference[]
-  ): Promise<WikidataEntityData> {
+  ): Promise<WikidataEntityDataContract> {
     // Build full entity first (with notability references if provided)
     const fullEntity = await entityBuilder.buildEntity(business, crawledData, notabilityReferences);
     
@@ -60,7 +61,7 @@ export class TieredEntityBuilder {
     
     // Filter claims to only include tier-appropriate properties
     // Note: References are preserved when filtering claims
-    const filteredClaims: WikidataEntityData['claims'] = {};
+    const filteredClaims: WikidataEntityDataContract['claims'] = {};
     for (const pid of propertySet) {
       if (fullEntity.claims[pid]) {
         filteredClaims[pid] = fullEntity.claims[pid];

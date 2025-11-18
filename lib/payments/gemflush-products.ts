@@ -1,6 +1,8 @@
 // GEMflush Stripe product configuration
 
-export const GEMFLUSH_STRIPE_CONFIG = {
+import type { GemflushStripeConfig } from './types';
+
+export const GEMFLUSH_STRIPE_CONFIG: GemflushStripeConfig = {
   products: [
     {
       name: 'Pro',

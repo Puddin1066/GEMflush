@@ -75,12 +75,18 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
         const fpResponse = await fetch(`/api/fingerprint/business/${businessId}`);
         if (fpResponse.ok) {
           const fpData = await fpResponse.json();
-          if (fpData) {
+          // Only set fingerprint if it's a valid DTO (has summary property)
+          // Error responses will have error property instead
+          if (fpData && !fpData.error && fpData.summary) {
             setFingerprint(fpData);
+          } else if (fpData?.error) {
+            console.warn('Fingerprint API returned error:', fpData.error);
+            setFingerprint(null);
           }
         }
       } catch (err) {
         console.error('Error loading fingerprint:', err);
+        setFingerprint(null);
       }
 
       // Entity (non-fatal, only when crawled/published)

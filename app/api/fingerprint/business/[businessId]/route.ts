@@ -78,13 +78,31 @@ export async function GET(
     const currentFingerprint = fingerprints[0];
     const previousFingerprint = fingerprints[1]; // Second most recent, if exists
 
-    // Transform to DTO
-    const dto = toFingerprintDetailDTO(
-      currentFingerprint as any,
-      previousFingerprint as any
-    );
+    // Transform to DTO with error handling
+    try {
+      const dto = toFingerprintDetailDTO(
+        currentFingerprint as any,
+        previousFingerprint as any
+      );
 
-    return NextResponse.json(dto);
+      // Validate DTO has required structure
+      if (!dto || !dto.summary) {
+        console.error('DTO transformation failed - missing summary:', dto);
+        return NextResponse.json(
+          { error: 'Fingerprint data is incomplete' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(dto);
+    } catch (dtoError) {
+      console.error('Error transforming fingerprint to DTO:', dtoError);
+      console.error('Raw fingerprint data:', currentFingerprint);
+      return NextResponse.json(
+        { error: 'Failed to process fingerprint data' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('Error fetching fingerprint by business ID:', error);
     return NextResponse.json(

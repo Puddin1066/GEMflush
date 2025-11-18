@@ -50,8 +50,14 @@ export function EntityPreviewCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Description */}
-        <p className="text-sm text-gray-700">{entity.description}</p>
+        {/* Description - Ensure always has substantial content (SOLID: informative display) */}
+        {entity.description && entity.description.length > 0 ? (
+          <p className="text-sm text-gray-700">{entity.description}</p>
+        ) : (
+          <p className="text-sm text-gray-500 italic">
+            Entity description will be generated from business data. This entity will be discoverable by major LLM systems including ChatGPT, Claude, Perplexity, and Google Gemini.
+          </p>
+        )}
 
         {/* Stats - Enhanced visibility and value proposition */}
         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">

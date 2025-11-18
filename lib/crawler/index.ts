@@ -98,6 +98,30 @@ export class WebCrawler {
       if (structuredData.description) data.description = String(structuredData.description);
       if (structuredData.telephone) data.phone = String(structuredData.telephone);
       if (structuredData.email) data.email = String(structuredData.email);
+      
+      // NEW: Extract location from JSON-LD (LocalBusiness schema)
+      if (structuredData.address) {
+        const addr = structuredData.address;
+        if (typeof addr === 'object' && addr !== null) {
+          data.location = {
+            address: (addr as any).streetAddress || (addr as any).address || undefined,
+            city: (addr as any).addressLocality || (addr as any).city || undefined,
+            state: (addr as any).addressRegion || (addr as any).state || undefined,
+            country: (addr as any).addressCountry || (addr as any).country || 'US',
+            postalCode: (addr as any).postalCode || undefined,
+          };
+        }
+      }
+      
+      // Extract coordinates if available
+      if (structuredData.geo) {
+        const geo = structuredData.geo;
+        if (typeof geo === 'object' && geo !== null) {
+          if (!data.location) data.location = { country: 'US' };
+          data.location.lat = (geo as any).latitude || (geo as any).lat || undefined;
+          data.location.lng = (geo as any).longitude || (geo as any).lng || undefined;
+        }
+      }
     }
     
     // Extract meta tags
@@ -385,6 +409,7 @@ Basic Info Already Extracted:
 - Description: ${basicData.description || 'None'}
 - Phone: ${basicData.phone || 'None'}
 - Email: ${basicData.email || 'None'}
+- Address: ${basicData.address || 'None'}
 
 Website Content (first 4000 chars):
 ${textContent.substring(0, 4000)}
@@ -395,6 +420,9 @@ CRITICAL RULES:
 - Only include information explicitly stated on the website
 - Use null for any field where information is not found
 - DO NOT make assumptions or inferences
+- For location: Extract city, state, country separately
+- For country: Use ISO 3166-1 alpha-2 code (e.g., "US", "CA", "GB") or full name
+- For state: Use standard abbreviation (e.g., "CA", "NY") or full name
 - For dates, prefer "YYYY" format unless full date is clear
 - Be conservative - it's better to return null than incorrect data
 
@@ -415,6 +443,13 @@ Return ONLY valid JSON (no markdown, no explanations):
     "awards": string[] | null,
     "certifications": string[] | null,
     "stockSymbol": string | null
+  },
+  "location": {
+    "address": string | null,
+    "city": string | null,
+    "state": string | null,
+    "country": string | null,
+    "postalCode": string | null
   },
   "llmEnhanced": {
     "extractedEntities": string[],
@@ -464,6 +499,12 @@ Return ONLY valid JSON (no markdown, no explanations):
     if (extracted.llmEnhanced) {
       extracted.llmEnhanced.processedAt = new Date();
       extracted.llmEnhanced.model = 'openai/gpt-4-turbo';
+    }
+    
+    // Merge location if provided (LLM may extract better location than JSON-LD)
+    if (extracted.location) {
+      // Keep existing location from JSON-LD if it exists, but merge LLM enhancements
+      // This allows LLM to fill in missing fields
     }
     
     return extracted;

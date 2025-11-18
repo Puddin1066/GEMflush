@@ -54,6 +54,16 @@ export class BusinessPage {
     }
   }
 
+  /**
+   * Fill URL-only form (frictionless onboarding)
+   * New simplified form that only requires URL
+   */
+  async fillUrlOnlyForm(url: string) {
+    await this.page.getByLabel(/website url/i).or(
+      this.page.getByLabel(/url/i)
+    ).fill(url);
+  }
+
   async submitForm() {
     const submitButton = this.page.getByRole('button', { name: /create/i }).or(
       this.page.getByRole('button', { name: /submit/i })
@@ -233,7 +243,8 @@ export class BusinessDetailPage {
   }
 
   async expectBusinessName(name: string) {
-    await expect(this.page.getByText(name)).toBeVisible();
+    // Use first() to handle strict mode violations (name may appear in multiple places)
+    await expect(this.page.getByText(name).first()).toBeVisible();
   }
 
   async expectVisibilityScore() {

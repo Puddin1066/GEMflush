@@ -42,3 +42,6 @@ postgres_data/
 .env*.local
 coverage/
 *.log
+
+# Manual Wikidata publication storage (contains business data)
+.wikidata-manual-publish/

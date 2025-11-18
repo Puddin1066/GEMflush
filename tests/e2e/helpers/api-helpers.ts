@@ -326,25 +326,39 @@ export async function mockCrawlAPI(page: Page, businessId?: number) {
  * DRY: Centralized entity API mocking
  */
 export async function mockWikidataEntityAPI(page: Page, businessId: number, qid: string | null = null) {
+  // DRY: Mock entity API response matching actual entity endpoint format
+  // SOLID: Single Responsibility - mock matches real API contract
+  // Pragmatic: Include all fields that entity endpoint now returns (including notability)
+  const mockEntityResponse = {
+    qid: qid || null,
+    label: 'Test Business',
+    description: 'A test business',
+    wikidataUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
+    lastUpdated: new Date().toISOString(),
+    claims: [],
+    stats: {
+      totalClaims: 5,
+      claimsWithReferences: 3,
+      referenceQuality: 'high' as const,
+    },
+    canEdit: qid !== null,
+    editUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
+    // DRY: Include notability data (entity endpoint now includes this after our fix)
+    notability: {
+      isNotable: true,
+      confidence: 0.85,
+      reasons: ['Test business'],
+      seriousReferenceCount: 1,
+      topReferences: [],
+    },
+    canPublish: true,
+  };
+
   await page.route(`**/api/wikidata/entity/${businessId}**`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        qid: qid || null,
-        label: 'Test Business',
-        description: 'A test business',
-        wikidataUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
-        lastUpdated: new Date().toISOString(),
-        claims: [],
-        stats: {
-          totalClaims: 5,
-          claimsWithReferences: 3,
-          referenceQuality: 'high' as const,
-        },
-        canEdit: qid !== null,
-        editUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
-      }),
+      body: JSON.stringify(mockEntityResponse),
     });
   });
 
@@ -358,21 +372,7 @@ export async function mockWikidataEntityAPI(page: Page, businessId: number, qid:
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        qid: qid || null,
-        label: 'Test Business',
-        description: 'A test business',
-        wikidataUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
-        lastUpdated: new Date().toISOString(),
-        claims: [],
-        stats: {
-          totalClaims: 5,
-          claimsWithReferences: 3,
-          referenceQuality: 'high' as const,
-        },
-        canEdit: qid !== null,
-        editUrl: qid ? `https://www.wikidata.org/wiki/${qid}` : null,
-      }),
+      body: JSON.stringify(mockEntityResponse),
     });
   });
 }

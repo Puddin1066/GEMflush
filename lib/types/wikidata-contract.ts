@@ -251,3 +251,30 @@ export function isWikidataEntityDataContract(
   return true;
 }
 
+/**
+ * Notability Assessment Information
+ * Used in stored entity metadata to track notability status
+ */
+export interface NotabilityAssessment {
+  isNotable: boolean;
+  confidence: number; // 0.0 to 1.0
+  recommendation: string;
+}
+
+/**
+ * Stored Entity Metadata
+ * Metadata about a stored entity ready for manual publication
+ * 
+ * This is stored alongside the entity JSON file to provide context
+ * about the entity's publication readiness and notability status.
+ */
+export interface StoredEntityMetadata {
+  businessId: number;
+  businessName: string;
+  storedAt: string; // ISO 8601 timestamp
+  entityFileName: string;
+  metadataFileName: string;
+  canPublish: boolean;
+  notability?: NotabilityAssessment;
+}
+
