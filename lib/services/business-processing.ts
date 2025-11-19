@@ -13,6 +13,9 @@ import { eq, desc } from 'drizzle-orm';
 import { getFingerprintFrequency } from '@/lib/gemflush/permissions';
 import { getAutomationConfig, shouldAutoPublish, calculateNextCrawlDate } from './automation-service';
 import { validateCrawledData } from '@/lib/validation/crawl';
+import { loggers } from '@/lib/utils/logger';
+
+const log = loggers.processing;
 
 /**
  * Check if crawl is needed (cache logic)
@@ -77,55 +80,198 @@ export async function canRunFingerprint(business: Business, team: any): Promise<
 }
 
 /**
- * Execute crawl job (extracted from route for reuse)
+ * Execute crawl job with retry logic (extracted from route for reuse)
  * SOLID: Single Responsibility - handles crawl execution
+ * DRY: Centralizes retry logic for reliability
  */
-export async function executeCrawlJob(jobId: number | null, businessId: number): Promise<void> {
+export async function executeCrawlJob(jobId: number | null, businessId: number, business?: Business): Promise<void> {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_BASE = 2000; // 2 seconds base delay
+  const operationId = log.start('Crawl Job', { businessId, jobId: jobId || 'auto' });
+  
   try {
-    const jobIdStr = jobId ? `${jobId}` : 'auto';
-    console.log(`[PROCESSING] Starting crawl ${jobIdStr} for business ${businessId}`);
+    // OPTIMIZATION: Batch status updates
+    const updatePromises: Promise<unknown>[] = [];
     
     if (jobId) {
-      // Update job status if job exists
-      await updateCrawlJob(jobId, {
+      updatePromises.push(updateCrawlJob(jobId, {
         status: 'processing',
-      });
+      }));
     }
     
-    // Update business status
-    await updateBusiness(businessId, {
+    updatePromises.push(updateBusiness(businessId, {
       status: 'crawling',
-    });
+    }));
     
-    // Get business details
-    const business = await getBusinessById(businessId);
-    if (!business) {
-      throw new Error('Business not found');
+    await Promise.all(updatePromises);
+    log.statusChange('pending', 'crawling', { businessId, jobId: jobId || 'auto' });
+    
+    // OPTIMIZATION: Use passed business object if available, otherwise fetch
+    let businessData: Business | null = business || null;
+    if (!businessData) {
+      businessData = await getBusinessById(businessId);
+      if (!businessData) {
+        throw new Error('Business not found');
+      }
     }
     
-    // Execute crawl
-    const result = await webCrawler.crawl(business.url);
-    console.log(`[PROCESSING] Crawl completed for business ${businessId}: success=${result.success}`);
+    // Execute crawl with retry logic
+    let result;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const attemptStartTime = Date.now();
+      try {
+        log.info(`Crawl attempt ${attempt}/${MAX_RETRIES}`, {
+          businessId,
+          jobId: jobId || 'auto',
+          attempt,
+          maxAttempts: MAX_RETRIES,
+          url: businessData.url,
+        });
+        
+        result = await webCrawler.crawl(businessData.url);
+        
+        const attemptDuration = Date.now() - attemptStartTime;
+        log.performance(`Crawl attempt ${attempt}`, attemptDuration, {
+          businessId,
+          attempt,
+          success: result.success,
+        });
+        
+        // If successful, break out of retry loop
+        if (result.success && result.data) {
+          log.info(`Crawl attempt ${attempt} succeeded`, {
+            businessId,
+            attempt,
+            duration: attemptDuration,
+          });
+          break;
+        }
+        
+        // If failed, store error for retry
+        lastError = new Error(result.error || 'Crawl failed');
+        log.warn(`Crawl attempt ${attempt} failed`, {
+          businessId,
+          attempt,
+          maxAttempts: MAX_RETRIES,
+          error: lastError.message,
+          duration: attemptDuration,
+        });
+        
+        // If not last attempt, wait before retrying (exponential backoff)
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_DELAY_BASE * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+          log.retry(attempt, MAX_RETRIES, 'Crawl', delay, {
+            businessId,
+            url: businessData.url,
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown crawl error');
+        const attemptDuration = Date.now() - attemptStartTime;
+        log.error(`Crawl attempt ${attempt} exception`, error, {
+          businessId,
+          attempt,
+          maxAttempts: MAX_RETRIES,
+          duration: attemptDuration,
+        });
+        
+        // If not last attempt, wait before retrying
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_DELAY_BASE * Math.pow(2, attempt - 1);
+          log.retry(attempt, MAX_RETRIES, 'Crawl', delay, {
+            businessId,
+            url: businessData.url,
+          });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    // Check if we have a successful result after retries
+    if (!result || !result.success || !result.data) {
+      const errorMessage = lastError?.message || result?.error || 'Unknown error after retries';
+      
+      log.error('Crawl failed after all retries', lastError || new Error(errorMessage), {
+        businessId,
+        jobId: jobId || 'auto',
+        url: businessData?.url,
+        attempts: MAX_RETRIES,
+      });
+      
+      // Only set to error after all retries fail
+      await updateBusiness(businessId, {
+        status: 'error',
+      });
+      log.statusChange('crawling', 'error', { businessId, jobId: jobId || 'auto' });
+      
+      if (jobId) {
+        await updateCrawlJob(jobId, {
+          status: 'failed',
+          errorMessage: `Failed after ${MAX_RETRIES} attempts: ${errorMessage}`,
+          completedAt: new Date(),
+        }).catch(err => {
+          log.error('Failed to update crawl job status', err, { businessId, jobId });
+        });
+      }
+      
+      log.complete(operationId, 'Crawl Job', {
+        businessId,
+        jobId: jobId || 'auto',
+        status: 'failed',
+        attempts: MAX_RETRIES,
+      });
+      
+      throw new Error(`Crawl failed after ${MAX_RETRIES} attempts: ${errorMessage}`);
+    }
+    
+    // Success! Process the result
+    log.info('Crawl succeeded', { businessId, jobId: jobId || 'auto' });
     
     if (result.success && result.data) {
       // Validate crawl data before storage (DRY: use validation schema)
       const validation = validateCrawledData(result.data);
       if (!validation.success) {
-        console.error(`[PROCESSING] Crawl data validation failed for business ${businessId}:`, validation.errors);
-        throw new Error(
+        const validationError = new Error(
           `Crawl data validation failed: ${validation.errors?.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`
         );
+        log.error('Crawl data validation failed', validationError, {
+          businessId,
+          validationErrors: validation.errors,
+        });
+        throw validationError;
       }
       
-      // Get team for automation config
-      const team = await getTeamForBusiness(businessId);
-      const config = getAutomationConfig(team);
+      log.info('Crawl data validation passed', { businessId });
       
-      // Update business with crawled data
+      // OPTIMIZATION: Get team/config only if needed for automation
+      // Note: auto-publish is handled in autoStartProcessing, so we skip here
+      // This reduces database queries when crawl is called standalone
+      const shouldScheduleNext = businessData.automationEnabled;
+      let team = null;
+      let config = null;
+      let nextCrawlAt: Date | undefined = undefined;
+      
+      if (shouldScheduleNext) {
+        team = await getTeamForBusiness(businessId);
+        config = getAutomationConfig(team);
+        if (config && config.crawlFrequency !== 'manual') {
+          nextCrawlAt = calculateNextCrawlDate(config.crawlFrequency);
+        }
+      }
+      
+      // OPTIMIZATION: Batch business and job updates
+      const updatePromises: Promise<unknown>[] = [];
+      
+      // IDEAL: Update location if crawl extracted it and business doesn't have one
       const updateData: {
         status: string;
         crawlData: typeof result.data;
         lastCrawledAt: Date;
+        location?: { city: string; state: string; country: string; coordinates?: { lat: number; lng: number } };
+        name?: string;
         nextCrawlAt?: Date;
       } = {
         status: 'crawled',
@@ -133,50 +279,93 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
         lastCrawledAt: new Date(),
       };
       
-      // Schedule next crawl if automation enabled
-      if (config.crawlFrequency !== 'manual' && business.automationEnabled) {
-        updateData.nextCrawlAt = calculateNextCrawlDate(config.crawlFrequency);
+      // Update location if crawl extracted it and business location is missing
+      if (result.data.location && 
+          result.data.location.city && result.data.location.city !== 'Unknown' &&
+          result.data.location.state && result.data.location.state !== 'Unknown') {
+        // Only update if business doesn't have location or has temporary location
+        if (!businessData.location || 
+            !businessData.location.city || 
+            businessData.location.city === 'Temporary' ||
+            !businessData.location.state ||
+            businessData.location.state === 'XX') {
+          // Ensure city and state are strings (required by schema)
+          const crawledCity = result.data.location.city;
+          const crawledState = result.data.location.state;
+          if (crawledCity && crawledState) {
+            updateData.location = {
+              city: crawledCity,
+              state: crawledState,
+              country: result.data.location.country || 'US',
+              ...(result.data.location.lat && result.data.location.lng ? {
+                coordinates: {
+                  lat: result.data.location.lat,
+                  lng: result.data.location.lng,
+                }
+              } : {}),
+            };
+            log.info('Updating business location from crawl data', { businessId });
+          }
+        }
       }
       
-      await updateBusiness(businessId, updateData);
-      console.log(`[PROCESSING] Business ${businessId} status updated to 'crawled'`);
+      // Update name if crawl extracted it and business has default name
+      if (result.data.name && 
+          businessData.name && 
+          (businessData.name === 'Business' || businessData.name === 'Unknown Business')) {
+        updateData.name = result.data.name;
+        log.info('Updating business name from crawl data', { businessId, name: result.data.name });
+      }
+      
+      if (nextCrawlAt) {
+        updateData.nextCrawlAt = nextCrawlAt;
+      }
+      
+      updatePromises.push(updateBusiness(businessId, updateData));
       
       if (jobId) {
-        // Update job as completed
-        await updateCrawlJob(jobId, {
+        updatePromises.push(updateCrawlJob(jobId, {
           status: 'completed',
           progress: 100,
           result: { crawledData: result.data },
           completedAt: new Date(),
+        }));
+      }
+      
+      await Promise.all(updatePromises);
+      log.statusChange('crawling', 'crawled', {
+        businessId,
+        jobId: jobId || 'auto',
+        nextCrawlAt: nextCrawlAt?.toISOString(),
+      });
+      
+      // Trigger auto-publish if enabled (fire and forget)
+      // Only if team was fetched and auto-publish is enabled
+      // Note: In autoStartProcessing, this is handled explicitly, so this is for standalone crawl calls
+      if (team && shouldAutoPublish(businessData, team)) {
+        log.info('Scheduling auto-publish after crawl', { businessId });
+        // Use dynamic import to avoid circular dependency
+        import('./scheduler-service').then(({ handleAutoPublish }) => {
+          handleAutoPublish(businessId).catch(error => {
+            log.error('Auto-publish failed after crawl', error, { businessId });
+          });
+        }).catch(error => {
+          log.error('Failed to load scheduler service for auto-publish', error, { businessId });
         });
       }
       
-      // Trigger auto-publish if enabled (fire and forget)
-      // Use callback pattern to avoid circular dependency
-      if (shouldAutoPublish(business, team)) {
-        console.log(`[PROCESSING] Scheduling auto-publish for business ${businessId}`);
-        // Use dynamic import to avoid circular dependency
-        // This is acceptable for event-driven patterns
-        import('./scheduler-service').then(({ handleAutoPublish }) => {
-          handleAutoPublish(businessId).catch(error => {
-            console.error(`[PROCESSING] Auto-publish failed for business ${businessId}:`, error);
-          });
-        }).catch(error => {
-          console.error(`[PROCESSING] Failed to load scheduler service for auto-publish:`, error);
-        });
-      }
-    } else {
-      const errorMessage = result.error || 'Unknown error';
-      console.error(`[PROCESSING] Crawl failed for business ${businessId}: ${errorMessage}`);
-      console.error(`[PROCESSING] Business URL: ${business.url}`);
-      console.error(`[PROCESSING] Crawl result:`, JSON.stringify(result, null, 2));
-      await updateBusiness(businessId, {
-        status: 'error',
+      log.complete(operationId, 'Crawl Job', {
+        businessId,
+        jobId: jobId || 'auto',
+        status: 'crawled',
+        nextCrawlAt: nextCrawlAt?.toISOString(),
       });
-      throw new Error(errorMessage);
     }
   } catch (error) {
-    console.error(`[PROCESSING] Crawl job error for business ${businessId}:`, error);
+    log.error('Crawl job error', error, {
+      businessId,
+      jobId: jobId || 'auto',
+    });
     
     // Update job status if job exists
     if (jobId) {
@@ -185,7 +374,7 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
         errorMessage: error instanceof Error ? error.message : 'Unknown error',
         completedAt: new Date(),
       }).catch(err => {
-        console.error(`[PROCESSING] Failed to update crawl job ${jobId} status:`, err);
+        log.error('Failed to update crawl job status to failed', err, { businessId, jobId });
       });
     }
     
@@ -193,7 +382,13 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
     await updateBusiness(businessId, {
       status: 'error',
     }).catch(err => {
-      console.error(`[PROCESSING] Failed to update business ${businessId} status:`, err);
+      log.error('Failed to update business status to error', err, { businessId });
+    });
+    
+    log.complete(operationId, 'Crawl Job', {
+      businessId,
+      jobId: jobId || 'auto',
+      status: 'error',
     });
     
     throw error;
@@ -205,17 +400,36 @@ export async function executeCrawlJob(jobId: number | null, businessId: number):
  * SOLID: Single Responsibility - handles fingerprint execution
  * 
  * @param business - Business to fingerprint
+ * @param updateStatus - Whether to update business status during processing (default: true)
+ * @returns Updated business object after fingerprint
  */
-export async function executeFingerprint(business: Business): Promise<void> {
+export async function executeFingerprint(business: Business, updateStatus: boolean = true): Promise<Business> {
+  const businessId = business.id;
+  const operationId = log.start('Fingerprint', { businessId });
+  
   try {
-    console.log(`[PROCESSING] Starting fingerprint for business ${business.id}`);
+    // Update status to 'generating' to show progress in UI
+    if (updateStatus) {
+      await updateBusiness(businessId, {
+        status: 'generating',
+      });
+      log.statusChange('crawled', 'generating', { businessId });
+    }
     
     // Run fingerprint analysis
+    const fingerprintStartTime = Date.now();
     const analysis = await llmFingerprinter.fingerprint(business);
+    const fingerprintDuration = Date.now() - fingerprintStartTime;
+    
+    log.performance('Fingerprint analysis', fingerprintDuration, {
+      businessId,
+      visibilityScore: analysis.visibilityScore,
+      mentionRate: analysis.mentionRate,
+    });
     
     // Save fingerprint to database
     await db.insert(llmFingerprints).values({
-      businessId: business.id,
+      businessId: businessId,
       visibilityScore: Math.round(analysis.visibilityScore),
       mentionRate: analysis.mentionRate,
       sentimentScore: analysis.sentimentScore,
@@ -226,88 +440,263 @@ export async function executeFingerprint(business: Business): Promise<void> {
       createdAt: new Date(),
     });
     
-    console.log(`[PROCESSING] Fingerprint completed for business ${business.id}`);
+    // Update business status back to 'crawled' (fingerprint doesn't change business status fundamentally)
+    // Status will be updated to 'generating' → 'published' after publish completes
+    // Only update to 'crawled' if status is still 'generating' (don't overwrite if publish already started)
+    if (updateStatus) {
+      // Check current status before updating (publish might have started)
+      const currentBusiness = await getBusinessById(businessId);
+      if (currentBusiness && currentBusiness.status === 'generating') {
+        await updateBusiness(businessId, {
+          status: 'crawled', // Fingerprint completed, ready for publish
+        });
+        log.statusChange('generating', 'crawled', { businessId });
+      }
+    }
+    
+    // Fetch updated business to return
+    const updatedBusiness = await getBusinessById(businessId);
+    if (!updatedBusiness) {
+      throw new Error('Business not found after fingerprint');
+    }
+    
+    log.complete(operationId, 'Fingerprint', {
+      businessId,
+      visibilityScore: analysis.visibilityScore,
+      mentionRate: analysis.mentionRate,
+      sentimentScore: analysis.sentimentScore,
+    });
+    
+    return updatedBusiness;
   } catch (error) {
-    console.error(`[PROCESSING] Fingerprint error for business ${business.id}:`, error);
-    // Don't throw - fingerprint failure shouldn't block business creation
-    // Fingerprint is valuable but not critical for basic functionality
+    log.error('Fingerprint error', error, { businessId });
+    
+    // Update status to error if updateStatus is enabled
+    if (updateStatus) {
+      await updateBusiness(businessId, {
+        status: 'error',
+      }).catch(err => {
+        log.error('Failed to update business status after fingerprint error', err, { businessId });
+      });
+    }
+    
+    log.complete(operationId, 'Fingerprint', {
+      businessId,
+      status: 'error',
+    });
+    
+    // Return original business on error (don't throw - fingerprint failure shouldn't block)
+    return business;
   }
 }
 
 /**
- * Auto-start crawl and fingerprint in parallel for new business
+ * Auto-start sequential processing for new business (Pro tier only)
  * SOLID: Single Responsibility - handles auto-processing orchestration
- * DRY: Centralizes parallel processing logic
- * Optimized: Runs in parallel for faster processing (~5s vs ~7s sequential)
+ * DRY: Centralizes sequential processing logic
+ * OPTIMIZED: Reduces database queries by passing objects and caching team/config
+ * 
+ * For Pro tier: Automatically runs crawl → fingerprint → publish in sequence
+ * For Free tier: No automatic processing
  * 
  * @param business - Newly created business
  */
 export async function autoStartProcessing(business: Business): Promise<void> {
-  console.log(`[PROCESSING] Auto-starting processing for business ${business.id}`);
+  const businessId = business.id;
+  const operationId = log.start('Auto-Processing Pipeline', {
+    businessId,
+    businessName: business.name,
+    url: business.url,
+  });
   
-  // Get team for frequency checks and automation config
-  const team = await getTeamForUser();
-  if (!team) {
-    console.warn(`[PROCESSING] No team found - skipping auto-processing for business ${business.id}`);
+  // Early validation: Check if business has required fields
+  if (!business.url) {
+    log.warn('Business missing URL - skipping auto-processing', { businessId });
+    // Update status to indicate manual intervention needed
+    await updateBusiness(businessId, {
+      status: 'pending',
+    }).catch(err => {
+      log.error('Failed to update business status', err, { businessId });
+    });
     return;
   }
   
-  // Enable automation for Pro/Agency tiers
-  const config = getAutomationConfig(team);
-  if (config.crawlFrequency !== 'manual') {
-    await updateBusiness(business.id, {
-      automationEnabled: true,
-      nextCrawlAt: calculateNextCrawlDate(config.crawlFrequency),
+  // IDEAL: Location is not required upfront - crawl will extract it
+  // Only warn if location is missing (crawl will try to extract it)
+  if (!business.location || !business.location.city || !business.location.state) {
+    log.info('Business missing location - crawl will attempt to extract it', {
+      businessId,
+      hasLocation: !!business.location,
+      url: business.url,
     });
-    console.log(`[PROCESSING] Automation enabled for business ${business.id} (${config.crawlFrequency})`);
+    // Don't return - continue with crawl which will extract location
   }
   
-  // Check if crawl is needed (caching)
-  const needsCrawl = await shouldCrawl(business);
+  // OPTIMIZATION: Get team once and cache config (used multiple times)
+  const team = await getTeamForBusiness(businessId);
+  if (!team) {
+    log.warn('No team found - skipping auto-processing', { businessId });
+    // Update status to indicate issue
+    await updateBusiness(businessId, {
+      status: 'pending',
+    }).catch(err => {
+      log.error('Failed to update business status', err, { businessId });
+    });
+    return;
+  }
   
-  // Check if fingerprint can run (frequency enforcement)
-  const canFingerprint = await canRunFingerprint(business, team);
+  // OPTIMIZATION: Calculate config once and reuse
+  const config = getAutomationConfig(team);
+  if (config.crawlFrequency === 'manual' || !config.autoPublish) {
+    log.info('Auto-processing skipped - not Pro tier', {
+      businessId,
+      crawlFrequency: config.crawlFrequency,
+      autoPublish: config.autoPublish,
+      planName: team.planName,
+    });
+    // For Free tier, status should remain 'pending' (manual processing)
+    // Don't update status here - let user manually trigger processing
+    return;
+  }
   
-  // Run crawl and fingerprint in parallel (they're independent!)
-  // SOLID: Parallel execution - each operation is independent
-  const promises: Promise<void>[] = [];
+  // OPTIMIZATION: Batch automation setup with next crawl date
+  const nextCrawlAt = calculateNextCrawlDate(config.crawlFrequency);
+  await updateBusiness(businessId, {
+    automationEnabled: true,
+    nextCrawlAt,
+  });
+  log.info('Automation enabled (Pro tier)', {
+    businessId,
+    planName: team.planName,
+    crawlFrequency: config.crawlFrequency,
+    nextCrawlAt: nextCrawlAt.toISOString(),
+  });
   
-  if (needsCrawl) {
-    // Create crawl job
+  // Sequential processing: crawl → fingerprint → publish
+  // This ensures each step completes before the next starts
+  let currentBusiness = business; // Cache business object to avoid re-fetching
+  
+  try {
+    // Step 1: Crawl
+    log.info('Step 1/3: Starting crawl', { businessId });
+    const crawlStartTime = Date.now();
+    
     const crawlJob = await createCrawlJob({
-      businessId: business.id,
+      businessId: businessId,
       jobType: 'initial_crawl',
       status: 'queued',
       progress: 0,
     });
     
-    // Start crawl in background (fire and forget)
-    promises.push(
-      executeCrawlJob(crawlJob.id, business.id).catch(error => {
-        console.error(`[PROCESSING] Crawl failed for business ${business.id}:`, error);
-      })
-    );
-  } else {
-    console.log(`[PROCESSING] Skipping crawl for business ${business.id} - cached result valid`);
+    await executeCrawlJob(crawlJob.id, businessId);
+    
+    // OPTIMIZATION: Fetch business once after crawl (pass to next step)
+    const crawledBusiness = await getBusinessById(businessId);
+    if (!crawledBusiness) {
+      throw new Error('Business not found after crawl');
+    }
+    currentBusiness = crawledBusiness;
+    
+    const crawlDuration = Date.now() - crawlStartTime;
+    log.performance('Step 1/3: Crawl', crawlDuration, { businessId });
+    
+    // Step 2: Fingerprint (after crawl completes)
+    log.info('Step 2/3: Starting fingerprint', { businessId });
+    const fingerprintStartTime = Date.now();
+    
+    try {
+      // OPTIMIZATION: Pass current business object instead of re-fetching
+      currentBusiness = await executeFingerprint(currentBusiness, true);
+      
+      const fingerprintDuration = Date.now() - fingerprintStartTime;
+      log.performance('Step 2/3: Fingerprint', fingerprintDuration, { businessId });
+    } catch (fingerprintError) {
+      const fingerprintDuration = Date.now() - fingerprintStartTime;
+      log.error('Step 2/3: Fingerprint failed', fingerprintError, {
+        businessId,
+        duration: fingerprintDuration,
+      });
+      
+      // Update status to error but continue to publish step (publish might still work)
+      await updateBusiness(businessId, {
+        status: 'crawled', // Keep as crawled even if fingerprint failed
+      }).catch(err => {
+        log.error('Failed to update business status after fingerprint error', err, { businessId });
+      });
+      
+      // Re-fetch business for publish step
+      const businessAfterFingerprint = await getBusinessById(businessId);
+      if (businessAfterFingerprint) {
+        currentBusiness = businessAfterFingerprint;
+      }
+      
+      // Don't throw - allow publish to proceed even if fingerprint failed
+      // User can manually retry fingerprint later
+    }
+    
+    // Step 3: Auto-publish (after fingerprint completes)
+    log.info('Step 3/3: Starting auto-publish', { businessId });
+    const publishStartTime = Date.now();
+    
+    // OPTIMIZATION: Use current business object (no need to re-fetch)
+    // Re-fetch to get latest status after fingerprint
+    const businessForPublish = await getBusinessById(businessId);
+    if (!businessForPublish) {
+      throw new Error('Business not found before publish');
+    }
+    
+    if (shouldAutoPublish(businessForPublish, team)) {
+      try {
+        // Use scheduler service for auto-publish
+        const { handleAutoPublish } = await import('./scheduler-service');
+        await handleAutoPublish(businessId);
+        
+        const publishDuration = Date.now() - publishStartTime;
+        log.performance('Step 3/3: Auto-publish', publishDuration, { businessId });
+      } catch (publishError) {
+        const publishDuration = Date.now() - publishStartTime;
+        log.error('Step 3/3: Auto-publish failed', publishError, {
+          businessId,
+          duration: publishDuration,
+        });
+        
+        // Status is already set to 'error' by handleAutoPublish on failure
+        // Don't throw - allow business creation to succeed even if publish fails
+        // User can retry publish manually
+      }
+    } else {
+      log.info('Step 3/3: Auto-publish skipped - conditions not met', {
+        businessId,
+        status: businessForPublish.status,
+        autoPublish: config.autoPublish,
+        hasWikidataQID: !!businessForPublish.wikidataQID,
+      });
+    }
+    
+    // Verify final status
+    const finalBusiness = await getBusinessById(businessId);
+    log.complete(operationId, 'Auto-Processing Pipeline', {
+      businessId,
+      finalStatus: finalBusiness?.status,
+      published: finalBusiness?.wikidataQID ? `Yes (${finalBusiness.wikidataQID})` : 'No',
+      visibilityScore: currentBusiness ? 'completed' : 'unknown',
+    });
+  } catch (error) {
+    log.error('Auto-processing error', error, { businessId });
+    
+    // Update business status to error if processing failed
+    await updateBusiness(businessId, {
+      status: 'error',
+    }).catch(err => {
+      log.error('Failed to update business status after error', err, { businessId });
+    });
+    
+    log.complete(operationId, 'Auto-Processing Pipeline', {
+      businessId,
+      status: 'error',
+    });
+    
+    // Don't throw - allow business creation to succeed even if processing fails
   }
-  
-  if (canFingerprint) {
-    // Start fingerprint in background (fire and forget)
-    promises.push(
-      executeFingerprint(business).catch(error => {
-        console.error(`[PROCESSING] Fingerprint failed for business ${business.id}:`, error);
-      })
-    );
-  } else {
-    console.log(`[PROCESSING] Skipping fingerprint for business ${business.id} - frequency limit`);
-  }
-  
-  // Run in parallel (don't wait for completion - fire and forget)
-  // Both operations run in background while user continues
-  Promise.all(promises).catch(error => {
-    console.error(`[PROCESSING] Auto-processing error for business ${business.id}:`, error);
-  });
-  
-  console.log(`[PROCESSING] Auto-processing started for business ${business.id} (crawl: ${needsCrawl}, fingerprint: ${canFingerprint})`);
 }
 

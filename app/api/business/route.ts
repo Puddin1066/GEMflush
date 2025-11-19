@@ -90,73 +90,35 @@ export async function POST(request: NextRequest) {
     // Validate request body
     const body = await request.json();
     
-    // NEW: If only URL provided, crawl first to extract data
+    // IDEAL: If only URL provided, create business immediately and crawl in background
+    // This allows immediate redirect while crawl happens asynchronously
     let validatedData;
+    let needsLocationAfterCrawl = false;
+    let crawledDataForLocation: { name?: string; category?: string; url?: string } | null = null;
     
     if (body.url && (!body.name || !body.location)) {
-      console.log('[BUSINESS] URL-only creation detected, crawling to extract data...');
+      console.log('[BUSINESS] URL-only creation detected - creating business immediately, crawling in background...');
       
-      // Crawl URL to extract business data
-      const crawlResult = await webCrawler.crawl(body.url);
-      
-      if (!crawlResult.success || !crawlResult.data) {
-        return NextResponse.json(
-          { error: 'Failed to crawl URL. Please provide business details manually.' },
-          { status: 400 }
-        );
-      }
-      
-      const crawled = crawlResult.data;
-      
-      // Helper: Map LLM category to enum
-      const mapCategoryToEnum = (llmCategory: string | undefined): string | undefined => {
-        if (!llmCategory) return undefined;
-        
-        const categoryMap: Record<string, string> = {
-          'restaurant': 'restaurant',
-          'retail': 'retail',
-          'healthcare': 'healthcare',
-          'professional services': 'professional_services',
-          'home services': 'home_services',
-          'automotive': 'automotive',
-          'beauty': 'beauty',
-          'fitness': 'fitness',
-          'entertainment': 'entertainment',
-          'education': 'education',
-          'real estate': 'real_estate',
-          'technology': 'technology',
-        };
-        
-        const normalized = llmCategory.toLowerCase();
-        return categoryMap[normalized] || 'other';
-      };
-      
-      // Merge crawled data with user-provided data (user data takes precedence)
-      const mergedData = {
+      // IDEAL: Use URL-only schema which makes location optional
+      // Create business with URL only, location will be updated after crawl
+      validatedData = createBusinessFromUrlSchema.parse({
         url: body.url,
-        name: body.name || crawled.name || 'Unknown Business',
-        category: body.category || mapCategoryToEnum(crawled.llmEnhanced?.businessCategory),
-        location: body.location || (crawled.location ? {
-          address: crawled.location.address,
-          city: crawled.location.city || 'Unknown',
-          state: crawled.location.state || 'Unknown',
-          country: crawled.location.country || 'US',
-          // Include coordinates if available (for P625 claim)
-          coordinates: (crawled.location.lat && crawled.location.lng) ? {
-            lat: crawled.location.lat,
-            lng: crawled.location.lng,
-          } : undefined,
-        } : {
-          city: 'Unknown',
-          state: 'Unknown',
-          country: 'US',
-        }),
-      };
+        name: body.name,
+        category: body.category,
+        location: body.location, // Optional for URL-only creation
+      });
       
-      // Validate merged data
-      validatedData = createBusinessSchema.parse(mergedData);
+      // If location is missing, mark for location form after business creation
+      if (!validatedData.location || !validatedData.location.city || !validatedData.location.state) {
+        needsLocationAfterCrawl = true;
+        crawledDataForLocation = {
+          name: validatedData.name,
+          category: validatedData.category,
+          url: validatedData.url,
+        };
+      }
     } else {
-      // Standard validation for full data
+      // Standard validation for full data (requires location)
       validatedData = createBusinessSchema.parse(body);
     }
 
@@ -204,12 +166,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create business
+    // IDEAL: Location can be null/undefined for URL-only creation (will be updated after crawl)
     const business = await createBusiness({
       teamId: team.id,
-      name: validatedData.name,
+      name: validatedData.name || 'Business', // Default name if not provided
       url: validatedData.url,
       category: validatedData.category,
-      location: validatedData.location,
+      location: validatedData.location || null, // Can be null for URL-only creation
       status: 'pending',
     });
 
@@ -220,6 +183,35 @@ export async function POST(request: NextRequest) {
         { error: 'Business created but ID not returned' },
         { status: 500 }
       );
+    }
+
+    // IDEAL: If location is needed after crawl, return 422 with needsLocation flag
+    // This allows the UI to show location form immediately
+    if (needsLocationAfterCrawl) {
+      const response = {
+        business: {
+          id: business.id,
+          name: business.name,
+          url: business.url,
+          category: business.category,
+          status: business.status,
+          teamId: business.teamId,
+        },
+        needsLocation: true,
+        crawledData: crawledDataForLocation,
+        message: 'Business created. Location required.',
+      };
+      
+      // Cache response for idempotency
+      cacheResponse(idempotencyKey, response);
+      
+      // Start crawl in background to update business data
+      const { autoStartProcessing } = await import('@/lib/services/business-processing');
+      autoStartProcessing(business).catch(error => {
+        console.error('Auto-processing failed for business:', business.id, error);
+      });
+      
+      return NextResponse.json(response, { status: 422 });
     }
 
     // Auto-start crawl and fingerprint in parallel (optimized processing)
@@ -233,6 +225,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Return business with ID (DRY: consistent response format)
+    // IDEAL: Return immediately so redirect can happen
     const response = {
       business: {
         id: business.id,
