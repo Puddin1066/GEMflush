@@ -46,8 +46,9 @@ test.describe('Full UX Sequence - IDEAL Implementation', () => {
 
     const timestamp = Date.now();
     const businessName = `Ideal UX Test Business ${timestamp}`;
-    // Use a real, crawlable URL (example.com works for testing)
-    const businessUrl = `https://example.com?test=${timestamp}`;
+    // Use a real, crawlable local business URL (Joe's Pizza NYC - typically crawlable)
+    // Using a real business ensures we test actual extraction logic, not just mocks
+    const businessUrl = `https://www.joespizzanyc.com/?test=${timestamp}`;
 
     // ========================================================================
     // STEP 1: Create Business - IDEAL: URL-only, automatic processing starts
@@ -106,16 +107,39 @@ test.describe('Full UX Sequence - IDEAL Implementation', () => {
         console.log('[IDEAL TEST] Step 2: Verifying automatic crawl starts and completes...');
         
         // IDEAL: Status should show "Crawling" or "Starting Automatic Processing" immediately
-        const statusIndicator = authenticatedPage.getByText(/Status|Starting|Crawling|Automatic Processing/i);
+        // In fast environments (mocked), it might jump to "Crawled", "Generating", or "Published" instantly.
+        // So we check for ANY valid status that indicates processing has started or completed.
+        const statusIndicator = authenticatedPage.getByText(/Status|Starting|Crawling|Automatic Processing|Crawled|Generating|Published/i);
         await expect(statusIndicator.first()).toBeVisible({ timeout: 10000 });
 
         // IDEAL: Crawl should complete automatically (no manual button needed for Pro tier)
+        // Pragmatic: If status moved past 'crawled' to 'generating' or 'published', that's also success
         const crawlCompleted = await waitForBusinessInAPI(authenticatedPage, businessId, {
         status: 'crawled',
-        timeout: 120000 // 2 minutes for crawl
+        timeout: 120000, // 2 minutes for crawl
+        acceptFutureStates: ['generating', 'published'] // Custom option to be implemented or handled manually
         });
 
-        expect(crawlCompleted).toBe(true);
+        // Since helper doesn't support acceptFutureStates yet, we'll check manually if it returns false but status is advanced
+        if (!crawlCompleted) {
+            const statusResponse = await authenticatedPage.request.get(`/api/business/${businessId}`);
+            const statusData = await statusResponse.json();
+            const currentStatus = statusData.business?.status;
+            if (['generating', 'published'].includes(currentStatus)) {
+                console.log(`[IDEAL TEST] Crawl step considered complete (status is advanced: ${currentStatus})`);
+            } else if (currentStatus === 'error') {
+                // Fetch crawl job error if available
+                const jobResponse = await authenticatedPage.request.get(`/api/job/latest?businessId=${businessId}`).catch(() => null);
+                const jobData = jobResponse?.ok() ? await jobResponse.json() : null;
+                console.error(`[IDEAL TEST] Crawl failed with status 'error'. Job Error: ${jobData?.errorMessage || 'Unknown'}`);
+                expect(crawlCompleted).toBe(true); // Fail explicitly
+            } else {
+                expect(crawlCompleted).toBe(true);
+            }
+        } else {
+             expect(crawlCompleted).toBe(true);
+        }
+        
         console.log(`[IDEAL TEST] Crawl completed automatically for business ${businessId}`);
 
         // IDEAL: UI should update automatically (no manual refresh needed)
@@ -329,10 +353,23 @@ test.describe('Full UX Sequence - IDEAL Implementation', () => {
         await expect(authenticatedPage.getByText(urlDisplayStep6)).toBeVisible();
 
         // IDEAL: Visibility Intel Card should show actual visibility score (not placeholder)
-        const scoreDisplay = authenticatedPage.locator('text=/\\d+%|\\d+/').filter({ 
-        hasText: /Visibility|Score/i 
-        }).first();
-        await expect(scoreDisplay).toBeVisible({ timeout: 5000 });
+        // Locate the specific score element within the visibility card to avoid ambiguity
+        // Structure: Card(hasText: "Visibility Intel") -> .text-4xl (Score)
+        const visibilityCard = authenticatedPage.locator('.gem-card', { hasText: 'Visibility Intel' });
+        let scoreDisplay = visibilityCard.locator('.text-4xl').first();
+        
+        // If the specific class structure changes, fallback to a more generic text search restricted to the card container
+        if (!(await scoreDisplay.isVisible().catch(() => false))) {
+             console.log('[IDEAL TEST] Standard score selector not found, trying fallback...');
+             // Fallback: Look for the title itself to verify the card is at least present
+             await expect(visibilityCard).toBeVisible();
+             // And look for a numeric score inside it
+             // Use the fallback locator for subsequent text extraction
+             scoreDisplay = visibilityCard.getByText(/\d+/).first();
+             await expect(scoreDisplay).toBeVisible();
+        } else {
+             await expect(scoreDisplay).toBeVisible({ timeout: 5000 });
+        }
         
         // IDEAL: Should show meaningful score (not just 0% or placeholder)
         const scoreText = await scoreDisplay.textContent();
@@ -348,7 +385,8 @@ test.describe('Full UX Sequence - IDEAL Implementation', () => {
         // IDEAL: Entity Preview Card should show entity data (if published)
         // Use the QID from Step 4
         if (finalBusiness && finalBusiness.wikidataQID) {
-        const qidDisplay = authenticatedPage.getByText(new RegExp(finalBusiness.wikidataQID));
+        // Fix: Use .first() to avoid strict mode violation if QID appears multiple times (header, link, card)
+        const qidDisplay = authenticatedPage.getByText(new RegExp(finalBusiness.wikidataQID)).first();
         await expect(qidDisplay).toBeVisible({ timeout: 5000 });
         console.log(`[IDEAL TEST] Entity Preview card shows QID: ${finalBusiness.wikidataQID}`);
         }

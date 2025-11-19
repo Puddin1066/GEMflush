@@ -26,12 +26,6 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
   let publishResult: { success: boolean; qid?: string | null; error?: string } | null = null;
   
   try {
-    // Update status to 'generating' to show publish progress in UI
-    await updateBusiness(businessId, {
-      status: 'generating', // Publishing in progress
-    });
-    log.statusChange('crawled', 'generating', { businessId });
-    
     const business = await getBusinessById(businessId);
     if (!business) {
       throw new Error('Business not found');
@@ -45,13 +39,15 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
         planName: team?.planName,
         autoPublish: team ? getAutomationConfig(team).autoPublish : 'no team',
       });
-      // Revert status back to 'crawled' if publish was skipped
-      await updateBusiness(businessId, {
-        status: 'crawled',
-      });
-      log.statusChange('generating', 'crawled', { businessId });
+      // No need to revert status as we haven't changed it yet
       return;
     }
+
+    // Update status to 'generating' to show publish progress in UI
+    await updateBusiness(businessId, {
+      status: 'generating', // Publishing in progress
+    });
+    log.statusChange('crawled', 'generating', { businessId });
 
     // Get publish data
     log.info('Fetching publish data', { businessId });
