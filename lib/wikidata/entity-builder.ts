@@ -213,9 +213,6 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     } else if (crawledData?.address) {
       // Fallback to top-level address field
       streetAddress = crawledData.address;
-    } else if (business.location?.address) {
-      // Fallback to business location address
-      streetAddress = business.location.address;
     }
     
     // If no explicit address, construct from location components (city, state, country)

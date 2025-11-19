@@ -201,7 +201,7 @@ export async function createCustomerPortalSession(team: Team) {
  * Stripe product names can be "Pro Plan", "Pro", "Agency Plan", etc.
  * But plan IDs must be lowercase: "pro", "agency", "free"
  */
-function normalizeProductNameToPlanId(productName: string | null | undefined): string | null {
+function normalizeProductNameToPlanId(productName: string | null | undefined): 'free' | 'pro' | 'agency' | null {
   if (!productName) return null;
   
   const normalized = productName.toLowerCase().trim();
@@ -216,9 +216,9 @@ function normalizeProductNameToPlanId(productName: string | null | undefined): s
   }
   
   // Fallback: try direct match (case-insensitive)
-  const planIds = ['free', 'pro', 'agency'];
+  const planIds: ('free' | 'pro' | 'agency')[] = ['free', 'pro', 'agency'];
   const matched = planIds.find(id => normalized.includes(id));
-  return matched || normalized; // Return normalized if no match (pragmatic: might still work)
+  return matched || null; // Return null if no match (type-safe)
 }
 
 export async function handleSubscriptionChange(

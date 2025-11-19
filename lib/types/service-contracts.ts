@@ -59,7 +59,7 @@ export interface IOpenRouterClient {
  */
 export interface IWikidataEntityBuilder {
   // Use strict contract type for better type safety
-  buildEntity(business: Business | any): WikidataEntityDataContract;
+  buildEntity(business: Business | any): Promise<WikidataEntityDataContract> | WikidataEntityDataContract;
   validateEntity(entity: WikidataEntityDataContract): boolean;
 }
 

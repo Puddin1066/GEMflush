@@ -5,6 +5,9 @@ Development roadmaps, integration guides, and feature development documentation.
 ## Contents
 
 - **[MVP_DEVELOPMENT_ROADMAP.md](MVP_DEVELOPMENT_ROADMAP.md)** - MVP development plan
+- **[HOLISTIC_DEVELOPMENT_STRATEGY.md](HOLISTIC_DEVELOPMENT_STRATEGY.md)** - Test-driven platform engineering strategy
+- **[E2E_STRATEGY.md](E2E_STRATEGY.md)** - E2E testing as product development engine
+- **[COMPETITIVE_INTELLIGENCE_ITERATION.md](COMPETITIVE_INTELLIGENCE_ITERATION.md)** - Competitive intelligence feature development
 - **[NEXT_DEVELOPMENT_STEP.md](NEXT_DEVELOPMENT_STEP.md)** - Next development steps
 - **[NEXT_MVP_STEP.md](NEXT_MVP_STEP.md)** - Next MVP steps
 - **[INTEGRATION_ROADMAP.md](INTEGRATION_ROADMAP.md)** - Integration roadmap

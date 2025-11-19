@@ -1,4 +1,4 @@
-?/**
+/**
  * User Business Helper
  * DRY: Centralizes single business per user pattern (realistic user journey)
  * SOLID: Single Responsibility - manages user's primary business

@@ -78,7 +78,7 @@ export const crawledDataSchema: z.ZodType<CrawledData> = z.object({
   email: z.string().email().optional(),
   address: z.string().optional(),
   socialLinks: socialLinksSchema,
-  structuredData: z.union([z.record(z.unknown()), z.array(z.unknown())]).optional(),
+  structuredData: z.record(z.unknown()).optional(),
   metaTags: z.record(z.string()).optional(),
   founded: z.string().optional(),
   categories: z.array(z.string()).optional(),

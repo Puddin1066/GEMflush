@@ -33,7 +33,7 @@ export function useDashboard(): UseDashboardReturn {
       totalBusinesses: 0,
       businesses: [],
       wikidataEntities: 0,
-      avgVisibilityScore: null,
+      avgVisibilityScore: 0,
     },
     loading: isLoading,
     error: error ? new Error(error.message || 'Failed to load dashboard') : null,

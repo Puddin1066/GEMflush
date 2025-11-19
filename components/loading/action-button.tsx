@@ -8,11 +8,14 @@
 
 'use client';
 
-import { Button, ButtonProps } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type React from 'react';
 
-interface ActionButtonProps extends Omit<ButtonProps, 'disabled'> {
+type ButtonProps = React.ComponentProps<typeof Button>;
+
+interface ActionButtonProps extends ButtonProps {
   loading?: boolean;
   loadingText?: string;
   icon?: React.ComponentType<{ className?: string }>;

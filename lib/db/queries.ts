@@ -66,7 +66,7 @@ export async function updateTeamSubscription(
     stripeSubscriptionId: string | null;
     stripeProductId: string | null;
     planName: string | null;
-    subscriptionStatus: string;
+    subscriptionStatus: string | null;
   }
 ) {
   await db

@@ -303,9 +303,180 @@ export class LLMFingerprinter {
   }
   
   /**
+   * Get industry-specific plural term for recommendations
+   * Maps industry/category to appropriate plural terms (e.g., "restaurants", "law firms", "doctors")
+   * DRY: Centralized industry term mapping
+   */
+  private getIndustryPlural(industry?: string | null, category?: string | null, businessCategory?: string | null): string {
+    // Priority: industry > businessCategory > category
+    const term = (industry || businessCategory || category || '').toLowerCase().trim();
+    
+    if (!term) return 'businesses';
+    
+    // Industry-specific mappings
+    const industryMap: Record<string, string> = {
+      // Food & Hospitality
+      'restaurant': 'restaurants',
+      'restaurants': 'restaurants',
+      'food': 'restaurants',
+      'dining': 'restaurants',
+      'cafe': 'cafes',
+      'cafes': 'cafes',
+      'coffee': 'coffee shops',
+      'bakery': 'bakeries',
+      'bakeries': 'bakeries',
+      'pizza': 'pizza places',
+      'bar': 'bars',
+      'bars': 'bars',
+      'hotel': 'hotels',
+      'hotels': 'hotels',
+      'hospitality': 'hotels',
+      
+      // Healthcare
+      'healthcare': 'healthcare providers',
+      'health': 'healthcare providers',
+      'medical': 'medical practices',
+      'doctor': 'doctors',
+      'doctors': 'doctors',
+      'physician': 'physicians',
+      'physicians': 'physicians',
+      'dentist': 'dentists',
+      'dentists': 'dentists',
+      'dental': 'dental practices',
+      'hospital': 'hospitals',
+      'hospitals': 'hospitals',
+      'clinic': 'clinics',
+      'clinics': 'clinics',
+      'pharmacy': 'pharmacies',
+      'pharmacies': 'pharmacies',
+      
+      // Legal
+      'legal': 'law firms',
+      'law': 'law firms',
+      'attorney': 'law firms',
+      'lawyer': 'law firms',
+      'law firm': 'law firms',
+      'law firms': 'law firms',
+      
+      // Professional Services
+      'accounting': 'accounting firms',
+      'accountant': 'accounting firms',
+      'consulting': 'consulting firms',
+      'consultant': 'consulting firms',
+      'financial': 'financial advisors',
+      'finance': 'financial advisors',
+      'real estate': 'real estate agencies',
+      'real estate agent': 'real estate agents',
+      'insurance': 'insurance agencies',
+      'marketing': 'marketing agencies',
+      'advertising': 'advertising agencies',
+      
+      // Technology
+      'technology': 'tech companies',
+      'tech': 'tech companies',
+      'software': 'software companies',
+      'saas': 'SaaS companies',
+      'it': 'IT companies',
+      'computer': 'computer services',
+      
+      // Retail
+      'retail': 'retail stores',
+      'store': 'stores',
+      'stores': 'stores',
+      'shop': 'shops',
+      'shops': 'shops',
+      'boutique': 'boutiques',
+      'boutiques': 'boutiques',
+      
+      // Education
+      'education': 'schools',
+      'school': 'schools',
+      'schools': 'schools',
+      'university': 'universities',
+      'universities': 'universities',
+      'college': 'colleges',
+      'colleges': 'colleges',
+      'tutoring': 'tutoring centers',
+      
+      // Fitness & Wellness
+      'fitness': 'gyms',
+      'gym': 'gyms',
+      'gyms': 'gyms',
+      'yoga': 'yoga studios',
+      'wellness': 'wellness centers',
+      'spa': 'spas',
+      'spas': 'spas',
+      
+      // Automotive
+      'automotive': 'auto shops',
+      'auto': 'auto shops',
+      'car': 'car dealerships',
+      'automobile': 'car dealerships',
+      
+      // Home Services
+      'plumbing': 'plumbers',
+      'plumber': 'plumbers',
+      'electrician': 'electricians',
+      'electric': 'electricians',
+      'contractor': 'contractors',
+      'construction': 'construction companies',
+      'roofing': 'roofing companies',
+      'landscaping': 'landscaping companies',
+      'cleaning': 'cleaning services',
+      
+      // Personal Care
+      'salon': 'salons',
+      'salons': 'salons',
+      'barber': 'barbershops',
+      'barbershop': 'barbershops',
+      'beauty': 'beauty salons',
+    };
+    
+    // Direct match
+    if (industryMap[term]) {
+      return industryMap[term];
+    }
+    
+    // Partial match (e.g., "restaurant chain" -> "restaurants")
+    for (const [key, value] of Object.entries(industryMap)) {
+      if (term.includes(key) || key.includes(term)) {
+        return value;
+      }
+    }
+    
+    // Fallback: pluralize the term if it's a single word
+    if (term.split(/\s+/).length === 1) {
+      // Simple pluralization rules
+      if (term.endsWith('y')) {
+        return term.slice(0, -1) + 'ies';
+      } else if (term.endsWith('s') || term.endsWith('x') || term.endsWith('z') || term.endsWith('ch') || term.endsWith('sh')) {
+        return term + 'es';
+      } else {
+        return term + 's';
+      }
+    }
+    
+    // Final fallback
+    return 'businesses';
+  }
+  
+  /**
    * Generate prompts for testing
    */
   private generatePrompts(business: Business): Record<string, string> {
+    // Extract industry information from crawlData if available
+    let industry: string | null = null;
+    let businessCategory: string | null = null;
+    
+    if (business.crawlData && typeof business.crawlData === 'object') {
+      const crawlData = business.crawlData as any;
+      industry = crawlData.businessDetails?.industry || crawlData.businessDetails?.sector || null;
+      businessCategory = crawlData.llmEnhanced?.businessCategory || null;
+    }
+    
+    // Get industry-specific plural term
+    const industryPlural = this.getIndustryPlural(industry, business.category, businessCategory);
+    
     // Handle location more gracefully - don't use "Unknown" in prompts
     let location: string;
     if (business.location && business.location.city && business.location.state) {
@@ -349,8 +520,8 @@ export class LLMFingerprinter {
       opinion: `I'm considering using the services of ${business.name}${locationContext}. Based on what you know, would you say they are a reputable and reliable ${business.category || 'business'}? Explain your reasoning.`,
       
       recommendation: location ? 
-        `Can you recommend the top 5 ${business.category || 'businesses'} in ${location}? Please rank them and explain why you're recommending each one.` :
-        `Can you recommend the top 5 ${business.category || 'businesses'} similar to ${business.name}? Please rank them and explain why you're recommending each one.`,
+        `Can you recommend the top 5 ${industryPlural} in ${location}? Please rank them and explain why you're recommending each one.` :
+        `Can you recommend the top 5 ${industryPlural} similar to ${business.name}? Please rank them and explain why you're recommending each one.`,
     };
   }
   

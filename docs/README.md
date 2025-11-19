@@ -56,17 +56,22 @@ docs/
 
 ### Product & Business
 - [Product Specification](product/GEMFLUSH.md) - Complete product documentation
+- [Commercial Analysis](product/COMMERCIAL_ANALYSIS.md) - Market positioning & revenue model
 - [UX Strategy](product/KGAAS_UX_STRATEGY.md) - User experience design
 - [Marketing Strategy](product/MARKETING/HUBSPOT_MARKETING_STRATEGY.md) - Go-to-market plan
 
 ### Architecture & Design
 - [Architecture Overview](architecture/README.md) - System design
+- [Endpoints & Services](architecture/ENDPOINTS_AND_SERVICES.md) - API architecture & services
 - [Database Architecture](architecture/DATABASE_ARCHITECTURE.md) - Database design
 - [Design System](architecture/DESIGN_SYSTEM.md) - UI/UX guidelines
 - [Vercel Architecture](architecture/VERCEL_ARCHITECTURE_GUIDE.md) - Deployment architecture
 
 ### Development
 - [MVP Roadmap](development/MVP_DEVELOPMENT_ROADMAP.md) - Development plan
+- [Holistic Development Strategy](development/HOLISTIC_DEVELOPMENT_STRATEGY.md) - Test-driven platform engineering
+- [E2E Strategy](development/E2E_STRATEGY.md) - E2E testing as product development engine
+- [Competitive Intelligence Iteration](development/COMPETITIVE_INTELLIGENCE_ITERATION.md) - Feature development strategy
 - [Integration Status](development/INTEGRATION_STATUS.md) - Current progress
 - [API Setup](development/API_SETUP_GUIDE.md) - API configuration
 - [CI/CD Workflow](development/CI_CD_WORKFLOW_EXPLAINED.md) - Deployment pipeline
@@ -114,6 +119,10 @@ docs/
 - [Bug Fixes](troubleshooting/BUG_FIXES_SUMMARY.md) - Fixed issues
 
 ### Reference
+- [KGaaS Evaluation](reference/KGAAS_EVALUATION.md) - Platform architecture analysis
+- [Third-Party Integrations](reference/THIRD_PARTY_INTEGRATIONS.md) - External services integration
+- [Archived Endpoints](reference/ARCHIVED_ENDPOINTS.md) - Deprecated API endpoints
+- [Organization Summary](reference/ORGANIZATION_SUMMARY.md) - Documentation organization
 - [DTO Mapping](reference/DTO_SERVICE_MAPPING.md) - Data transfer objects
 - [Validation Examples](reference/VALIDATION_EXAMPLES.md) - Validation patterns
 - [Service Validation](reference/SERVICE_VALIDATION_PLAN.md) - Validation strategy

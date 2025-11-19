@@ -6,6 +6,7 @@ This directory contains product specifications, UX strategy, and marketing docum
 
 - **[GEMFLUSH.md](GEMFLUSH.md)** - Complete product specification
 - **[README_GEMFLUSH.md](README_GEMFLUSH.md)** - Product overview and features
+- **[COMMERCIAL_ANALYSIS.md](COMMERCIAL_ANALYSIS.md)** - Commercial positioning & market potential
 - **[KGAAS_UX_STRATEGY.md](KGAAS_UX_STRATEGY.md)** - UX strategy and design
 - **[GEMFLUSH_UX_PROPOSAL.md](GEMFLUSH_UX_PROPOSAL.md)** - UX proposals
 - **[GEMFLUSH_IMPLEMENTATION_PROGRESS.md](GEMFLUSH_IMPLEMENTATION_PROGRESS.md)** - Implementation progress

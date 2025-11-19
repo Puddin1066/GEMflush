@@ -376,6 +376,44 @@ export class WebCrawler {
       if (structuredData.telephone) data.phone = String(structuredData.telephone);
       if (structuredData.email) data.email = String(structuredData.email);
       
+      // Extract industry hints from JSON-LD structured data
+      // Common patterns: @type (e.g., "Restaurant", "LocalBusiness"), servesCuisine, etc.
+      if (structuredData['@type']) {
+        const type = String(structuredData['@type']);
+        // Map common Schema.org types to industries
+        const typeToIndustry: Record<string, string> = {
+          'Restaurant': 'restaurant',
+          'FoodEstablishment': 'restaurant',
+          'LocalBusiness': 'local business',
+          'ProfessionalService': 'professional services',
+          'LegalService': 'legal',
+          'MedicalBusiness': 'healthcare',
+          'Dentist': 'dental',
+          'Physician': 'healthcare',
+          'Hospital': 'healthcare',
+          'Pharmacy': 'pharmacy',
+          'Store': 'retail',
+          'AutoDealer': 'automotive',
+          'Hotel': 'hospitality',
+          'RealEstateAgent': 'real estate',
+        };
+        if (typeToIndustry[type]) {
+          // Store as hint for LLM (will be used in prompt)
+          if (!data.businessDetails) data.businessDetails = {};
+          if (!data.businessDetails.industry) {
+            data.businessDetails.industry = typeToIndustry[type];
+          }
+        }
+      }
+      
+      // Extract industry from servesCuisine (restaurants)
+      if ((structuredData as any).servesCuisine) {
+        if (!data.businessDetails) data.businessDetails = {};
+        if (!data.businessDetails.industry) {
+          data.businessDetails.industry = 'restaurant';
+        }
+      }
+      
       if (!data.location && structuredData.address) {
         const addr = structuredData.address;
         if (typeof addr === 'object' && addr !== null) {
@@ -492,8 +530,37 @@ export class WebCrawler {
   private extractCategories($: cheerio.CheerioAPI): string[] {
     const categories: string[] = [];
     const text = $('body').text().toLowerCase();
-    const categoryKeywords = ['restaurant', 'retail', 'healthcare', 'professional', 'service'];
-    categoryKeywords.forEach(keyword => { if (text.includes(keyword)) categories.push(keyword); });
+    
+    // Enhanced category extraction with more specific keywords
+    const categoryKeywords: Record<string, string[]> = {
+      'restaurant': ['restaurant', 'dining', 'food', 'cuisine', 'menu', 'pizza', 'cafe', 'bakery', 'bar', 'bistro'],
+      'retail': ['retail', 'store', 'shop', 'boutique', 'merchandise', 'products', 'shopping'],
+      'healthcare': ['healthcare', 'medical', 'doctor', 'physician', 'hospital', 'clinic', 'health', 'dental', 'dentist'],
+      'legal': ['legal', 'law', 'attorney', 'lawyer', 'law firm', 'litigation', 'legal services'],
+      'technology': ['technology', 'tech', 'software', 'it', 'computer', 'saas', 'digital', 'app', 'platform'],
+      'professional': ['professional', 'consulting', 'services', 'business', 'corporate'],
+      'automotive': ['automotive', 'auto', 'car', 'vehicle', 'dealership', 'automobile'],
+      'real estate': ['real estate', 'property', 'realtor', 'housing', 'realty'],
+      'education': ['education', 'school', 'university', 'college', 'learning', 'academic'],
+      'fitness': ['fitness', 'gym', 'workout', 'exercise', 'yoga', 'wellness'],
+      'hospitality': ['hotel', 'hospitality', 'lodging', 'accommodation', 'resort'],
+    };
+    
+    // Check for category keywords
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+      if (keywords.some(keyword => text.includes(keyword))) {
+        categories.push(category);
+      }
+    }
+    
+    // Also check meta tags and structured data for categories
+    const metaCategory = $('meta[property="og:type"]').attr('content') || 
+                        $('meta[name="category"]').attr('content') ||
+                        $('meta[property="article:section"]').attr('content');
+    if (metaCategory && !categories.includes(metaCategory.toLowerCase())) {
+      categories.push(metaCategory.toLowerCase());
+    }
+    
     return categories;
   }
   
@@ -579,6 +646,21 @@ export class WebCrawler {
   }
   
   private buildExtractionPrompt(basicData: Partial<CrawledData>, textContent: string, url: string): string {
+    // Build industry hints from extracted data
+    const industryHints: string[] = [];
+    if (basicData.businessDetails?.industry) {
+      industryHints.push(`Structured data suggests: ${basicData.businessDetails.industry}`);
+    }
+    if (basicData.categories && basicData.categories.length > 0) {
+      industryHints.push(`Page categories detected: ${basicData.categories.join(', ')}`);
+    }
+    if (basicData.structuredData && (basicData.structuredData as any)['@type']) {
+      industryHints.push(`Schema.org type: ${(basicData.structuredData as any)['@type']}`);
+    }
+    const hintsSection = industryHints.length > 0 
+      ? `\n\nIndustry Classification Hints:\n${industryHints.join('\n')}\n` 
+      : '';
+    
     return `
 You are a business intelligence extraction system. Analyze this website and extract ALL available information.
 
@@ -589,7 +671,7 @@ Basic Info Already Extracted:
 - Description: ${basicData.description || 'None'}
 - Phone: ${basicData.phone || 'None'}
 - Email: ${basicData.email || 'None'}
-- Address: ${basicData.address || 'None'}
+- Address: ${basicData.address || 'None'}${hintsSection}
 
 Website Content (first 4000 chars):
 ${textContent.substring(0, 4000)}
@@ -600,6 +682,8 @@ CRITICAL RULES:
 - Only include information explicitly stated on the website
 - Use null for any field where information is not found
 - DO NOT make assumptions or inferences
+- For industry: Use standard industry terms (e.g., "restaurant", "healthcare", "legal", "technology", "retail", "hospitality", "automotive", "education", "fitness", "professional services")
+- For sector: Use broader sector classification (e.g., "Food & Beverage", "Healthcare", "Legal Services", "Technology", "Retail", "Hospitality", "Automotive", "Education", "Wellness", "Professional Services")
 - For location: Extract city, state, country separately
 - For country: Use ISO 3166-1 alpha-2 code (e.g., "US", "CA", "GB") or full name
 - For state: Use standard abbreviation (e.g., "CA", "NY") or full name

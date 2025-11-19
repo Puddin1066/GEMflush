@@ -7,6 +7,7 @@
  */
 
 import { Page } from '@playwright/test';
+import type Stripe from 'stripe';
 
 /**
  * Track active routes for cleanup (SOLID: single responsibility for route management)
@@ -94,6 +95,7 @@ export async function setupProTeam(page: Page) {
     livemode: false,
     pending_webhooks: 0,
     request: null,
+    object: 'event',
     data: {
       object: {
         id: `sub_test_${team.id}`,
