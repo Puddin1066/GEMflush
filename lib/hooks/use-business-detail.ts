@@ -97,7 +97,16 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
           : null,
       };
 
-      setBusiness(normalizedBusiness);
+      // Only update state if data actually changed (prevents unnecessary re-renders)
+      setBusiness(prev => {
+        if (!prev || 
+            prev.status !== normalizedBusiness.status ||
+            prev.wikidataQID !== normalizedBusiness.wikidataQID ||
+            prev.name !== normalizedBusiness.name) {
+          return normalizedBusiness;
+        }
+        return prev; // No change, return previous to prevent re-render
+      });
       setError(null);
 
       // Fingerprint (non-fatal)
@@ -251,8 +260,12 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
           return;
         }
         
-        void load();
-      }, 3000); // Poll every 3 seconds
+        // Use a refetch function that doesn't trigger unnecessary re-renders
+        // Only update state if data actually changed
+        void load().catch(() => {
+          // Silently handle errors during polling
+        });
+      }, 5000); // Poll every 5 seconds (reduced frequency to minimize Fast Refresh)
       
       return () => clearInterval(interval);
     }

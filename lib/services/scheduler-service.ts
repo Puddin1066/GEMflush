@@ -55,7 +55,9 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
 
     // Get publish data
     log.info('Fetching publish data', { businessId });
+    console.log(`[DEBUG] handleAutoPublish: Fetching publish data for business ${businessId}`);
     const publishData = await getWikidataPublishDTO(businessId);
+    console.log(`[DEBUG] handleAutoPublish: canPublish=${publishData.canPublish}, isNotable=${publishData.notability.isNotable}, confidence=${publishData.notability.confidence}`);
     
     // IDEAL: Log test mode detection for debugging
     const nodeEnv = process.env.NODE_ENV || '';
@@ -106,12 +108,14 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
 
     // Publish to test.wikidata.org (production can be enabled later)
     log.info('Publishing entity to Wikidata', { businessId });
+    console.log(`[DEBUG] handleAutoPublish: Calling publishEntity, WIKIDATA_PUBLISH_MODE=${process.env.WIKIDATA_PUBLISH_MODE}`);
     const publishStartTime = Date.now();
     
     publishResult = await wikidataPublisher.publishEntity(
       publishData.fullEntity,
       false // publishToProduction: false for now
     );
+    console.log(`[DEBUG] handleAutoPublish: publishResult.success=${publishResult.success}, qid=${publishResult.qid || 'none'}`);
 
     const publishDuration = Date.now() - publishStartTime;
     

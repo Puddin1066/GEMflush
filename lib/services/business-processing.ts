@@ -646,13 +646,15 @@ export async function autoStartProcessing(business: Business): Promise<void> {
     }
     
     // IDEAL: Log publish conditions for debugging
+    const shouldPublish = shouldAutoPublish(businessForPublish, team);
     log.info('Step 3/3: Checking auto-publish conditions', {
       businessId,
       status: businessForPublish.status,
       autoPublish: config.autoPublish,
       hasWikidataQID: !!businessForPublish.wikidataQID,
-      shouldAutoPublish: shouldAutoPublish(businessForPublish, team),
+      shouldAutoPublish: shouldPublish,
     });
+    console.log(`[DEBUG] autoStartProcessing: shouldAutoPublish=${shouldPublish}, status=${businessForPublish.status}, autoPublish=${config.autoPublish}`);
     
     if (shouldAutoPublish(businessForPublish, team)) {
       try {

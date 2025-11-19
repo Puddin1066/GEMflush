@@ -219,8 +219,10 @@ export async function POST(request: NextRequest) {
     // DRY: Centralized processing logic
     // Fire and forget - don't block response
     const { autoStartProcessing } = await import('@/lib/services/business-processing');
+    console.log(`[DEBUG] Business creation: Starting autoStartProcessing for business ${business.id}`);
     autoStartProcessing(business).catch(error => {
-      console.error('Auto-processing failed for business:', business.id, error);
+      console.error(`[ERROR] Auto-processing failed for business ${business.id}:`, error);
+      console.error(`[ERROR] Error stack:`, error instanceof Error ? error.stack : 'No stack');
       // Don't fail business creation if auto-processing fails
     });
 

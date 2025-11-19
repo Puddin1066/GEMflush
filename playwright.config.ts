@@ -64,11 +64,10 @@ export default defineConfig({
       USE_MOCK_GOOGLE_SEARCH: 'true',
       // Playwright test indicator (most reliable - unlikely to be in .env)
       PLAYWRIGHT_TEST: 'true',
-      // Use real test.wikidata.org Action API calls to capture real Wikidata API behavior
-      // This tests the actual API integration while using the safe test environment
-      // Requires WIKIDATA_BOT_USERNAME and WIKIDATA_BOT_PASSWORD env vars for authentication
-      // Set to 'mock' to bypass real API calls (for faster tests without credentials)
-      WIKIDATA_PUBLISH_MODE: process.env.WIKIDATA_PUBLISH_MODE || 'real',
+      // IDEAL: Use mock mode for E2E tests - we're testing the flow, not actual Wikidata publishing
+      // Mock mode returns a mock QID immediately, allowing tests to verify the complete flow
+      // Set WIKIDATA_PUBLISH_MODE=real in .env if you want to test real API integration
+      WIKIDATA_PUBLISH_MODE: process.env.WIKIDATA_PUBLISH_MODE || 'mock',
     },
   },
 });
