@@ -28,7 +28,12 @@ export async function GET(
 
     const { businessId: businessIdStr } = await params;
     const businessId = parseInt(businessIdStr);
+    
+    // Log for debugging routing issues
+    console.log(`[FINGERPRINT API] Request received for businessId: "${businessIdStr}" (parsed: ${businessId})`);
+    
     if (isNaN(businessId)) {
+      console.error(`[FINGERPRINT API] Invalid business ID: "${businessIdStr}"`);
       return NextResponse.json(
         { error: 'Invalid business ID' },
         { status: 400 }
@@ -64,25 +69,58 @@ export async function GET(
     }
 
     // Get latest fingerprint for this business
+    // CRITICAL: Log the query to verify correct businessId is used
+    console.log(`[FINGERPRINT API] Querying fingerprints for businessId: ${businessId} (type: ${typeof businessId})`);
+    
     const fingerprints = await db
       .select()
       .from(llmFingerprints)
       .where(eq(llmFingerprints.businessId, businessId))
       .orderBy(desc(llmFingerprints.createdAt))
       .limit(2);
+    
+    console.log(`[FINGERPRINT API] Found ${fingerprints.length} fingerprint(s) for business ${businessId}`);
+    if (fingerprints.length > 0) {
+      console.log(`[FINGERPRINT API] Fingerprint IDs: ${fingerprints.map(f => f.id).join(', ')}, businessIds: ${fingerprints.map(f => f.businessId).join(', ')}`);
+    }
 
     if (fingerprints.length === 0) {
+      console.log(`[FINGERPRINT API] No fingerprints found for business ${businessId}`);
       return NextResponse.json(null);
     }
 
     const currentFingerprint = fingerprints[0];
     const previousFingerprint = fingerprints[1]; // Second most recent, if exists
 
+    // Verify fingerprint belongs to the correct business
+    if (currentFingerprint.businessId !== businessId) {
+      console.error(`[FINGERPRINT API] MISMATCH: Fingerprint ${currentFingerprint.id} has businessId ${currentFingerprint.businessId}, but requested businessId is ${businessId}`);
+      return NextResponse.json(
+        { error: 'Fingerprint data mismatch' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[FINGERPRINT API] Found fingerprint ${currentFingerprint.id} for business ${businessId} (verified match)`);
+
     // Transform to DTO with error handling
+    // IMPORTANT: Override businessName with current business name to ensure data matches
+    // The fingerprint may have been created with a different business name (e.g., if business was renamed)
     try {
+      // Ensure fingerprint uses current business name
+      const fingerprintWithCurrentName = {
+        ...currentFingerprint,
+        businessName: business.name, // Use current business name, not stored name
+      };
+      const previousFingerprintWithCurrentName = previousFingerprint ? {
+        ...previousFingerprint,
+        businessName: business.name,
+      } : undefined;
+
       const dto = toFingerprintDetailDTO(
-        currentFingerprint as any,
-        previousFingerprint as any
+        fingerprintWithCurrentName as any,
+        previousFingerprintWithCurrentName as any,
+        business // Pass business data to reconstruct prompts
       );
 
       // Validate DTO has required structure
@@ -94,7 +132,21 @@ export async function GET(
         );
       }
 
-      return NextResponse.json(dto);
+      // Add debug metadata to verify correct business
+      const responseWithMetadata = {
+        ...dto,
+        _debug: {
+          fingerprintId: currentFingerprint.id,
+          businessId: businessId,
+          businessName: business.name,
+          requestedBusinessId: businessId,
+        },
+      };
+
+      console.log(`[FINGERPRINT API] Returning DTO for business ${businessId} (fingerprint ${currentFingerprint.id}, business: "${business.name}")`);
+      console.log(`[FINGERPRINT API] DTO summary: visibilityScore=${dto.visibilityScore}, trend=${dto.trend}`);
+      
+      return NextResponse.json(responseWithMetadata);
     } catch (dtoError) {
       console.error('Error transforming fingerprint to DTO:', dtoError);
       console.error('Raw fingerprint data:', currentFingerprint);

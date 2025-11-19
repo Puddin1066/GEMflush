@@ -39,10 +39,16 @@ export class OpenRouterClient {
   }
   
   private getApiKey(): string {
-    if (this.apiKey === undefined) {
-      this.apiKey = process.env.OPENROUTER_API_KEY || '';
+    // Always check environment variable (allows hot-reload of env changes)
+    // Re-check if we previously had no key but now have one
+    const envKey = process.env.OPENROUTER_API_KEY || '';
+    if (this.apiKey === undefined || (this.apiKey === '' && envKey !== '')) {
+      const hadKey = this.apiKey && this.apiKey !== '';
+      this.apiKey = envKey;
       if (!this.apiKey) {
         console.warn('[OpenRouter] API key not configured. Using mock responses.');
+      } else if (!hadKey) {
+        console.log('[OpenRouter] API key loaded from environment.');
       }
     }
     return this.apiKey;

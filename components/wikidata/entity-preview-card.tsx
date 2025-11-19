@@ -17,6 +17,7 @@ interface EntityPreviewCardProps {
   onPublish: () => void;
   onPreview: () => void;
   publishing?: boolean;
+  showAutoProgress?: boolean;
 }
 
 export function EntityPreviewCard({
@@ -26,6 +27,7 @@ export function EntityPreviewCard({
   onPublish,
   onPreview,
   publishing = false,
+  showAutoProgress = false,
 }: EntityPreviewCardProps) {
   const isPublished = entity.qid !== null;
 
@@ -128,23 +130,33 @@ export function EntityPreviewCard({
         {/* Actions */}
         <div className="flex gap-2">
           {!isPublished ? (
-            <Button
-              onClick={onPublish}
-              className="gem-gradient text-white flex-1"
-              disabled={!isNotable || publishing}
-            >
-              {publishing ? (
-                <>
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <Rocket className="mr-2 h-4 w-4" />
-                  Publish to Wikidata
-                </>
+            <>
+              {!showAutoProgress && (
+                <Button
+                  onClick={onPublish}
+                  className="gem-gradient text-white flex-1"
+                  disabled={!isNotable || publishing}
+                >
+                  {publishing ? (
+                    <>
+                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="mr-2 h-4 w-4" />
+                      Publish to Wikidata
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+              {showAutoProgress && publishing && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 flex-1">
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  <span>Publishing to Wikidata automatically...</span>
+                </div>
+              )}
+            </>
           ) : (
             <Button
               onClick={() => window.open(entity.wikidataUrl || '', '_blank')}

@@ -49,6 +49,17 @@ export function CompetitiveEdgeCard({
 
   const { targetBusiness, competitors, insights } = leaderboard;
   const topCompetitor = competitors[0];
+  
+  // Check if we have meaningful data
+  const hasNoData = leaderboard.totalQueries === 0 || 
+    (targetBusiness.mentionCount === 0 && competitors.length === 0);
+  
+  // Check if competitors are placeholder data
+  const hasPlaceholderCompetitors = competitors.some(c => 
+    c.name.toLowerCase().includes('example') ||
+    c.name.toLowerCase().includes('sample') ||
+    c.name.toLowerCase().includes('local business')
+  );
 
   return (
     <Card className="gem-card">
@@ -108,9 +119,21 @@ export function CompetitiveEdgeCard({
         )}
 
         {/* Strategic Tip */}
-        <div className="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg border border-blue-100">
-          <span className="font-medium">💡 Tip:</span> {insights.recommendation}
-        </div>
+        {hasNoData ? (
+          <div className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+            <span className="font-medium">⚠️ Limited Data:</span> The business was not mentioned in recommendation queries. 
+            This may indicate low LLM visibility. Consider publishing to Wikidata to improve discoverability.
+          </div>
+        ) : hasPlaceholderCompetitors ? (
+          <div className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+            <span className="font-medium">⚠️ Placeholder Data Detected:</span> The competitive analysis found generic/placeholder competitor names. 
+            This suggests the LLM responses may not contain real competitor data. Consider re-running the fingerprint analysis.
+          </div>
+        ) : (
+          <div className="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <span className="font-medium">💡 Tip:</span> {insights.recommendation}
+          </div>
+        )}
 
         {/* CTA */}
         <Link href={`/dashboard/businesses/${businessId}/competitive`}>

@@ -23,14 +23,16 @@ interface GemOverviewCardProps {
     status: string;
     createdAt: Date | string;
   };
-  onCrawl: () => void;
+  onCrawl?: () => void;
   crawling?: boolean;
+  showAutoProgress?: boolean;
 }
 
 export function GemOverviewCard({ 
   business, 
   onCrawl, 
-  crawling = false 
+  crawling = false,
+  showAutoProgress = false,
 }: GemOverviewCardProps) {
   const statusConfig = {
     pending: { label: 'Pending', color: 'bg-gray-100 text-gray-700' },
@@ -116,7 +118,7 @@ export function GemOverviewCard({
         </div>
 
         {/* Actions */}
-        {business.status === 'pending' && (
+        {business.status === 'pending' && !showAutoProgress && onCrawl && (
           <div className="pt-4 border-t">
             <p className="text-sm text-gray-600 mb-3">
               🚀 Start by crawling the website to extract business data.
@@ -138,6 +140,21 @@ export function GemOverviewCard({
                 </>
               )}
             </Button>
+          </div>
+        )}
+        
+        {/* Auto-processing status for Pro tier */}
+        {showAutoProgress && (business.status === 'pending' || business.status === 'crawling' || business.status === 'crawled' || business.status === 'generating') && (
+          <div className="pt-4 border-t">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+              <span>
+                {business.status === 'pending' && 'Starting automatic processing...'}
+                {business.status === 'crawling' && 'Crawling website...'}
+                {business.status === 'crawled' && 'Analyzing visibility...'}
+                {business.status === 'generating' && 'Publishing to Wikidata...'}
+              </span>
+            </div>
           </div>
         )}
       </CardContent>

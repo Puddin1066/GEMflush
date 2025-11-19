@@ -20,8 +20,9 @@ import { formatDistanceToNow } from 'date-fns';
  * Filters out technical details, adds UI-friendly fields
  */
 export function toFingerprintDetailDTO(
-  analysis: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; [key: string]: any },
-  previousAnalysis?: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; [key: string]: any }
+  analysis: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; businessName?: string; [key: string]: any },
+  previousAnalysis?: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; businessName?: string; [key: string]: any },
+  business?: { name: string; location?: { city: string; state: string } | null; category?: string | null }
 ): FingerprintDetailDTO {
   // Normalize date field (database uses createdAt, domain uses generatedAt)
   const generatedAt = (analysis as any).generatedAt || (analysis as any).createdAt;
@@ -72,6 +73,19 @@ export function toFingerprintDetailDTO(
     ? normalizedAnalysis.llmResults 
     : [];
 
+  // Ensure competitive leaderboard uses current business name
+  // The leaderboard may have stale business name if business was renamed
+  let leaderboard = normalizedAnalysis.competitiveLeaderboard;
+  if (leaderboard && leaderboard.targetBusiness) {
+    leaderboard = {
+      ...leaderboard,
+      targetBusiness: {
+        ...leaderboard.targetBusiness,
+        name: normalizedAnalysis.businessName, // Use current business name
+      },
+    };
+  }
+
   return {
     visibilityScore: Math.round(normalizedAnalysis.visibilityScore),
     trend,
@@ -81,9 +95,9 @@ export function toFingerprintDetailDTO(
       topModels,
       averageRank: normalizedAnalysis.avgRankPosition,
     },
-    results: safeLlmResults.map(toFingerprintResultDTO),
-    competitiveLeaderboard: normalizedAnalysis.competitiveLeaderboard
-      ? toCompetitiveLeaderboardDTO(normalizedAnalysis.competitiveLeaderboard, normalizedAnalysis.businessName)
+    results: safeLlmResults.map(result => toFingerprintResultDTO(result, business || { name: normalizedAnalysis.businessName || 'Unknown' })),
+    competitiveLeaderboard: leaderboard
+      ? toCompetitiveLeaderboardDTO(leaderboard, normalizedAnalysis.businessName)
       : null,
     createdAt: validDate && !isNaN(validDate.getTime())
       ? formatDistanceToNow(validDate, { addSuffix: true })
@@ -128,29 +142,56 @@ function normalizeFingerprintAnalysis(
 
 /**
  * Transform LLMResult domain object → FingerprintResultDTO
- * Removes rawResponse and other technical fields
+ * Includes rawResponse and prompts for debugging failed API calls
  */
-function toFingerprintResultDTO(result: any): FingerprintResultDTO {
+function toFingerprintResultDTO(result: any, business?: { name: string; location?: { city: string; state: string } | null; category?: string | null }): FingerprintResultDTO {
   // Defensive: handle missing or malformed result data
   if (!result || typeof result !== 'object') {
     console.warn('Invalid LLM result data:', result);
     return {
       model: 'Unknown',
+      promptType: 'unknown',
       mentioned: false,
       sentiment: 'neutral',
       confidence: 0,
       rankPosition: null,
+      hasError: true,
     };
   }
 
+  // Reconstruct prompt if business data available
+  let prompt: string | undefined;
+  if (business && result.promptType) {
+    const location = business.location 
+      ? `${business.location.city}, ${business.location.state}`
+      : 'the area';
+    
+    const promptTemplates: Record<string, string> = {
+      factual: `What information do you have about ${business.name} located in ${location}? Please provide factual details about their services, reputation, and any notable characteristics.`,
+      opinion: `I'm considering using the services of ${business.name} in ${location}. Based on what you know, would you say they are a reputable and reliable ${business.category || 'business'}? Explain your reasoning.`,
+      recommendation: `Can you recommend the top 5 ${business.category || 'businesses'} in ${location}? Please rank them and explain why you're recommending each one.`,
+    };
+    
+    prompt = promptTemplates[result.promptType] || undefined;
+  }
+
+  // Check if response is an error
+  const rawResponse = result.rawResponse || '';
+  const hasError = rawResponse.startsWith('Error:') || rawResponse.includes('error') || !result.mentioned && rawResponse.length < 50;
+
   return {
     model: formatModelName(result.model || 'Unknown'),
+    promptType: result.promptType || 'unknown',
+    prompt,
     mentioned: result.mentioned ?? false,
     sentiment: result.sentiment || 'neutral',
     confidence: result.accuracy !== undefined && result.accuracy !== null
       ? Math.round(result.accuracy * 100)
       : 0,
     rankPosition: result.rankPosition ?? null,
+    rawResponse: rawResponse || undefined,
+    tokensUsed: result.tokensUsed || undefined,
+    hasError,
   };
 }
 

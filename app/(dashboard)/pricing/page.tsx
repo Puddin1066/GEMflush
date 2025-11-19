@@ -1,8 +1,16 @@
+/**
+ * Pricing Page
+ * Displays pricing tiers and subscription options
+ * 
+ * Enhanced with new TierBadge component while maintaining structure
+ */
+
 import { checkoutAction } from '@/lib/payments/actions';
-import { Check, X, Sparkles, Zap, Users } from 'lucide-react';
+import { Check, X, Sparkles, Users } from 'lucide-react';
 import { getStripePrices, getStripeProducts } from '@/lib/payments/stripe';
 import { SubmitButton } from './submit-button';
 import { GemIcon, WikidataRubyIcon } from '@/components/ui/gem-icon';
+import { TierBadge } from '@/components/subscription/tier-badge';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -22,12 +30,11 @@ export default async function PricingPage() {
   ]);
 
   // Match products by name to GEMflush plans
-  // Try exact match first, then fallback to includes with metadata check
   const proProduct = products.find((product) => product.name?.toLowerCase() === 'pro') ||
     products.find((product) => product.name?.toLowerCase() === 'pro plan') ||
     products.find((product) => {
       const name = product.name?.toLowerCase() || '';
-      return name.includes('pro') && !name.includes('myproduct'); // Exclude test products
+      return name.includes('pro') && !name.includes('myproduct');
     });
   
   const agencyProduct = products.find((product) => product.name?.toLowerCase() === 'agency') ||
@@ -39,14 +46,12 @@ export default async function PricingPage() {
 
   const currentPlan = team?.planName || 'free';
   const isPro = currentPlan === 'pro' || currentPlan === 'agency';
-  
-  // Debug info (only in development)
   const hasPrices = proPrice || agencyPrice;
   const missingPrices = !hasPrices && process.env.NODE_ENV === 'development';
 
   return (
     <main className="py-12">
-      {/* Current Plan Banner */}
+      {/* Current Plan Banner - Enhanced with TierBadge */}
       {isPro && user && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <div className="gem-card p-4 flex items-center justify-between">
@@ -56,7 +61,7 @@ export default async function PricingPage() {
                 <p className="text-lg font-semibold">
                   {currentPlan === 'pro' ? 'Pro Plan' : 'Agency Plan'}
                 </p>
-                <Badge variant="default">{currentPlan.toUpperCase()}</Badge>
+                <TierBadge tier={currentPlan as 'pro' | 'agency'} />
               </div>
             </div>
             <Link href="/dashboard/settings/billing">
@@ -97,7 +102,7 @@ export default async function PricingPage() {
         )}
       </section>
 
-      {/* Pricing Cards */}
+      {/* Pricing Cards - Enhanced with TierBadge */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-3 gap-8">
           {/* Free Tier */}
@@ -110,7 +115,7 @@ export default async function PricingPage() {
                 <h2 className="text-2xl font-bold text-gray-900">Free</h2>
               </div>
               {currentPlan === 'free' && (
-                <Badge variant="default">Current</Badge>
+                <TierBadge tier="free" />
               )}
             </div>
             <div className="mb-6">
@@ -171,7 +176,7 @@ export default async function PricingPage() {
                 <h2 className="text-2xl font-bold text-gray-900">Pro</h2>
               </div>
               {currentPlan === 'pro' && (
-                <Badge variant="default">Current</Badge>
+                <TierBadge tier="pro" />
               )}
             </div>
             <div className="mb-6">
@@ -239,7 +244,7 @@ export default async function PricingPage() {
                 <h2 className="text-2xl font-bold text-gray-900">Agency</h2>
               </div>
               {currentPlan === 'agency' && (
-                <Badge variant="default">Current</Badge>
+                <TierBadge tier="agency" />
               )}
             </div>
             <div className="mb-6">

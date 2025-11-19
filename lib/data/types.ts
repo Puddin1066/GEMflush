@@ -135,11 +135,15 @@ export interface FingerprintDetailDTO {
  */
 export interface FingerprintResultDTO {
   model: string;                     // Display name (not full ID)
+  promptType: string;                // Type of prompt: 'factual', 'opinion', 'recommendation'
+  prompt?: string;                   // The actual prompt used (for debugging)
   mentioned: boolean;
   sentiment: 'positive' | 'neutral' | 'negative';
   confidence: number;                // 0-100
   rankPosition: number | null;
-  // ❌ NO rawResponse (too technical for UI)
+  rawResponse?: string;              // The actual LLM response (for debugging failed API calls)
+  tokensUsed?: number;
+  hasError?: boolean;                // True if API call failed (rawResponse starts with "Error:")
 }
 
 /**

@@ -203,55 +203,39 @@ test.describe('Full UX Sequence - IDEAL Implementation', () => {
     console.log('[IDEAL TEST] Step 4: Verifying automatic publish starts and completes...');
 
     // IDEAL: Publish should start automatically after fingerprint completes
+    // IDEAL: In test mode, publish should always succeed (notability checker allows it)
     const publishCompleted = await waitForBusinessInAPI(authenticatedPage, businessId, {
       status: 'published',
       timeout: 120000 // 2 minutes for publish
     });
 
-    // IDEAL: Publish should complete successfully (notability check should pass for test data)
-    if (!publishCompleted) {
-      // Check if publish was skipped (notability check failed) - this is acceptable for some businesses
-      // Add timeout and error handling to prevent test hanging
-      const businessResponse = await authenticatedPage.request.get(`/api/business/${businessId}`, {
-        timeout: 10000
-      }).catch(() => null);
-      
-      if (businessResponse) {
-        const business = await businessResponse.json().then((r: any) => r.business).catch(() => null);
-        if (business) {
-          console.log(`[IDEAL TEST] Publish status: ${business.status}, QID: ${business.wikidataQID || 'None'}`);
-          
-          // IDEAL: If notability check fails, system should clearly communicate why
-          if (business.status === 'crawled' && !business.wikidataQID) {
-            console.log('[IDEAL TEST] Publish skipped - notability check failed (acceptable for test data)');
-          }
-        }
-      }
-    } else {
-      console.log(`[IDEAL TEST] Publish completed automatically for business ${businessId}`);
-    }
+    // IDEAL: Publish must complete successfully - test mode should allow publishing
+    expect(publishCompleted).toBe(true);
+    
+    // Verify business has QID after publish
+    const businessResponse = await authenticatedPage.request.get(`/api/business/${businessId}`, {
+      timeout: 10000
+    });
+    const business = await businessResponse.json().then((r: any) => r.business);
+    
+    // IDEAL: Business should be published with QID
+    expect(business.status).toBe('published');
+    expect(business.wikidataQID).toBeTruthy();
+    console.log(`[IDEAL TEST] Publish completed automatically for business ${businessId} with QID: ${business.wikidataQID}`);
 
     // IDEAL: UI should update automatically to show entity data
     await authenticatedPage.reload();
     await authenticatedPage.waitForLoadState('networkidle');
 
     // IDEAL: Entity Preview Card should display entity data automatically
-    // If publish was skipped, entity card may not be visible (acceptable)
-    try {
-      const entityCard = await waitForEntityCard(authenticatedPage, businessId);
-      
-      if (entityCard) {
-        // IDEAL: Should show QID if published, or draft entity if not yet published
-        const entityData = authenticatedPage.getByText(/Wikidata|Entity|Q\d+|Published|Draft/i);
-        await expect(entityData.first()).toBeVisible({ timeout: 5000 });
-        console.log(`[IDEAL TEST] Entity card displayed with data`);
-      } else {
-        console.log(`[IDEAL TEST] Entity card not found - publish may have been skipped (notability check)`);
-      }
-    } catch (error) {
-      // Entity card not found - this is acceptable if publish was skipped
-      console.log(`[IDEAL TEST] Entity card check failed - publish may have been skipped: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    // IDEAL: Entity card must be visible after publish completes
+    const entityCard = await waitForEntityCard(authenticatedPage, businessId);
+    expect(entityCard).toBeTruthy();
+    
+    // IDEAL: Should show QID after successful publish
+    const entityData = authenticatedPage.getByText(/Wikidata|Entity|Q\d+|Published/i);
+    await expect(entityData.first()).toBeVisible({ timeout: 5000 });
+    console.log(`[IDEAL TEST] Entity card displayed with QID`);
 
     // ========================================================================
     // STEP 5: Verify Final State - IDEAL: All components show correct, meaningful data
@@ -311,23 +295,19 @@ test.describe('Full UX Sequence - IDEAL Implementation', () => {
       console.log(`[IDEAL TEST] Competitive leaderboard: ${finalFp.competitiveLeaderboard.competitors?.length || 0} competitors (real data: ${hasRealCompetitors})`);
     }
 
-    // IDEAL: Entity should exist if published
-    if (finalBusiness.wikidataQID) {
-      const entityResponse = await authenticatedPage.request.get(
-        `/api/wikidata/entity/${businessId}`,
-        { timeout: 10000 }
-      ).catch(() => null);
-      
-      if (entityResponse) {
-        expect(entityResponse.ok()).toBe(true);
-        const entity = await entityResponse.json();
-        expect(entity.qid).toBe(finalBusiness.wikidataQID);
-        expect(entity.claims).toBeDefined(); // IDEAL: Should have actual claims
-        console.log(`[IDEAL TEST] Entity published with QID: ${entity.qid}, Claims: ${entity.claimCount || 0}`);
-      }
-    } else {
-      console.log(`[IDEAL TEST] Entity not published (notability check may have failed)`);
-    }
+    // IDEAL: Entity must exist after publish (test mode should always publish)
+    expect(finalBusiness.wikidataQID).toBeTruthy();
+    
+    const entityResponse = await authenticatedPage.request.get(
+      `/api/wikidata/entity/${businessId}`,
+      { timeout: 10000 }
+    );
+    expect(entityResponse.ok()).toBe(true);
+    
+    const entity = await entityResponse.json();
+    expect(entity.qid).toBe(finalBusiness.wikidataQID);
+    expect(entity.claims).toBeDefined(); // IDEAL: Should have actual claims
+    console.log(`[IDEAL TEST] Entity published with QID: ${entity.qid}, Claims: ${entity.claimCount || 0}`);
 
     // ========================================================================
     // STEP 6: Verify UI Components - IDEAL: All display correct, meaningful data

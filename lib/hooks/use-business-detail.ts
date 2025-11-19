@@ -21,6 +21,7 @@ export interface BusinessDetail {
   status: string;
   createdAt: string;
   lastCrawledAt?: string | null;
+  automationEnabled?: boolean;
 }
 
 export interface UseBusinessDetailReturn {
@@ -41,6 +42,15 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
   const [entity, setEntity] = useState<WikidataEntityDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Clear state when businessId changes to prevent showing wrong data
+  useEffect(() => {
+    setBusiness(null);
+    setFingerprint(null);
+    setEntity(null);
+    setError(null);
+    setLoading(true);
+  }, [businessId]);
 
   const load = useCallback(async () => {
     try {
@@ -67,7 +77,27 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
         return;
       }
 
-      setBusiness(businessData);
+          // Log received data for debugging (only on first load or status change)
+          // Removed frequent logging to reduce console noise
+
+      // Ensure createdAt is a string (API might return Date object)
+      const normalizedBusiness: BusinessDetail = {
+        ...businessData,
+        createdAt: typeof businessData.createdAt === 'string' 
+          ? businessData.createdAt 
+          : (businessData.createdAt as any) instanceof Date 
+            ? (businessData.createdAt as Date).toISOString()
+            : String(businessData.createdAt),
+        lastCrawledAt: businessData.lastCrawledAt 
+          ? (typeof businessData.lastCrawledAt === 'string'
+              ? businessData.lastCrawledAt
+              : (businessData.lastCrawledAt as any) instanceof Date
+                ? (businessData.lastCrawledAt as Date).toISOString()
+                : null)
+          : null,
+      };
+
+      setBusiness(normalizedBusiness);
       setError(null);
 
       // Fingerprint (non-fatal)
@@ -78,19 +108,43 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
           // Only set fingerprint if it's a valid DTO (has summary property)
           // Error responses will have error property instead
           if (fpData && !fpData.error && fpData.summary) {
-            setFingerprint(fpData);
+                // Verify the fingerprint matches the requested business
+                const debugInfo = (fpData as any)._debug;
+                if (debugInfo) {
+                  if (debugInfo.businessId !== businessId) {
+                    console.error(`[useBusinessDetail] MISMATCH: Received fingerprint for business ${debugInfo.businessId}, but requested ${businessId}`);
+                    console.error(`[useBusinessDetail] Fingerprint ID: ${debugInfo.fingerprintId}, Business: "${debugInfo.businessName}"`);
+                    setFingerprint(null);
+                    return;
+                  }
+                  // Removed frequent verification logging to reduce console noise
+                }
+                
+                // Remove debug metadata before setting state
+                const { _debug, ...cleanFpData } = fpData as any;
+                
+                // Removed frequent fingerprint loading logs to reduce console noise
+            setFingerprint(cleanFpData);
           } else if (fpData?.error) {
-            console.warn('Fingerprint API returned error:', fpData.error);
+            // Only log actual errors, not missing fingerprints (expected during initial load)
+            console.warn(`[useBusinessDetail] Fingerprint API returned error for business ${businessId}:`, fpData.error);
+            setFingerprint(null);
+          } else {
+            // Removed: No fingerprint data is expected initially, no need to log
             setFingerprint(null);
           }
+        } else {
+          // Removed: Non-200 status is expected if fingerprint doesn't exist yet
+          setFingerprint(null);
         }
       } catch (err) {
-        console.error('Error loading fingerprint:', err);
+        console.error(`[useBusinessDetail] Error loading fingerprint for business ${businessId}:`, err);
         setFingerprint(null);
       }
 
-      // Entity (non-fatal, only when crawled/published)
-      if (businessData.status === 'crawled' || businessData.status === 'published') {
+      // Entity (non-fatal, only when crawled/published/generating)
+      // Include 'generating' because publish step sets status to 'generating' before 'published'
+      if (businessData.status === 'crawled' || businessData.status === 'published' || businessData.status === 'generating') {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -101,22 +155,26 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
             });
             clearTimeout(timeoutId);
 
-            if (entityResponse.ok) {
-              const entityData = await entityResponse.json();
-              if (entityData && !entityData.error) {
-                setEntity(entityData);
-              } else {
-                console.warn('Entity API returned error:', entityData?.error || 'Unknown error');
-                setEntity(null);
-              }
-            } else {
-              const errorData = await entityResponse.json().catch(() => ({}));
-              console.warn(
-                `Entity API failed (${entityResponse.status}):`,
-                errorData?.error || 'Unknown error'
-              );
-              setEntity(null);
-            }
+                if (entityResponse.ok) {
+                  const entityData = await entityResponse.json();
+                  if (entityData && !entityData.error) {
+                    // Removed frequent entity loading logs to reduce console noise
+                    setEntity(entityData);
+                  } else {
+                    // Only log actual errors, not missing entities
+                    if (entityData?.error) {
+                      console.warn(`[useBusinessDetail] Entity API returned error for business ${businessId}:`, entityData.error);
+                    }
+                    setEntity(null);
+                  }
+                } else {
+                  // Don't log 404s or other expected errors for entities that don't exist yet
+                  if (entityResponse.status !== 404) {
+                    const errorData = await entityResponse.json().catch(() => ({}));
+                    console.warn(`[useBusinessDetail] Entity API returned ${entityResponse.status} for business ${businessId}:`, errorData?.error || 'Unknown error');
+                  }
+                  setEntity(null);
+                }
           } catch (fetchError) {
             clearTimeout(timeoutId);
             if (fetchError instanceof Error && fetchError.name === 'AbortError') {
@@ -144,6 +202,61 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Auto-refresh when business is in processing state (crawling, generating)
+  // OR when business is crawled with fingerprint but not yet published (publish might be in progress)
+  // This ensures the page updates automatically when background jobs complete
+  useEffect(() => {
+    if (!business) return;
+    
+    // Determine if we should poll:
+    // 1. Business is actively processing (crawling, generating)
+    // 2. Business is pending with automation enabled (processing might have started)
+    // 3. Business is crawled with fingerprint but not published AND automation is enabled (publish might be running)
+    // NOTE: Don't poll indefinitely if publish failed or was skipped - only poll if automation is active
+    const isActivelyProcessing = 
+      business.status === 'crawling' || 
+      business.status === 'generating';
+    
+    const isWaitingForPublish = 
+      business.status === 'crawled' && 
+      fingerprint && 
+      !business.wikidataQID &&
+      business.automationEnabled; // Only poll if automation is enabled (publish might be running)
+    
+    const isPendingWithAutomation = 
+      business.status === 'pending' &&
+      business.automationEnabled; // Only poll if automation is enabled
+    
+    const shouldPoll = isActivelyProcessing || isWaitingForPublish || isPendingWithAutomation;
+    
+    if (shouldPoll) {
+      let pollCount = 0;
+      const maxPolls = 60; // Stop after 60 polls (3 minutes max)
+      let lastLoggedPoll = 0;
+      
+      const interval = setInterval(() => {
+        pollCount++;
+        
+        // Only log every 20th poll (every minute) to reduce console noise
+        if (pollCount - lastLoggedPoll >= 20) {
+          console.log(`[AUTO-REFRESH] Polling for business ${businessId} (status: ${business.status}, published: ${business.wikidataQID ? 'Yes' : 'No'}, poll: ${pollCount}/${maxPolls})...`);
+          lastLoggedPoll = pollCount;
+        }
+        
+        // Stop polling after max attempts
+        if (pollCount >= maxPolls) {
+          console.log(`[AUTO-REFRESH] Stopped polling for business ${businessId} after ${maxPolls} attempts (3 minutes)`);
+          clearInterval(interval);
+          return;
+        }
+        
+        void load();
+      }, 3000); // Poll every 3 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [business?.status, business?.wikidataQID, business?.automationEnabled, businessId, fingerprint, load]);
 
   return {
     business,

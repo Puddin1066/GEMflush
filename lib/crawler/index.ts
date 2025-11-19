@@ -88,6 +88,12 @@ export class WebCrawler {
   private async extractData($: cheerio.CheerioAPI, url: string): Promise<CrawledData> {
     const data: CrawledData = {};
     
+    // PASS 0: Try to extract location from URL/domain first (fast fallback)
+    const urlLocation = this.extractLocationFromUrl(url);
+    if (urlLocation) {
+      data.location = urlLocation;
+    }
+    
     // PASS 1: Extract structured data (JSON-LD)
     const structuredData = this.extractJSONLD($);
     if (structuredData) {
@@ -100,7 +106,8 @@ export class WebCrawler {
       if (structuredData.email) data.email = String(structuredData.email);
       
       // NEW: Extract location from JSON-LD (LocalBusiness schema)
-      if (structuredData.address) {
+      // Only override if we didn't already get location from URL
+      if (!data.location && structuredData.address) {
         const addr = structuredData.address;
         if (typeof addr === 'object' && addr !== null) {
           data.location = {
@@ -109,6 +116,19 @@ export class WebCrawler {
             state: (addr as any).addressRegion || (addr as any).state || undefined,
             country: (addr as any).addressCountry || (addr as any).country || 'US',
             postalCode: (addr as any).postalCode || undefined,
+          };
+        }
+      } else if (data.location && structuredData.address) {
+        // Merge JSON-LD data with URL-extracted data (JSON-LD takes precedence for specific fields)
+        const addr = structuredData.address;
+        if (typeof addr === 'object' && addr !== null) {
+          data.location = {
+            ...data.location,
+            address: (addr as any).streetAddress || (addr as any).address || data.location.address,
+            city: (addr as any).addressLocality || (addr as any).city || data.location.city,
+            state: (addr as any).addressRegion || (addr as any).state || data.location.state,
+            country: (addr as any).addressCountry || (addr as any).country || data.location.country || 'US',
+            postalCode: (addr as any).postalCode || data.location.postalCode,
           };
         }
       }
@@ -148,6 +168,29 @@ export class WebCrawler {
     
     // PASS 2: LLM-enhanced extraction
     const llmEnhancement = await this.enhanceWithLLM($, data, url);
+    
+    // Merge location from LLM if available (LLM may extract better location)
+    if (llmEnhancement.location) {
+      if (!data.location) {
+        data.location = llmEnhancement.location;
+      } else {
+        // Fill in missing fields from LLM extraction
+        data.location = {
+          ...data.location,
+          city: data.location.city || llmEnhancement.location.city || undefined,
+          state: data.location.state || llmEnhancement.location.state || undefined,
+          country: data.location.country || llmEnhancement.location.country || data.location.country || 'US',
+          address: data.location.address || llmEnhancement.location.address || undefined,
+          postalCode: data.location.postalCode || llmEnhancement.location.postalCode || undefined,
+        };
+      }
+      // Remove location from llmEnhancement to avoid duplication
+      const { location, ...restEnhancement } = llmEnhancement;
+      return {
+        ...data,
+        ...restEnhancement,
+      };
+    }
     
     return {
       ...data,
@@ -273,6 +316,110 @@ export class WebCrawler {
     }
   }
   
+  /**
+   * Extract location from URL/domain
+   * Uses domain analysis and common patterns to infer location
+   * Follows Single Responsibility Principle: Only handles URL-based location extraction
+   */
+  private extractLocationFromUrl(url: string): CrawledData['location'] | null {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      
+      // Check for country-specific TLDs
+      const countryTldMap: Record<string, { country: string; state?: string; city?: string }> = {
+        '.ca': { country: 'CA', state: 'ON' }, // Canada - default to Ontario
+        '.co.uk': { country: 'GB' }, // United Kingdom
+        '.com.au': { country: 'AU', state: 'NSW' }, // Australia - default to NSW
+        '.de': { country: 'DE' }, // Germany
+        '.fr': { country: 'FR' }, // France
+        '.it': { country: 'IT' }, // Italy
+        '.es': { country: 'ES' }, // Spain
+        '.nl': { country: 'NL' }, // Netherlands
+        '.jp': { country: 'JP' }, // Japan
+        '.cn': { country: 'CN' }, // China
+        '.in': { country: 'IN' }, // India
+        '.br': { country: 'BR' }, // Brazil
+        '.mx': { country: 'MX' }, // Mexico
+      };
+      
+      // Check domain for location hints
+      for (const [tld, location] of Object.entries(countryTldMap)) {
+        if (hostname.endsWith(tld)) {
+          return {
+            country: location.country,
+            state: location.state,
+            city: location.city,
+          };
+        }
+      }
+      
+      // Check for US state-specific domains or city-specific patterns
+      // Common patterns: cityname.com, cityname-state.com, etc.
+      const usStateAbbrevs = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
+      
+      // Try to extract city and state from subdomain or path
+      // Example: losangeles.example.com, boston-ma.example.com
+      const cityStateMatch = hostname.match(/([a-z]+)-([a-z]{2})\./);
+      if (cityStateMatch) {
+        const [, cityHint, stateHint] = cityStateMatch;
+        const stateUpper = stateHint.toUpperCase();
+        if (usStateAbbrevs.includes(stateUpper)) {
+          return {
+            country: 'US',
+            state: stateUpper,
+            city: cityHint.charAt(0).toUpperCase() + cityHint.slice(1),
+          };
+        }
+      }
+      
+      // Check for common US city names in domain (major cities only for accuracy)
+      const majorUsCities: Record<string, { city: string; state: string }> = {
+        'newyork': { city: 'New York', state: 'NY' },
+        'losangeles': { city: 'Los Angeles', state: 'CA' },
+        'chicago': { city: 'Chicago', state: 'IL' },
+        'houston': { city: 'Houston', state: 'TX' },
+        'phoenix': { city: 'Phoenix', state: 'AZ' },
+        'philadelphia': { city: 'Philadelphia', state: 'PA' },
+        'sanantonio': { city: 'San Antonio', state: 'TX' },
+        'sandiego': { city: 'San Diego', state: 'CA' },
+        'dallas': { city: 'Dallas', state: 'TX' },
+        'sanfrancisco': { city: 'San Francisco', state: 'CA' },
+        'boston': { city: 'Boston', state: 'MA' },
+        'seattle': { city: 'Seattle', state: 'WA' },
+        'denver': { city: 'Denver', state: 'CO' },
+        'miami': { city: 'Miami', state: 'FL' },
+        'atlanta': { city: 'Atlanta', state: 'GA' },
+        'detroit': { city: 'Detroit', state: 'MI' },
+        'lasvegas': { city: 'Las Vegas', state: 'NV' },
+        'portland': { city: 'Portland', state: 'OR' },
+        'austin': { city: 'Austin', state: 'TX' },
+      };
+      
+      for (const [cityKey, location] of Object.entries(majorUsCities)) {
+        if (hostname.includes(cityKey)) {
+          return {
+            country: 'US',
+            state: location.state,
+            city: location.city,
+          };
+        }
+      }
+      
+      // Default to US if .com, .net, .org with no other indicators
+      if (hostname.endsWith('.com') || hostname.endsWith('.net') || hostname.endsWith('.org')) {
+        // Try to extract state from subdomain or path if possible
+        // Otherwise, return null to let other extraction methods try
+        return null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error extracting location from URL:', error);
+      return null;
+    }
+  }
+
   /**
    * LLM-enhanced extraction
    * Extracts rich business data that regex/selectors can't find
@@ -501,12 +648,9 @@ Return ONLY valid JSON (no markdown, no explanations):
       extracted.llmEnhanced.model = 'openai/gpt-4-turbo';
     }
     
-    // Merge location if provided (LLM may extract better location than JSON-LD)
-    if (extracted.location) {
-      // Keep existing location from JSON-LD if it exists, but merge LLM enhancements
-      // This allows LLM to fill in missing fields
-    }
-    
+    // Location merging happens in enhanceWithLLM, not here
+    // This function just validates the extraction structure
+    // Return extracted data as-is (location will be merged in enhanceWithLLM)
     return extracted;
   }
 }

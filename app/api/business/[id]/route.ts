@@ -10,6 +10,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let businessId: number | null = null;
+  
   try {
     const user = await getUser();
     if (!user) {
@@ -29,7 +31,7 @@ export async function GET(
 
     // Parse business ID from params
     const { id } = await params;
-    const businessId = parseInt(id);
+    businessId = parseInt(id);
     
     if (isNaN(businessId)) {
       return NextResponse.json(
@@ -57,13 +59,43 @@ export async function GET(
     }
 
     // Return single business (SOLID: returns exactly what's requested)
+    // Ensure dates are serialized properly
+    const serializableBusiness = {
+      ...business,
+      createdAt: business.createdAt instanceof Date 
+        ? business.createdAt.toISOString() 
+        : business.createdAt,
+      updatedAt: business.updatedAt instanceof Date 
+        ? business.updatedAt.toISOString() 
+        : business.updatedAt,
+      lastCrawledAt: business.lastCrawledAt instanceof Date 
+        ? business.lastCrawledAt.toISOString() 
+        : business.lastCrawledAt,
+      wikidataPublishedAt: business.wikidataPublishedAt instanceof Date 
+        ? business.wikidataPublishedAt.toISOString() 
+        : business.wikidataPublishedAt,
+      nextCrawlAt: business.nextCrawlAt instanceof Date 
+        ? business.nextCrawlAt.toISOString() 
+        : business.nextCrawlAt,
+      lastAutoPublishedAt: business.lastAutoPublishedAt instanceof Date 
+        ? business.lastAutoPublishedAt.toISOString() 
+        : business.lastAutoPublishedAt,
+    };
+
+    console.log(`[BUSINESS API] Returning business ${businessId} (${business.name})`);
+    
     return NextResponse.json({
-      business,
+      business: serializableBusiness,
     });
   } catch (error) {
-    console.error('Error fetching business:', error);
+    const errorId = businessId ?? 'unknown';
+    console.error(`[BUSINESS API] Error fetching business ${errorId}:`, error);
+    if (error instanceof Error) {
+      console.error(`[BUSINESS API] Error message:`, error.message);
+      console.error(`[BUSINESS API] Error stack:`, error.stack);
+    }
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

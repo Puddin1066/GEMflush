@@ -645,11 +645,29 @@ export async function autoStartProcessing(business: Business): Promise<void> {
       throw new Error('Business not found before publish');
     }
     
+    // IDEAL: Log publish conditions for debugging
+    log.info('Step 3/3: Checking auto-publish conditions', {
+      businessId,
+      status: businessForPublish.status,
+      autoPublish: config.autoPublish,
+      hasWikidataQID: !!businessForPublish.wikidataQID,
+      shouldAutoPublish: shouldAutoPublish(businessForPublish, team),
+    });
+    
     if (shouldAutoPublish(businessForPublish, team)) {
       try {
         // Use scheduler service for auto-publish
         const { handleAutoPublish } = await import('./scheduler-service');
+        log.info('Step 3/3: Calling handleAutoPublish', { businessId });
         await handleAutoPublish(businessId);
+        
+        // Verify publish completed
+        const businessAfterPublish = await getBusinessById(businessId);
+        log.info('Step 3/3: Publish completed', {
+          businessId,
+          status: businessAfterPublish?.status,
+          qid: businessAfterPublish?.wikidataQID,
+        });
         
         const publishDuration = Date.now() - publishStartTime;
         log.performance('Step 3/3: Auto-publish', publishDuration, { businessId });
@@ -658,6 +676,8 @@ export async function autoStartProcessing(business: Business): Promise<void> {
         log.error('Step 3/3: Auto-publish failed', publishError, {
           businessId,
           duration: publishDuration,
+          errorMessage: publishError instanceof Error ? publishError.message : 'Unknown error',
+          errorStack: publishError instanceof Error ? publishError.stack : undefined,
         });
         
         // Status is already set to 'error' by handleAutoPublish on failure
@@ -670,6 +690,7 @@ export async function autoStartProcessing(business: Business): Promise<void> {
         status: businessForPublish.status,
         autoPublish: config.autoPublish,
         hasWikidataQID: !!businessForPublish.wikidataQID,
+        shouldAutoPublishResult: shouldAutoPublish(businessForPublish, team),
       });
     }
     

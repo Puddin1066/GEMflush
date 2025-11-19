@@ -1,0 +1,207 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - link "GEMflush" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e6]:
+          - img [ref=e7]
+          - generic [ref=e12]: GEMflush
+      - button "t" [ref=e14]:
+        - generic [ref=e16] [cursor=pointer]: t
+    - generic [ref=e18]:
+      - complementary [ref=e19]:
+        - navigation [ref=e20]:
+          - generic [ref=e22]: Pro Plan
+          - generic [ref=e23]:
+            - link "Overview" [ref=e24] [cursor=pointer]:
+              - /url: /dashboard
+              - button "Overview" [ref=e25]:
+                - img
+                - text: Overview
+            - link "Businesses" [ref=e26] [cursor=pointer]:
+              - /url: /dashboard/businesses
+              - button "Businesses" [ref=e27]:
+                - img
+                - text: Businesses
+            - link "Activity" [ref=e28] [cursor=pointer]:
+              - /url: /dashboard/activity
+              - button "Activity" [ref=e29]:
+                - img
+                - text: Activity
+            - link "Settings" [ref=e30] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - button "Settings" [ref=e31]:
+                - img
+                - text: Settings
+          - generic [ref=e32]:
+            - generic [ref=e33]:
+              - generic [ref=e34]: Current Plan
+              - generic [ref=e35]: Wikidata Publisher
+            - generic [ref=e36]:
+              - generic [ref=e37]:
+                - img [ref=e38]
+                - generic [ref=e40]: 1/5 businesses
+              - link "Manage Subscription" [ref=e41] [cursor=pointer]:
+                - /url: /dashboard/settings/billing
+                - button "Manage Subscription" [ref=e42]
+      - main [ref=e43]:
+        - generic [ref=e45]:
+          - link "Back" [ref=e46] [cursor=pointer]:
+            - /url: /dashboard/businesses
+            - button "Back" [ref=e47]:
+              - img
+              - text: Back
+          - generic [ref=e50]:
+            - generic [ref=e51]:
+              - generic [ref=e52]: Status
+              - generic [ref=e53]:
+                - img [ref=e54]
+                - text: Crawled
+            - generic [ref=e58]:
+              - generic [ref=e59]:
+                - generic [ref=e60]:
+                  - img [ref=e61]
+                  - generic [ref=e64]: Publishing to Wikidata
+                - generic [ref=e65]: 90%
+              - progressbar [ref=e66]
+              - paragraph [ref=e68]: Publishing entity to Wikidata...
+          - generic [ref=e73]:
+            - paragraph [ref=e74]: Automatic Processing in Progress
+            - paragraph [ref=e75]: Publishing to Wikidata...
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - generic [ref=e79]:
+                - generic [ref=e80]:
+                  - generic [ref=e81]: 💎
+                  - generic [ref=e83]: Example Domain
+                - generic [ref=e84]: Crawled
+              - generic [ref=e85]:
+                - generic [ref=e87]:
+                  - img [ref=e88]
+                  - generic [ref=e91]:
+                    - paragraph [ref=e92]: Website
+                    - link "example.com?test=1763558523102" [ref=e93] [cursor=pointer]:
+                      - /url: https://example.com?test=1763558523102
+                      - text: example.com?test=1763558523102
+                      - img [ref=e94]
+                - generic [ref=e101]: Analyzing visibility...
+            - generic [ref=e102]:
+              - generic [ref=e103]:
+                - generic [ref=e104]:
+                  - img [ref=e105]
+                  - text: Visibility Intel
+                - generic [ref=e108]: Last analyzed 2 minutes ago
+              - generic [ref=e109]:
+                - generic [ref=e111]:
+                  - generic [ref=e112]: 63%
+                  - generic [ref=e113]:
+                    - img [ref=e114]
+                    - generic [ref=e115]: Stable
+                - generic [ref=e116]:
+                  - generic [ref=e117]:
+                    - generic [ref=e118]: 22%
+                    - generic [ref=e119]: Mention Rate
+                  - generic [ref=e120]:
+                    - generic [ref=e121]: 😊 Positive
+                    - generic [ref=e122]: Sentiment
+                  - generic [ref=e123]:
+                    - generic [ref=e124]: 2/9
+                    - generic [ref=e125]: Models
+                  - generic [ref=e126]:
+                    - generic [ref=e127]: "#1"
+                    - generic [ref=e128]: Avg Rank
+                - generic [ref=e129]:
+                  - paragraph [ref=e130]: "Top Performing Models:"
+                  - generic [ref=e131]:
+                    - generic [ref=e132]: GPT 4 Turbo
+                    - generic [ref=e133]: Gemini Pro
+                    - generic [ref=e134]: Claude 3 Opus
+                - generic [ref=e136]:
+                  - img [ref=e137]
+                  - generic [ref=e139]:
+                    - paragraph [ref=e140]: Boost Your Visibility Score
+                    - paragraph [ref=e141]: Publishing to Wikidata can increase your LLM visibility by up to 340%. Complete the publishing journey to unlock this boost.
+                - link "View Detailed LLM Analysis" [ref=e143] [cursor=pointer]:
+                  - /url: /dashboard/businesses/734/fingerprint
+                  - button "View Detailed LLM Analysis" [ref=e144]:
+                    - img
+                    - text: View Detailed LLM Analysis
+                    - img
+            - generic [ref=e145]:
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - img [ref=e148]
+                  - text: Competitive Edge
+                - generic [ref=e154]: Based on 3 recommendation queries
+              - generic [ref=e155]:
+                - generic [ref=e156]:
+                  - generic [ref=e157]: "Market Position:"
+                  - generic [ref=e158]:
+                    - generic [ref=e159]: 🏆
+                    - generic [ref=e160]: Leading
+                - generic [ref=e161]:
+                  - generic [ref=e162]:
+                    - generic [ref=e163]: "Your Position:"
+                    - generic [ref=e164]: "#1"
+                  - generic [ref=e165]: "Mentioned: 2/3 times (67%)"
+                - generic [ref=e166]:
+                  - paragraph [ref=e167]: "Top Competitor:"
+                  - generic [ref=e170]:
+                    - generic [ref=e171]: 🥇 Professional Solutions
+                    - generic [ref=e172]: "2 mentions • Avg position: #1.0"
+                - generic [ref=e173]: "💡 Tip: Excellent! Your business has strong LLM visibility. Focus on maintaining quality and expanding content."
+                - link "View Full Leaderboard" [ref=e174] [cursor=pointer]:
+                  - /url: /dashboard/businesses/734/competitive
+                  - button "View Full Leaderboard" [ref=e175]:
+                    - text: View Full Leaderboard
+                    - img
+          - generic [ref=e176]:
+            - generic [ref=e179]:
+              - img [ref=e180]
+              - generic [ref=e183]:
+                - generic [ref=e184]: Draft Entity
+                - generic [ref=e185]: Example Domain
+            - generic [ref=e186]:
+              - paragraph [ref=e187]: This domain is for use in documentation examples without needing permission. Avoid use in operations.
+              - generic [ref=e189]:
+                - generic [ref=e190]:
+                  - img [ref=e191]
+                  - generic [ref=e194]: "4"
+                  - generic [ref=e195]: properties
+                - generic [ref=e196]:
+                  - img [ref=e197]
+                  - generic [ref=e200]: "3"
+                  - generic [ref=e201]: with references
+                - generic [ref=e204]: high quality
+              - generic [ref=e205]:
+                - generic [ref=e206]:
+                  - img [ref=e207]
+                  - generic [ref=e209]: LLM Visibility
+                - paragraph [ref=e210]: "This entity is now discoverable by:"
+                - generic [ref=e211]:
+                  - generic [ref=e212]: ChatGPT
+                  - generic [ref=e213]: Claude
+                  - generic [ref=e214]: Perplexity
+                  - generic [ref=e215]: Google Gemini
+              - generic [ref=e216]:
+                - generic [ref=e219]: Publishing to Wikidata automatically...
+                - button "Preview JSON" [ref=e220]:
+                  - img
+                  - text: Preview JSON
+              - paragraph [ref=e221]: "Last updated: 2025-11-19T13:24:22.567Z"
+  - alert [ref=e222]
+  - generic [ref=e228] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e229]:
+      - img [ref=e230]
+    - generic [ref=e233]:
+      - button "Open issues overlay" [ref=e234]:
+        - generic [ref=e235]:
+          - generic [ref=e236]: "0"
+          - generic [ref=e237]: "1"
+        - generic [ref=e238]: Issue
+      - button "Collapse issues badge" [ref=e239]:
+        - img [ref=e240]
+```

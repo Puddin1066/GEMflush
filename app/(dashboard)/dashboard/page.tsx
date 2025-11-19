@@ -1,62 +1,75 @@
+/**
+ * Dashboard Page
+ * Main dashboard showing business overview and stats
+ * 
+ * Uses new reusable components with hooks
+ */
+
+'use client';
+
+import { useDashboard } from '@/lib/hooks/use-dashboard';
+import { useUser } from '@/lib/hooks/use-user';
+import { useTeam } from '@/lib/hooks/use-team';
+import { WelcomeMessage } from '@/components/onboarding';
+import { BusinessListCard } from '@/components/business/business-list-card';
+import { BusinessListSkeleton } from '@/components/loading';
+import { ErrorCard } from '@/components/error';
+import { BusinessLimitDisplay } from '@/components/subscription/business-limit-display';
+import { TierBadge } from '@/components/subscription/tier-badge';
+import { UpgradeCTA } from '@/components/subscription/upgrade-cta';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription
-} from '@/components/ui/card';
-import { GemIcon, GemClusterIcon, WikidataRubyIcon, GemBadge } from '@/components/ui/gem-icon';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
-import { getDashboardDTO } from '@/lib/data/dashboard-dto';
-import type { DashboardDTO } from '@/lib/data/types';
-import { redirect } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Plus, 
   Building2, 
   CheckCircle, 
   Clock,
   Sparkles,
+  TrendingUp,
   ArrowRight
 } from 'lucide-react';
+import { WikidataRubyIcon, GemClusterIcon } from '@/components/ui/gem-icon';
 
-export default async function DashboardPage() {
-  // Get authenticated user and team
-  const user = await getUser();
-  if (!user) {
-    redirect('/sign-in');
+export default function DashboardPage() {
+  const { user } = useUser();
+  const { planTier, maxBusinesses, isPro } = useTeam();
+  const { stats, loading, error } = useDashboard();
+
+  if (loading) {
+    return (
+      <section className="flex-1 p-4 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <BusinessListSkeleton count={3} />
+        </div>
+      </section>
+    );
   }
 
-  const team = await getTeamForUser();
-  if (!team) {
-    redirect('/sign-in');
+  if (error) {
+    return (
+      <section className="flex-1 p-4 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <ErrorCard message={error.message} />
+        </div>
+      </section>
+    );
   }
-
-  // Fetch dashboard data via DTO layer
-  const stats: DashboardDTO = await getDashboardDTO(team.id);
 
   const hasBusinesses = stats.totalBusinesses > 0;
-  const planTier = team.planName || 'free';
-  const isPro = planTier === 'pro' || planTier === 'agency';
 
   // Empty state for new users
   if (!hasBusinesses) {
     return (
       <section className="flex-1 p-4 lg:p-8">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <GemClusterIcon size={64} className="mx-auto mb-6" />
-            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-              Welcome to <span className="gem-text-shimmer">GEMflush</span>!
-            </h1>
-            <p className="text-lg text-gray-600">
-              Let's get your first business into the AI knowledge graph
-            </p>
-          </div>
+          <WelcomeMessage
+            userName={user?.email?.split('@')[0]}
+            businessCount={0}
+          />
 
+          {/* Getting Started Checklist */}
           <Card className="gem-card mb-8">
             <CardHeader>
               <CardTitle>Getting Started Checklist</CardTitle>
@@ -114,6 +127,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Feature Cards */}
           <div className="grid md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -231,123 +245,96 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* Business Limit Display */}
+      <BusinessLimitDisplay
+        currentCount={stats.totalBusinesses}
+        maxCount={maxBusinesses}
+        tier={planTier}
+        className="mb-6"
+      />
+
       {/* Businesses Grid */}
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Your Businesses</h2>
-        <Link href="/dashboard/businesses/new">
-          <Button className="gem-gradient text-white">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Business
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <TierBadge tier={planTier} />
+          <Link href="/dashboard/businesses/new">
+            <Button className="gem-gradient text-white">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Business
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {stats.businesses.map((business) => (
-          <Link key={business.id} href={`/dashboard/businesses/${business.id}`}>
-            <Card className="gem-card hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="mb-1">{business.name}</CardTitle>
-                    <CardDescription>{business.location}</CardDescription>
-                  </div>
-                  {business.wikidataQid ? (
-                    <div className="flex flex-col items-end gap-1">
-                      <GemBadge variant="ruby" className="text-xs">
-                        <Sparkles className="mr-1 h-3 w-3" />
-                        In LLMs
-                      </GemBadge>
-                      <span className="text-xs text-gray-500">
-                        Discoverable by AI
-                      </span>
+        {stats.businesses.map((business) => {
+          // Parse location string (format: "City, State")
+          const locationParts = business.location?.split(', ') || [];
+          const city = locationParts[0] || '';
+          const state = locationParts[1] || '';
+          
+          return (
+            <Link key={business.id} href={`/dashboard/businesses/${business.id}`}>
+              <Card className="gem-card hover:shadow-lg transition-shadow cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="mb-1">{business.name}</CardTitle>
+                      <CardDescription>{business.location}</CardDescription>
                     </div>
-                  ) : (
-                    <GemBadge variant="outline" className="text-xs">
-                      Not in LLMs yet
-                    </GemBadge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">AI Visibility Score</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold gem-text">{business.visibilityScore}</span>
-                      <div className={`flex items-center text-sm ${
-                        business.trend === 'up' ? 'text-green-500' : 'text-red-500'
-                      }`}>
-                        {business.trend === 'up' ? (
-                          <TrendingUp className="h-4 w-4 mr-1" />
-                        ) : (
-                          <TrendingDown className="h-4 w-4 mr-1" />
+                    {business.wikidataQid ? (
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="default" className="text-xs">
+                          <Sparkles className="mr-1 h-3 w-3" />
+                          In LLMs
+                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          Discoverable by AI
+                        </span>
+                      </div>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">
+                        Not in LLMs yet
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">AI Visibility Score</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold gem-text">{business.visibilityScore || '--'}</span>
+                        {business.trend === 'up' && (
+                          <div className="flex items-center text-sm text-green-500">
+                            <TrendingUp className="h-4 w-4 mr-1" />
+                            {Math.abs(business.trendValue)}%
+                          </div>
                         )}
-                        {Math.abs(business.trendValue)}%
                       </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Last fingerprint</span>
-                    <span className="text-gray-900">{business.lastFingerprint}</span>
-                  </div>
-
-                  {business.wikidataQid && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                      <WikidataRubyIcon size={16} />
-                      <span className="text-xs wikidata-accent font-medium">{business.wikidataQid}</span>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Last fingerprint</span>
+                      <span className="text-gray-900">{business.lastFingerprint}</span>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+                    {business.wikidataQid && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                        <WikidataRubyIcon size={16} />
+                        <span className="text-xs wikidata-accent font-medium">{business.wikidataQid}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Upgrade CTA for Free Users */}
       {!isPro && (
-        <Card className="gem-card border-2 border-primary">
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <Sparkles className="h-12 w-12 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    Unlock Wikidata Publishing
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Upgrade to Pro and publish your businesses to Wikidata. Increase your AI visibility by up to 340%.
-                  </p>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                      <span>Publish to Wikidata knowledge base</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                      <span>Weekly fingerprints instead of monthly</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                      <span>Track up to 5 businesses</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <Link href="/pricing">
-                <Button size="lg" className="gem-gradient text-white whitespace-nowrap">
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Upgrade to Pro
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+        <UpgradeCTA feature="wikidata" variant="card" />
       )}
     </section>
   );

@@ -1,15 +1,7 @@
 /**
  * Settings Hub Page
  * 
- * SOLID Principles:
- * - Single Responsibility: Only displays settings overview and navigation
- * - Open/Closed: Extensible for new settings sections
- * - Dependency Inversion: Uses query functions, not direct DB access
- * 
- * DRY Principles:
- * - Reuses existing UI components (Card, Button, Badge)
- * - Reuses existing query functions (getUser, getTeamForUser)
- * - Reuses existing plan configuration (getPlanById)
+ * Enhanced with TierBadge component while maintaining structure
  */
 
 import { redirect } from 'next/navigation';
@@ -18,7 +10,7 @@ import { getUser, getTeamForUser, getBusinessesByTeam } from '@/lib/db/queries';
 import { getPlanById } from '@/lib/gemflush/plans';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { TierBadge } from '@/components/subscription/tier-badge';
 import { 
   User, 
   Lock, 
@@ -41,21 +33,17 @@ import { businesses, wikidataEntities, llmFingerprints } from '@/lib/db/schema';
  * SOLID: Single Responsibility - only fetches stats data
  */
 async function getTeamStats(teamId: number) {
-  // Get business count
   const [businessCount] = await db
     .select({ count: count() })
     .from(businesses)
     .where(eq(businesses.teamId, teamId));
 
-  // Get published entities count (using join for efficiency)
-  // DRY: Reuses same pattern as other queries in codebase
   const allPublished = await db
     .select()
     .from(wikidataEntities)
     .leftJoin(businesses, eq(wikidataEntities.businessId, businesses.id))
     .where(eq(businesses.teamId, teamId));
 
-  // Get fingerprint count (using join for efficiency)
   const allFingerprints = await db
     .select()
     .from(llmFingerprints)
@@ -93,7 +81,6 @@ export default async function SettingsPage() {
   const plan = getPlanById(planTier);
   const stats = await getTeamStats(team.id);
 
-  // SOLID: Single Responsibility - Each section is a separate concern
   const settingsSections: SettingsSection[] = [
     {
       title: 'General Settings',
@@ -131,7 +118,7 @@ export default async function SettingsPage() {
           </p>
         </div>
 
-        {/* Account Overview Card */}
+        {/* Account Overview Card - Enhanced with TierBadge */}
         <Card>
           <CardHeader>
             <CardTitle>Account Overview</CardTitle>
@@ -151,7 +138,7 @@ export default async function SettingsPage() {
                 </div>
               </div>
 
-              {/* Plan Info */}
+              {/* Plan Info - Enhanced with TierBadge */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   {planTier === 'free' && <GemIcon size={16} variant="outline" />}
@@ -159,12 +146,13 @@ export default async function SettingsPage() {
                   {planTier === 'agency' && <Sparkles className="h-4 w-4" />}
                   <span>Plan</span>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                   <p className="font-semibold text-gray-900">{plan?.name || 'Free Plan'}</p>
-                  <p className="text-sm text-gray-600">
-                    ${plan?.price || 0}/month
-                  </p>
+                  <TierBadge tier={planTier as 'free' | 'pro' | 'agency'} />
                 </div>
+                <p className="text-sm text-gray-600">
+                  ${plan?.price || 0}/month
+                </p>
               </div>
             </div>
           </CardContent>
@@ -223,9 +211,7 @@ export default async function SettingsPage() {
                           </div>
                         </div>
                         {section.badge && (
-                          <Badge variant={section.badgeVariant || 'default'}>
-                            {section.badge}
-                          </Badge>
+                          <TierBadge tier={planTier as 'free' | 'pro' | 'agency'} />
                         )}
                       </div>
                     </CardHeader>
@@ -316,4 +302,3 @@ export default async function SettingsPage() {
     </div>
   );
 }
-

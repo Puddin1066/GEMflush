@@ -80,10 +80,11 @@ export async function GET(
     
     const previousFingerprint = previousFingerprints[1]; // Second most recent
 
-    // Transform to DTO
+    // Transform to DTO with business data to reconstruct prompts
     const dto = toFingerprintDetailDTO(
       currentFingerprint as any, // TODO: Proper type mapping
-      previousFingerprint as any
+      previousFingerprint as any,
+      business // Pass business data to reconstruct prompts
     );
 
     return NextResponse.json(dto);
