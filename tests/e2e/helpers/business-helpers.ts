@@ -320,8 +320,12 @@ export async function runCrawlAndFingerprint(
  * Helper to wait for entity card to appear (DRY: centralize entity loading logic)
  * SOLID: Single Responsibility - handles entity card visibility
  * Pragmatic: Waits for entity API call and card to appear
+ * 
+ * @param page - Playwright page
+ * @param businessId - Business ID (optional, for API polling)
+ * @returns Entity card element or null
  */
-export async function waitForEntityCard(page: Page, businessId: number): Promise<any> {
+export async function waitForEntityCard(page: Page, businessId?: number): Promise<any> {
   // Reload page to trigger entity load (entity loads when status is 'crawled')
   // Wrap in try-catch to handle page closed errors (SOLID: handle edge cases gracefully)
   // Fixes: page.waitForTimeout fails if page is closed (e.g., test timeout)
@@ -335,19 +339,20 @@ export async function waitForEntityCard(page: Page, businessId: number): Promise
     throw error;
   }
   
-  // Wait for entity API call to complete (REAL API)
-  // Use Promise.race to prevent hanging if API never responds
-  try {
-    await Promise.race([
-      page.waitForResponse(
-        (response: any) => response.url().includes(`/api/wikidata/entity/${businessId}`) && response.status() === 200,
-        { timeout: 30000 }
-      ),
-      // Fallback timeout to prevent hanging
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Entity API timeout')), 35000))
-    ]);
-  } catch {
-    // Entity API may have been called already or is still processing - continue
+  // Wait for entity API call to complete (REAL API) - only if businessId provided
+  if (businessId) {
+    try {
+      await Promise.race([
+        page.waitForResponse(
+          (response: any) => response.url().includes(`/api/wikidata/entity/${businessId}`) && response.status() === 200,
+          { timeout: 30000 }
+        ),
+        // Fallback timeout to prevent hanging
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Entity API timeout')), 35000))
+      ]);
+    } catch {
+      // Entity API may have been called already or is still processing - continue
+    }
   }
   
   // Wait for React to render the entity card (pragmatic: React may need time to update state)
@@ -476,4 +481,89 @@ export async function verifyBusinessVisible(
   // Page not loaded - return false
   return false;
 }
+
+/**
+ * Wait for Visibility Intel Card to appear with data
+ * DRY: Reusable helper for waiting on visibility intel card
+ * 
+ * @param page - Playwright page
+ * @param options - Options for waiting (timeout)
+ * @returns true if card found with data, false if timeout
+ */
+export async function waitForVisibilityIntelCard(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<boolean> {
+  const { timeout = 10000 } = options;
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    // Look for Visibility Intel card by title
+    const cardTitle = page.getByText(/Visibility Intel/i);
+    const titleVisible = await cardTitle.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (titleVisible) {
+      // Check if card has data (not just empty state)
+      const emptyState = page.getByText(/No fingerprint data yet|Run a fingerprint/i);
+      const hasEmptyState = await emptyState.isVisible({ timeout: 1000 }).catch(() => false);
+
+      if (!hasEmptyState) {
+        // Card has data - verify it shows a score or meaningful content
+        const scoreDisplay = page.locator('text=/\\d+%|Visibility Score|\\d+/i');
+        const hasScore = await scoreDisplay.first().isVisible({ timeout: 2000 }).catch(() => false);
+
+        if (hasScore) {
+          return true;
+        }
+      }
+    }
+
+    await page.waitForTimeout(2000); // Poll every 2 seconds
+  }
+
+  return false;
+}
+
+/**
+ * Wait for Competitive Edge Card to appear with data
+ * DRY: Reusable helper for waiting on competitive edge card
+ * 
+ * @param page - Playwright page
+ * @param options - Options for waiting (timeout)
+ * @returns true if card found with data, false if timeout
+ */
+export async function waitForCompetitiveEdgeCard(
+  page: Page,
+  options: { timeout?: number } = {}
+): Promise<boolean> {
+  const { timeout = 10000 } = options;
+  const startTime = Date.now();
+
+  while (Date.now() - startTime < timeout) {
+    // Look for Competitive Edge card by title
+    const cardTitle = page.getByText(/Competitive Edge/i);
+    const titleVisible = await cardTitle.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (titleVisible) {
+      // Check if card has data (not just empty state)
+      const emptyState = page.getByText(/Run a fingerprint to see competitive intel/i);
+      const hasEmptyState = await emptyState.isVisible({ timeout: 1000 }).catch(() => false);
+
+      if (!hasEmptyState) {
+        // Card has data - verify it shows competitive information
+        const competitiveData = page.getByText(/Market Position|Competitive|Top Competitor|Your Position/i);
+        const hasData = await competitiveData.first().isVisible({ timeout: 2000 }).catch(() => false);
+
+        if (hasData) {
+          return true;
+        }
+      }
+    }
+
+    await page.waitForTimeout(2000); // Poll every 2 seconds
+  }
+
+  return false;
+}
+
 
