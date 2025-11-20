@@ -12,6 +12,7 @@ Technical reference documentation, examples, and patterns.
 - **[ORGANIZATION_SUMMARY.md](ORGANIZATION_SUMMARY.md)** - Documentation organization summary
 
 ### Technical Reference
+- **[CONTRACTS_SCHEMAS_VALIDATION.md](CONTRACTS_SCHEMAS_VALIDATION.md)** ⭐ - Comprehensive reference for contracts, schemas, and validation strategy with tables
 - **[DTO_SERVICE_MAPPING.md](DTO_SERVICE_MAPPING.md)** - Data transfer object mapping
 - **[DTO_EVOLUTION_EXAMPLE.md](DTO_EVOLUTION_EXAMPLE.md)** - DTO evolution examples
 - **[VALIDATION_EXAMPLES.md](VALIDATION_EXAMPLES.md)** - Validation patterns

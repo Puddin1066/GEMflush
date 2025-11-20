@@ -1,0 +1,4979 @@
+{
+  "timestamp": "2025-11-20T01:18:28.705Z",
+  "filesAnalyzed": 74,
+  "filesToKeep": 39,
+  "filesToRefactor": 29,
+  "filesToDeprecate": 6,
+  "filesToArchive": 0,
+  "filesToRemove": 0,
+  "changes": [
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/auth/middleware.ts",
+      "relativePath": "lib/auth/middleware.ts",
+      "exports": [
+        "ActionState",
+        "validatedAction",
+        "validatedActionWithUser",
+        "withTeam",
+        "verifyBusinessOwnership"
+      ],
+      "imports": [
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "z"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getTeamForUser",
+            "getUser"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "next/navigation",
+          "imports": [
+            "redirect"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "validatedAction",
+          "line": 17,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "validatedActionWithUser",
+          "line": 37,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "withTeam",
+          "line": 61,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "verifyBusinessOwnership",
+          "line": 81,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/auth/session.ts",
+      "relativePath": "lib/auth/session.ts",
+      "exports": [
+        "hashPassword",
+        "comparePasswords",
+        "signToken",
+        "verifyToken",
+        "getSession",
+        "setSession"
+      ],
+      "imports": [
+        {
+          "from": "bcryptjs",
+          "imports": [
+            "compare",
+            "hash"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "jose",
+          "imports": [
+            "compare",
+            "hash"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "next/headers",
+          "imports": [
+            "SignJWT",
+            "jwtVerify"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "cookies"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "hashPassword",
+          "line": 17,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "comparePasswords",
+          "line": 21,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "signToken",
+          "line": 33,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "verifyToken",
+          "line": 41,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getSession",
+          "line": 48,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "session",
+          "line": 49,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "setSession",
+          "line": 54,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/crawler/index.ts",
+      "relativePath": "lib/crawler/index.ts",
+      "exports": [
+        "WebCrawler",
+        "webCrawler"
+      ],
+      "imports": [
+        {
+          "from": "cheerio",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/types/gemflush",
+          "imports": [
+            "CrawledData",
+            "CrawlResult"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/llm/openrouter",
+          "imports": [
+            "openRouterClient"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "fs",
+          "imports": [
+            "openRouterClient"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "path",
+          "imports": [
+            "fs"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Should implement IWebCrawler contract",
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/data/dashboard-dto.ts",
+      "relativePath": "lib/data/dashboard-dto.ts",
+      "exports": [
+        "getDashboardDTO"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getBusinessesByTeam",
+            "getLatestFingerprint"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getDashboardDTO",
+          "line": 25,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "transformBusinessToDTO",
+          "line": 53,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatLocation",
+          "line": 77,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "calculateTrend",
+          "line": 87,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatTimestamp",
+          "line": 96,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "calculateAvgScore",
+          "line": 113,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/data/fingerprint-dto.ts",
+      "relativePath": "lib/data/fingerprint-dto.ts",
+      "exports": [
+        "toFingerprintDetailDTO",
+        "toCompetitiveLeaderboardDTO"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/types/gemflush",
+          "imports": [
+            "FingerprintAnalysis"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./types",
+          "imports": [
+            "FingerprintDetailDTO",
+            "FingerprintResultDTO",
+            "CompetitiveLeaderboardDTO",
+            "CompetitorDTO",
+            ""
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "date-fns",
+          "imports": [
+            "formatDistanceToNow"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "toFingerprintDetailDTO",
+          "line": 22,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "generatedAt",
+          "line": 28,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "normalizeFingerprintAnalysis",
+          "line": 112,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "generatedAt",
+          "line": 116,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "toFingerprintResultDTO",
+          "line": 147,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "toCompetitiveLeaderboardDTO",
+          "line": 203,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "determineMarketPosition",
+          "line": 288,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "mentionRate",
+          "line": 295,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "generateRecommendation",
+          "line": 322,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "calculateTrend",
+          "line": 350,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatModelName",
+          "line": 367,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/data/types.ts",
+      "relativePath": "lib/data/types.ts",
+      "exports": [
+        "DashboardDTO",
+        "DashboardBusinessDTO",
+        "BusinessDetailDTO",
+        "ActivityDTO",
+        "FingerprintDetailDTO",
+        "FingerprintResultDTO",
+        "CompetitiveLeaderboardDTO",
+        "CompetitorDTO",
+        "WikidataPublishDTO",
+        "WikidataStatusDTO",
+        "WikidataEntityDetailDTO",
+        "WikidataClaimDTO",
+        "WikidataPropertySuggestionDTO",
+        "CrawlResultDTO"
+      ],
+      "imports": [],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/data/wikidata-dto.ts",
+      "relativePath": "lib/data/wikidata-dto.ts",
+      "exports": [
+        "getWikidataPublishDTO",
+        "toWikidataEntityDetailDTO"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "eq"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/wikidata/tiered-entity-builder",
+          "imports": [
+            "eq"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/wikidata/notability-checker",
+          "imports": [
+            "notabilityChecker",
+            "type NotabilityResult"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getTeamForBusiness"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getWikidataPublishDTO",
+          "line": 35,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "tier",
+          "line": 49,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "buildRecommendation",
+          "line": 141,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "extractTopReferences",
+          "line": 166,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "toWikidataEntityDetailDTO",
+          "line": 188,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/db/drizzle.ts",
+      "relativePath": "lib/db/drizzle.ts",
+      "exports": [
+        "client",
+        "db"
+      ],
+      "imports": [
+        {
+          "from": "drizzle-orm/postgres-js",
+          "imports": [
+            "drizzle"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "postgres",
+          "imports": [
+            "drizzle"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "./schema",
+          "imports": [
+            "*"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "dotenv",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/db/queries.ts",
+      "relativePath": "lib/db/queries.ts",
+      "exports": [
+        "getUser",
+        "getTeamByStripeCustomerId",
+        "updateTeamSubscription",
+        "getUserWithTeam",
+        "getActivityLogs",
+        "getTeamForUser",
+        "getBusinessesByTeam",
+        "getBusinessById",
+        "getTeamForBusiness",
+        "createBusiness",
+        "updateBusiness",
+        "getBusinessCountByTeam",
+        "getLatestFingerprint",
+        "createFingerprint",
+        "getFingerprintHistory",
+        "getWikidataEntity",
+        "createWikidataEntity",
+        "createCrawlJob",
+        "updateCrawlJob",
+        "getCrawlJob",
+        "getActiveCrawlJobs",
+        "getCompetitors"
+      ],
+      "imports": [
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "desc",
+            "and",
+            "eq",
+            "isNull",
+            "count"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "./drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "next/headers",
+          "imports": [
+            "cookies"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/auth/session",
+          "imports": [
+            "cookies"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getUser",
+          "line": 21,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "sessionCookie",
+          "line": 22,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getTeamByStripeCustomerId",
+          "line": 53,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "updateTeamSubscription",
+          "line": 63,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getUserWithTeam",
+          "line": 81,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getActivityLogs",
+          "line": 95,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getTeamForUser",
+          "line": 116,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getBusinessesByTeam",
+          "line": 148,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getBusinessById",
+          "line": 156,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getTeamForBusiness",
+          "line": 166,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createBusiness",
+          "line": 181,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "updateBusiness",
+          "line": 190,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getBusinessCountByTeam",
+          "line": 203,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getLatestFingerprint",
+          "line": 212,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createFingerprint",
+          "line": 223,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getFingerprintHistory",
+          "line": 232,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getWikidataEntity",
+          "line": 244,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createWikidataEntity",
+          "line": 255,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createCrawlJob",
+          "line": 264,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "updateCrawlJob",
+          "line": 273,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getCrawlJob",
+          "line": 286,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getActiveCrawlJobs",
+          "line": 296,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getCompetitors",
+          "line": 304,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/db/schema.ts",
+      "relativePath": "lib/db/schema.ts",
+      "exports": [
+        "users",
+        "teams",
+        "teamMembers",
+        "activityLogs",
+        "invitations",
+        "teamsRelations",
+        "usersRelations",
+        "invitationsRelations",
+        "teamMembersRelations",
+        "activityLogsRelations",
+        "User",
+        "NewUser",
+        "Team",
+        "NewTeam",
+        "TeamMember",
+        "NewTeamMember",
+        "ActivityLog",
+        "NewActivityLog",
+        "Invitation",
+        "NewInvitation",
+        "TeamDataWithMembers",
+        "ActivityType",
+        "businesses",
+        "wikidataEntities",
+        "llmFingerprints",
+        "crawlJobs",
+        "competitors",
+        "businessesRelations",
+        "wikidataEntitiesRelations",
+        "llmFingerprintsRelations",
+        "crawlJobsRelations",
+        "competitorsRelations",
+        "Business",
+        "NewBusiness",
+        "WikidataEntity",
+        "NewWikidataEntity",
+        "LLMFingerprint",
+        "NewLLMFingerprint",
+        "CrawlJob",
+        "NewCrawlJob",
+        "Competitor",
+        "NewCompetitor",
+        "qidCache",
+        "QidCache",
+        "NewQidCache"
+      ],
+      "imports": [
+        {
+          "from": "drizzle-orm/pg-core",
+          "imports": [
+            "pgTable",
+            "serial",
+            "varchar",
+            "text",
+            "timestamp",
+            "integer",
+            "jsonb",
+            "real",
+            "boolean",
+            "unique",
+            ""
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "relations"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/db/seed.ts",
+      "relativePath": "lib/db/seed.ts",
+      "exports": [],
+      "imports": [
+        {
+          "from": "../payments/stripe",
+          "imports": [
+            "stripe"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./drizzle",
+          "imports": [
+            "stripe"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/auth/session",
+          "imports": [
+            "users",
+            "teams",
+            "teamMembers"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "createStripeProducts",
+          "line": 6,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "seed",
+          "line": 42,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "deprecate",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/db/setup.ts",
+      "relativePath": "lib/db/setup.ts",
+      "exports": [],
+      "imports": [
+        {
+          "from": "node:child_process",
+          "imports": [
+            "exec"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "node:fs",
+          "imports": [
+            "exec"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "node:util",
+          "imports": [
+            "promises"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "node:readline",
+          "imports": [
+            "promisify"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "node:crypto",
+          "imports": [
+            "readline"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "node:path",
+          "imports": [
+            "crypto"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "node:os",
+          "imports": [
+            "path"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "question",
+          "line": 11,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "checkStripeCLI",
+          "line": 25,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getPostgresURL",
+          "line": 80,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "setupLocalPostgres",
+          "line": 98,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getStripeSecretKey",
+          "line": 150,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createStripeWebhook",
+          "line": 158,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "generateAuthSecret",
+          "line": 181,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "writeEnvFile",
+          "line": 186,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "main",
+          "line": 196,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "deprecate",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/examples.ts",
+      "relativePath": "lib/email/examples.ts",
+      "exports": [
+        "onUserSignup",
+        "onPasswordResetRequest",
+        "onSubscriptionCreated",
+        "onSubscriptionUpdated",
+        "onFingerprintComplete"
+      ],
+      "imports": [
+        {
+          "from": "./send",
+          "imports": [
+            "sendWelcomeEmail",
+            "sendPasswordResetEmail",
+            "sendSubscriptionEmail",
+            "sendVisibilityReportEmail"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "onUserSignup",
+          "line": 17,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "onPasswordResetRequest",
+          "line": 32,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "onSubscriptionCreated",
+          "line": 54,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "onSubscriptionUpdated",
+          "line": 84,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "onFingerprintComplete",
+          "line": 114,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "generateSecureToken",
+          "line": 130,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "storeResetToken",
+          "line": 135,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getPlanFeatures",
+          "line": 140,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "isPlanUpgrade",
+          "line": 165,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/resend.ts",
+      "relativePath": "lib/email/resend.ts",
+      "exports": [
+        "resend",
+        "EMAIL_FROM",
+        "SUPPORT_EMAIL"
+      ],
+      "imports": [
+        {
+          "from": "resend",
+          "imports": [
+            "Resend"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/send.ts",
+      "relativePath": "lib/email/send.ts",
+      "exports": [
+        "SendEmailOptions",
+        "sendEmail",
+        "sendWelcomeEmail",
+        "sendPasswordResetEmail",
+        "sendSubscriptionEmail",
+        "sendVisibilityReportEmail"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "./resend",
+          "imports": [
+            "resend",
+            "EMAIL_FROM"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./templates/welcome",
+          "imports": [
+            "resend",
+            "EMAIL_FROM"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./templates/password-reset",
+          "imports": [
+            "WelcomeEmail"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./templates/subscription-updated",
+          "imports": [
+            "SubscriptionUpdatedEmail"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./templates/visibility-report",
+          "imports": [
+            "VisibilityReportEmail"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "sendEmail",
+          "line": 19,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "to",
+          "line": 41,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getBaseUrl",
+          "line": 42,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "sendWelcomeEmail",
+          "line": 49,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "sendPasswordResetEmail",
+          "line": 70,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "sendSubscriptionEmail",
+          "line": 92,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "sendVisibilityReportEmail",
+          "line": 121,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/templates/password-reset.tsx",
+      "relativePath": "lib/email/templates/password-reset.tsx",
+      "exports": [
+        "PasswordResetEmail",
+        "default"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/templates/subscription-updated.tsx",
+      "relativePath": "lib/email/templates/subscription-updated.tsx",
+      "exports": [
+        "SubscriptionUpdatedEmail",
+        "default"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/templates/visibility-report.tsx",
+      "relativePath": "lib/email/templates/visibility-report.tsx",
+      "exports": [
+        "VisibilityReportEmail",
+        "default"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/email/templates/welcome.tsx",
+      "relativePath": "lib/email/templates/welcome.tsx",
+      "exports": [
+        "WelcomeEmail",
+        "default"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "*"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/gemflush/permissions.ts",
+      "relativePath": "lib/gemflush/permissions.ts",
+      "exports": [
+        "canPublishToWikidata",
+        "getMaxBusinesses",
+        "canAccessHistoricalData",
+        "canUseProgressiveEnrichment",
+        "canAccessAPI",
+        "getFingerprintFrequency",
+        "canAddBusiness",
+        "getBusinessLimitMessage"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Team"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./plans",
+          "imports": [
+            "Team"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "to",
+          "line": 6,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getTeamPlan",
+          "line": 7,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "canPublishToWikidata",
+          "line": 11,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getMaxBusinesses",
+          "line": 16,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "canAccessHistoricalData",
+          "line": 21,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "canUseProgressiveEnrichment",
+          "line": 26,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "canAccessAPI",
+          "line": 31,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getFingerprintFrequency",
+          "line": 36,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "canAddBusiness",
+          "line": 41,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getBusinessLimitMessage",
+          "line": 46,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/gemflush/plans.ts",
+      "relativePath": "lib/gemflush/plans.ts",
+      "exports": [
+        "GEMFLUSH_PLANS",
+        "getPlanById",
+        "getPlanByStripePriceId",
+        "getDefaultPlan"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/types/gemflush",
+          "imports": [
+            "SubscriptionPlan"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getPlanById",
+          "line": 49,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getPlanByStripePriceId",
+          "line": 53,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getDefaultPlan",
+          "line": 57,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/hooks/use-business-detail.ts",
+      "relativePath": "lib/hooks/use-business-detail.ts",
+      "exports": [
+        "BusinessDetail",
+        "UseBusinessDetailReturn",
+        "useBusinessDetail"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "useCallback",
+            "useEffect",
+            "useState"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "useBusinessDetail",
+          "line": 39,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "debugInfo",
+          "line": 121,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "that",
+          "line": 263,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/hooks/use-businesses.ts",
+      "relativePath": "lib/hooks/use-businesses.ts",
+      "exports": [
+        "Business",
+        "UseBusinessesReturn",
+        "useBusinesses"
+      ],
+      "imports": [
+        {
+          "from": "swr",
+          "imports": [
+            "useSWR"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "swr",
+          "imports": [
+            "mutate"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "fetcher",
+          "line": 12,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "useBusinesses",
+          "line": 42,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/hooks/use-create-business.ts",
+      "relativePath": "lib/hooks/use-create-business.ts",
+      "exports": [
+        "UseCreateBusinessReturn",
+        "useCreateBusiness"
+      ],
+      "imports": [
+        {
+          "from": "react",
+          "imports": [
+            "useState"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "next/navigation",
+          "imports": [
+            "useState"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "swr",
+          "imports": [
+            "useRouter"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "useCreateBusiness",
+          "line": 22,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createBusiness",
+          "line": 29,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createBusinessWithLocation",
+          "line": 93,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/hooks/use-dashboard.ts",
+      "relativePath": "lib/hooks/use-dashboard.ts",
+      "exports": [
+        "UseDashboardReturn",
+        "useDashboard"
+      ],
+      "imports": [
+        {
+          "from": "swr",
+          "imports": [
+            "useSWR"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "fetcher",
+          "line": 12,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "useDashboard",
+          "line": 25,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/hooks/use-team.ts",
+      "relativePath": "lib/hooks/use-team.ts",
+      "exports": [
+        "UseTeamReturn",
+        "useTeam"
+      ],
+      "imports": [
+        {
+          "from": "swr",
+          "imports": [
+            "useSWR"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/gemflush/plans",
+          "imports": [
+            "Team"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/gemflush/permissions",
+          "imports": [
+            "getPlanById"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "fetcher",
+          "line": 18,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "useTeam",
+          "line": 43,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "planTier",
+          "line": 47,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/hooks/use-user.ts",
+      "relativePath": "lib/hooks/use-user.ts",
+      "exports": [
+        "UseUserReturn",
+        "useUser"
+      ],
+      "imports": [],
+      "functions": [
+        {
+          "name": "fetcher",
+          "line": 10,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "useUser",
+          "line": 23,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/llm/fingerprinter.ts",
+      "relativePath": "lib/llm/fingerprinter.ts",
+      "exports": [
+        "LLMFingerprinter",
+        "llmFingerprinter"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/types/gemflush",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./openrouter",
+          "imports": [
+            "openRouterClient"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/utils/logger",
+          "imports": [
+            "openRouterClient"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "term",
+          "line": 312,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "to",
+          "line": 652,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "countKeywords",
+          "line": 653,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "isPlaceholder",
+          "line": 709,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "mentionRate",
+          "line": 772,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Should implement ILLMFingerprinter contract",
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/llm/openrouter.ts",
+      "relativePath": "lib/llm/openrouter.ts",
+      "exports": [
+        "OpenRouterClient",
+        "openRouterClient"
+      ],
+      "imports": [
+        {
+          "from": "fs",
+          "imports": [
+            "fs"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "path",
+          "imports": [
+            "fs"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "crypto",
+          "imports": [
+            "fs"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "referenceCount",
+          "line": 226,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Should implement IOpenRouterClient contract"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/payments/actions.ts",
+      "relativePath": "lib/payments/actions.ts",
+      "exports": [
+        "checkoutAction",
+        "customerPortalAction"
+      ],
+      "imports": [
+        {
+          "from": "next/navigation",
+          "imports": [
+            "redirect"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "./stripe",
+          "imports": [
+            "redirect"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/auth/middleware",
+          "imports": [
+            "withTeam"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/payments/gemflush-products.ts",
+      "relativePath": "lib/payments/gemflush-products.ts",
+      "exports": [
+        "GEMFLUSH_STRIPE_CONFIG",
+        "getGemflushProduct"
+      ],
+      "imports": [],
+      "functions": [
+        {
+          "name": "getGemflushProduct",
+          "line": 41,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/payments/setup-products.ts",
+      "relativePath": "lib/payments/setup-products.ts",
+      "exports": [
+        "ensureStripeProducts"
+      ],
+      "imports": [
+        {
+          "from": "../../scripts/setup-stripe-products",
+          "imports": [
+            "setupStripeProducts"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "ensureStripeProducts",
+          "line": 15,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/payments/stripe.ts",
+      "relativePath": "lib/payments/stripe.ts",
+      "exports": [
+        "stripe",
+        "createCheckoutSession",
+        "createCustomerPortalSession",
+        "handleSubscriptionChange",
+        "getStripePrices",
+        "getStripeProducts"
+      ],
+      "imports": [
+        {
+          "from": "stripe",
+          "imports": [
+            "Stripe"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "next/navigation",
+          "imports": [
+            "redirect"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "next/headers",
+          "imports": [
+            "redirect"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "headers"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "Team"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getBaseUrl",
+          "line": 22,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createCheckoutSession",
+          "line": 45,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "createCustomerPortalSession",
+          "line": 128,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "normalizeProductNameToPlanId",
+          "line": 204,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "planIds",
+          "line": 219,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "handleSubscriptionChange",
+          "line": 224,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getStripePrices",
+          "line": 308,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getStripeProducts",
+          "line": 326,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Should implement IPaymentService contract",
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/payments/types.ts",
+      "relativePath": "lib/payments/types.ts",
+      "exports": [
+        "StripePriceDTO",
+        "StripeProductDTO",
+        "GemflushProductConfig",
+        "GemflushStripeConfig",
+        "CreateCheckoutSessionInput",
+        "UpdateTeamSubscriptionInput",
+        "EnsureStripeProductsResult"
+      ],
+      "imports": [],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/services/automation-service.ts",
+      "relativePath": "lib/services/automation-service.ts",
+      "exports": [
+        "AutomationConfig",
+        "getAutomationConfig",
+        "shouldAutoCrawl",
+        "shouldAutoPublish",
+        "calculateNextCrawlDate",
+        "getEntityRichnessForTier"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Team",
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/gemflush/plans",
+          "imports": [
+            "Team",
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getAutomationConfig",
+          "line": 22,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "shouldAutoCrawl",
+          "line": 72,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "shouldAutoPublish",
+          "line": 97,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "calculateNextCrawlDate",
+          "line": 127,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getEntityRichnessForTier",
+          "line": 144,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/services/business-processing.ts",
+      "relativePath": "lib/services/business-processing.ts",
+      "exports": [
+        "shouldCrawl",
+        "canRunFingerprint",
+        "executeCrawlJob",
+        "executeFingerprint",
+        "autoStartProcessing"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/crawler",
+          "imports": [
+            "webCrawler"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/llm/fingerprinter",
+          "imports": [
+            "webCrawler"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "llmFingerprints"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/gemflush/permissions",
+          "imports": [
+            "eq",
+            "desc"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./automation-service",
+          "imports": [
+            "getAutomationConfig",
+            "shouldAutoPublish",
+            "calculateNextCrawlDate"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/crawl",
+          "imports": [
+            "validateCrawledData"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/utils/logger",
+          "imports": [
+            "loggers"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "shouldCrawl",
+          "line": 27,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "hoursSinceCrawl",
+          "line": 36,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "canRunFingerprint",
+          "line": 50,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "daysSinceLast",
+          "line": 66,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "executeCrawlJob",
+          "line": 87,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "executeFingerprint",
+          "line": 406,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "autoStartProcessing",
+          "line": 504,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/services/monthly-processing.ts",
+      "relativePath": "lib/services/monthly-processing.ts",
+      "exports": [
+        "runMonthlyProcessing"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "eq",
+            "and",
+            "or",
+            "lte",
+            "sql"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "./business-processing",
+          "imports": [
+            "eq",
+            "and",
+            "or",
+            "lte",
+            "sql"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./scheduler-service",
+          "imports": [
+            "handleAutoPublish"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./automation-service",
+          "imports": [
+            "handleAutoPublish"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "updateBusiness"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "runMonthlyProcessing",
+          "line": 22,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "duration",
+          "line": 88,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "processBusinessMonthly",
+          "line": 101,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Usage unclear - may be redundant"
+      ],
+      "action": "deprecate",
+      "reason": "Questionable usage - needs review"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/services/scheduler-service.ts",
+      "relativePath": "lib/services/scheduler-service.ts",
+      "exports": [
+        "handleAutoPublish",
+        "processWeeklyCrawls"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getBusinessById",
+            "updateBusiness",
+            "getTeamForBusiness",
+            "createCrawlJob",
+            "createWikidataEntity"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./automation-service",
+          "imports": [
+            "shouldAutoCrawl",
+            "shouldAutoPublish",
+            "getAutomationConfig",
+            "calculateNextCrawlDate"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./business-processing",
+          "imports": [
+            "executeCrawlJob"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/data/wikidata-dto",
+          "imports": [
+            "executeCrawlJob"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/wikidata/publisher",
+          "imports": [
+            "wikidataPublisher"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/wikidata/manual-publish-storage",
+          "imports": [
+            "storeEntityForManualPublish"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "businesses"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/utils/logger",
+          "imports": [
+            "eq",
+            "and",
+            "lte"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "handleAutoPublish",
+          "line": 24,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "processWeeklyCrawls",
+          "line": 191,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/subscription/upgrade-config.ts",
+      "relativePath": "lib/subscription/upgrade-config.ts",
+      "exports": [
+        "UpgradeFeature",
+        "FeatureConfig",
+        "UPGRADE_CONFIGS",
+        "getUpgradeConfig",
+        "getRecommendedPlan"
+      ],
+      "imports": [
+        {
+          "from": "lucide-react",
+          "imports": [
+            "LucideIcon"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/components/ui/gem-icon",
+          "imports": [
+            "Building2",
+            "Database",
+            "Zap"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "getUpgradeConfig",
+          "line": 101,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getRecommendedPlan",
+          "line": 109,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/types/gemflush.ts",
+      "relativePath": "lib/types/gemflush.ts",
+      "exports": [
+        "BusinessLocation",
+        "CrawledData",
+        "LLMResult",
+        "CompetitiveBenchmark",
+        "FingerprintAnalysis",
+        "CrawlResult",
+        "PlanFeatures",
+        "SubscriptionPlan",
+        "CrawlJobResult",
+        "FingerprintJobResult",
+        "WikidataPublishResult"
+      ],
+      "imports": [],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/types/service-contracts.ts",
+      "relativePath": "lib/types/service-contracts.ts",
+      "exports": [
+        "IWebCrawler",
+        "ILLMFingerprinter",
+        "IOpenRouterClient",
+        "IWikidataEntityBuilder",
+        "IWikidataPublisher",
+        "IManualPublishStorage",
+        "IPaymentService",
+        "ApiResponse",
+        "JobResponse",
+        "BusinessCreateResponse",
+        "ServiceError",
+        "CrawlerError",
+        "LLMError",
+        "WikidataError",
+        "PaymentError"
+      ],
+      "imports": [
+        {
+          "from": "./gemflush",
+          "imports": [
+            "CrawlResult",
+            "CrawledData",
+            "FingerprintAnalysis",
+            "WikidataPublishResult",
+            ""
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./wikidata-contract",
+          "imports": [
+            "WikidataEntityDataContract",
+            "WikidataClaim",
+            "StoredEntityMetadata",
+            "NotabilityAssessment"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "stripe",
+          "imports": [
+            "Stripe"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/types/wikidata-contract.ts",
+      "relativePath": "lib/types/wikidata-contract.ts",
+      "exports": [
+        "WikibaseEntityIdValue",
+        "TimeValue",
+        "QuantityValue",
+        "MonolingualTextValue",
+        "GlobeCoordinateValue",
+        "WikidataDatavalue",
+        "WikidataSnak",
+        "WikidataReferenceSnak",
+        "WikidataReference",
+        "WikidataClaim",
+        "WikidataLabel",
+        "WikidataDescription",
+        "LLMSuggestions",
+        "WikidataEntityDataContract",
+        "CleanedWikidataEntity",
+        "isWikidataEntityDataContract",
+        "NotabilityAssessment",
+        "StoredEntityMetadata"
+      ],
+      "imports": [],
+      "functions": [
+        {
+          "name": "as",
+          "line": 5,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "isWikidataEntityDataContract",
+          "line": 227,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils/format.ts",
+      "relativePath": "lib/utils/format.ts",
+      "exports": [
+        "formatPercentage",
+        "formatVisibilityScore",
+        "formatMarketPosition",
+        "formatModelName",
+        "formatRelativeTime",
+        "formatSentiment",
+        "formatTrend",
+        "formatRank"
+      ],
+      "imports": [
+        {
+          "from": "date-fns/formatDistanceToNow",
+          "imports": [
+            "formatDistanceToNow"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "formatPercentage",
+          "line": 13,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatVisibilityScore",
+          "line": 23,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatMarketPosition",
+          "line": 42,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatModelName",
+          "line": 84,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatRelativeTime",
+          "line": 129,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatSentiment",
+          "line": 137,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatTrend",
+          "line": 166,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "formatRank",
+          "line": 195,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils/idempotency.ts",
+      "relativePath": "lib/utils/idempotency.ts",
+      "exports": [
+        "getIdempotencyKey",
+        "getCachedResponse",
+        "cacheResponse",
+        "cleanupExpiredEntries",
+        "generateIdempotencyKey"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "getIdempotencyKey",
+          "line": 20,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getCachedResponse",
+          "line": 29,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "cacheResponse",
+          "line": 48,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "cleanupExpiredEntries",
+          "line": 58,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "generateIdempotencyKey",
+          "line": 71,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils/logger.ts",
+      "relativePath": "lib/utils/logger.ts",
+      "exports": [
+        "createLogger",
+        "loggers"
+      ],
+      "imports": [],
+      "functions": [
+        {
+          "name": "createLogger",
+          "line": 192,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils.ts",
+      "relativePath": "lib/utils.ts",
+      "exports": [
+        "cn"
+      ],
+      "imports": [
+        {
+          "from": "clsx",
+          "imports": [
+            "clsx",
+            "type ClassValue"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "tailwind-merge",
+          "imports": [
+            "clsx",
+            "type ClassValue"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "cn",
+          "line": 4,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Duplicate of another file",
+        "Usage unclear - may be redundant"
+      ],
+      "action": "deprecate",
+      "reason": "Questionable usage - needs review"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/validation/business.ts",
+      "relativePath": "lib/validation/business.ts",
+      "exports": [
+        "businessLocationSchema",
+        "extractedLocationSchema",
+        "businessCategorySchema",
+        "createBusinessSchema",
+        "createBusinessFromUrlSchema",
+        "updateBusinessSchema",
+        "crawlRequestSchema",
+        "fingerprintRequestSchema",
+        "wikidataPublishRequestSchema",
+        "CreateBusinessInput",
+        "UpdateBusinessInput",
+        "BusinessCategory"
+      ],
+      "imports": [
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/validation/crawl.ts",
+      "relativePath": "lib/validation/crawl.ts",
+      "exports": [
+        "socialLinksSchema",
+        "businessDetailsSchema",
+        "llmEnhancedSchema",
+        "crawledDataSchema",
+        "validateCrawledData",
+        "assertCrawledData",
+        "CrawledDataInput",
+        "CrawledDataOutput"
+      ],
+      "imports": [
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "validateCrawledData",
+          "line": 99,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "assertCrawledData",
+          "line": 122,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/validation/wikidata.ts",
+      "relativePath": "lib/validation/wikidata.ts",
+      "exports": [
+        "wikidataLabelSchema",
+        "wikidataDescriptionSchema",
+        "wikidataDatavalueSchema",
+        "wikidataSnakSchema",
+        "wikidataReferenceSnakSchema",
+        "wikidataReferenceSchema",
+        "wikidataClaimSchema",
+        "wikidataEntityDataSchema",
+        "WikidataEntityDataInput",
+        "WikidataEntityDataOutput",
+        "notabilityAssessmentSchema",
+        "storedEntityMetadataSchema",
+        "NotabilityAssessmentInput",
+        "NotabilityAssessmentOutput",
+        "StoredEntityMetadataInput",
+        "StoredEntityMetadataOutput",
+        "validateStoredEntityMetadata",
+        "validateWikidataEntity",
+        "assertWikidataEntity"
+      ],
+      "imports": [
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "validateStoredEntityMetadata",
+          "line": 174,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "validateWikidataEntity",
+          "line": 194,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "assertWikidataEntity",
+          "line": 217,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/entity-builder.ts",
+      "relativePath": "lib/wikidata/entity-builder.ts",
+      "exports": [
+        "WikidataEntityBuilder",
+        "entityBuilder"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/types/gemflush",
+          "imports": [
+            "CrawledData"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/types/wikidata-contract",
+          "imports": [
+            "CrawledData"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/llm/openrouter",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./property-mapping",
+          "imports": [
+            "openRouterClient"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/types/service-contracts",
+          "imports": [
+            "Reference"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/wikidata",
+          "imports": [
+            "validateWikidataEntity"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/manual-publish-storage.ts",
+      "relativePath": "lib/wikidata/manual-publish-storage.ts",
+      "exports": [
+        "storeEntityForManualPublish",
+        "listStoredEntities",
+        "loadStoredEntity",
+        "deleteStoredEntity"
+      ],
+      "imports": [
+        {
+          "from": "fs",
+          "imports": [
+            "promises"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "path",
+          "imports": [
+            "promises"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/validation/wikidata",
+          "imports": [
+            "validateStoredEntityMetadata"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "ensureStorageDir",
+          "line": 24,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "storeEntityForManualPublish",
+          "line": 43,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "listStoredEntities",
+          "line": 105,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "loadStoredEntity",
+          "line": 149,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "deleteStoredEntity",
+          "line": 161,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Usage unclear - may be redundant"
+      ],
+      "action": "deprecate",
+      "reason": "Questionable usage - needs review"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/notability-checker.ts",
+      "relativePath": "lib/wikidata/notability-checker.ts",
+      "exports": [
+        "Reference",
+        "ReferenceAssessment",
+        "NotabilityAssessment",
+        "NotabilityResult",
+        "NotabilityChecker",
+        "notabilityChecker"
+      ],
+      "imports": [
+        {
+          "from": "googleapis",
+          "imports": [
+            "google"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/llm/openrouter",
+          "imports": [
+            "google"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "isTestLikeEnv",
+          "line": 287,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "isTestLikeEnv",
+          "line": 298,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "following",
+          "line": 543,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/property-mapping.ts",
+      "relativePath": "lib/wikidata/property-mapping.ts",
+      "exports": [
+        "PropertyMapping",
+        "BUSINESS_PROPERTY_MAP",
+        "getPropertyMapping",
+        "getRequiredProperties",
+        "getOptionalProperties"
+      ],
+      "imports": [
+        {
+          "from": "./sparql",
+          "imports": [
+            "sparqlService"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "resolveIndustryQID",
+          "line": 270,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "resolveLegalFormQID",
+          "line": 275,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "resolveCityQID",
+          "line": 280,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "resolveOrganizationQID",
+          "line": 285,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "resolvePersonQID",
+          "line": 291,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getPropertyMapping",
+          "line": 301,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getRequiredProperties",
+          "line": 308,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "getOptionalProperties",
+          "line": 315,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types",
+        "Function accepts unvalidated unknown/any parameters"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/publisher.ts",
+      "relativePath": "lib/wikidata/publisher.ts",
+      "exports": [
+        "WikidataPublisher",
+        "wikidataPublisher"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/types/wikidata-contract",
+          "imports": [
+            "WikidataEntityDataContract",
+            "CleanedWikidataEntity",
+            "WikidataClaim",
+            "WikidataSnak",
+            "WikidataReference"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/types/gemflush",
+          "imports": [
+            "WikidataPublishResult"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/types/service-contracts",
+          "imports": [
+            "IWikidataPublisher"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/wikidata",
+          "imports": [
+            "validateWikidataEntity"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "./property-mapping",
+          "imports": [
+            "BUSINESS_PROPERTY_MAP"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "refDv",
+          "line": 779,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "datavalue",
+          "line": 811,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "matchingRefSnaks",
+          "line": 978,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/qid-mappings.ts",
+      "relativePath": "lib/wikidata/qid-mappings.ts",
+      "exports": [
+        "US_CITY_QIDS",
+        "INDUSTRY_QIDS",
+        "LEGAL_FORM_QIDS",
+        "US_STATE_QIDS",
+        "COUNTRY_QIDS"
+      ],
+      "imports": [],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/sparql.ts",
+      "relativePath": "lib/wikidata/sparql.ts",
+      "exports": [
+        "WikidataSPARQLService",
+        "sparqlService"
+      ],
+      "imports": [
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "qidCache"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "./qid-mappings",
+          "imports": [
+            "eq",
+            "and",
+            "sql"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/wikidata/tiered-entity-builder.ts",
+      "relativePath": "lib/wikidata/tiered-entity-builder.ts",
+      "exports": [
+        "TieredEntityBuilder",
+        "tieredEntityBuilder"
+      ],
+      "imports": [
+        {
+          "from": "./entity-builder",
+          "imports": [
+            "WikidataEntityBuilder"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/services/automation-service",
+          "imports": [
+            "Reference"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Usage unclear - may be redundant"
+      ],
+      "action": "deprecate",
+      "reason": "Questionable usage - needs review"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/business/[id]/route.ts",
+      "relativePath": "app/api/business/[id]/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 9,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/business/route.ts",
+      "relativePath": "app/api/business/route.ts",
+      "exports": [
+        "GET",
+        "POST"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getBusinessesByTeam",
+            "createBusiness",
+            "getBusinessCountByTeam",
+            ""
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/gemflush/permissions",
+          "imports": [
+            "canAddBusiness",
+            "getMaxBusinesses"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/business",
+          "imports": [
+            "createBusinessSchema",
+            "createBusinessFromUrlSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/crawler",
+          "imports": [
+            "z"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/utils/idempotency",
+          "imports": [
+            "webCrawler"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "businesses"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 24,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "POST",
+          "line": 57,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/crawl/route.ts",
+      "relativePath": "app/api/crawl/route.ts",
+      "exports": [
+        "POST"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getBusinessById",
+            "updateBusiness",
+            "createCrawlJob",
+            ""
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/business",
+          "imports": [
+            "crawlRequestSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/services/business-processing",
+          "imports": [
+            "executeCrawlJob"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/utils/idempotency",
+          "imports": [
+            "z"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "crawlJobs"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "POST",
+          "line": 23,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/cron/monthly/route.ts",
+      "relativePath": "app/api/cron/monthly/route.ts",
+      "exports": [
+        "dynamic",
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/services/monthly-processing",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 12,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/cron/weekly-crawls/route.ts",
+      "relativePath": "app/api/cron/weekly-crawls/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/services/scheduler-service",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 10,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/dashboard/route.ts",
+      "relativePath": "app/api/dashboard/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/data/dashboard-dto",
+          "imports": [
+            "getDashboardDTO"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 13,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/fingerprint/[id]/route.ts",
+      "relativePath": "app/api/fingerprint/[id]/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "getUser"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "eq",
+            "and",
+            "desc"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/data/fingerprint-dto",
+          "imports": [
+            "eq",
+            "and",
+            "desc"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 15,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types",
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/fingerprint/business/[businessId]/route.ts",
+      "relativePath": "app/api/fingerprint/business/[businessId]/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "getUser"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "eq",
+            "desc"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/data/fingerprint-dto",
+          "imports": [
+            "eq",
+            "desc"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 15,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types",
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/fingerprint/route.ts",
+      "relativePath": "app/api/fingerprint/route.ts",
+      "exports": [
+        "POST"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "getUser"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "eq",
+            "and",
+            "desc"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/llm/fingerprinter",
+          "imports": [
+            "eq",
+            "and",
+            "desc"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/utils/idempotency",
+          "imports": [
+            "Business"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "POST",
+          "line": 22,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types",
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/job/[jobId]/route.ts",
+      "relativePath": "app/api/job/[jobId]/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getCrawlJob"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/auth/middleware",
+          "imports": [
+            "getCrawlJob"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 8,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/stripe/checkout/route.ts",
+      "relativePath": "app/api/stripe/checkout/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "drizzle-orm",
+          "imports": [
+            "eq"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/drizzle",
+          "imports": [
+            "eq"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/schema",
+          "imports": [
+            "db"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/auth/session",
+          "imports": [
+            "setSession"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "next/server",
+          "imports": [
+            "setSession"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/payments/stripe",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "stripe",
+          "imports": [
+            "stripe"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "normalizeProductNameToPlanId",
+          "line": 18,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
+          "name": "GET",
+          "line": 38,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/stripe/webhook/route.ts",
+      "relativePath": "app/api/stripe/webhook/route.ts",
+      "exports": [
+        "POST"
+      ],
+      "imports": [
+        {
+          "from": "stripe",
+          "imports": [
+            "Stripe"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/payments/stripe",
+          "imports": [
+            "handleSubscriptionChange",
+            "stripe"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "POST",
+          "line": 7,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/team/route.ts",
+      "relativePath": "app/api/team/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 9,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/test/team/customer-id/route.ts",
+      "relativePath": "app/api/test/team/customer-id/route.ts",
+      "exports": [
+        "POST"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "POST",
+          "line": 16,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/user/route.ts",
+      "relativePath": "app/api/user/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 9,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Active code"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/wikidata/entity/[businessId]/route.ts",
+      "relativePath": "app/api/wikidata/entity/[businessId]/route.ts",
+      "exports": [
+        "GET"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/data/wikidata-dto",
+          "imports": [
+            "getWikidataPublishDTO",
+            "toWikidataEntityDetailDTO"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "GET",
+          "line": 15,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types",
+        "API route may be missing input validation"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/wikidata/publish/route.ts",
+      "relativePath": "app/api/wikidata/publish/route.ts",
+      "exports": [
+        "POST"
+      ],
+      "imports": [
+        {
+          "from": "next/server",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "NextRequest",
+            "NextResponse"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/db/queries",
+          "imports": [
+            "getBusinessById",
+            "updateBusiness",
+            "createWikidataEntity",
+            ""
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/gemflush/permissions",
+          "imports": [
+            "canPublishToWikidata"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/data/wikidata-dto",
+          "imports": [
+            "getWikidataPublishDTO"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/wikidata/publisher",
+          "imports": [
+            "wikidataPublisher"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/wikidata/manual-publish-storage",
+          "imports": [
+            "storeEntityForManualPublish"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/business",
+          "imports": [
+            "wikidataPublishRequestSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "POST",
+          "line": 17,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [
+        "Contains `any` types - should use proper types"
+      ],
+      "action": "refactor",
+      "reason": "Contract compliance issues detected"
+    }
+  ],
+  "summary": {
+    "redundantCode": [],
+    "unusedCode": [
+      "lib/db/seed.ts",
+      "lib/db/setup.ts",
+      "lib/services/monthly-processing.ts",
+      "lib/utils.ts",
+      "lib/wikidata/manual-publish-storage.ts",
+      "lib/wikidata/tiered-entity-builder.ts"
+    ],
+    "contractViolations": [
+      "lib/crawler/index.ts: Should implement IWebCrawler contract",
+      "lib/llm/fingerprinter.ts: Should implement ILLMFingerprinter contract",
+      "lib/llm/openrouter.ts: Should implement IOpenRouterClient contract",
+      "lib/payments/stripe.ts: Should implement IPaymentService contract"
+    ],
+    "validationGaps": [
+      "app/api/business/[id]/route.ts: API route may be missing input validation",
+      "app/api/cron/monthly/route.ts: API route may be missing input validation",
+      "app/api/cron/weekly-crawls/route.ts: API route may be missing input validation",
+      "app/api/dashboard/route.ts: API route may be missing input validation",
+      "app/api/fingerprint/[id]/route.ts: API route may be missing input validation",
+      "app/api/fingerprint/business/[businessId]/route.ts: API route may be missing input validation",
+      "app/api/fingerprint/route.ts: API route may be missing input validation",
+      "app/api/job/[jobId]/route.ts: API route may be missing input validation",
+      "app/api/team/route.ts: API route may be missing input validation",
+      "app/api/test/team/customer-id/route.ts: API route may be missing input validation",
+      "app/api/user/route.ts: API route may be missing input validation",
+      "app/api/wikidata/entity/[businessId]/route.ts: API route may be missing input validation"
+    ]
+  }
+}
