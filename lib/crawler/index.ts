@@ -13,6 +13,7 @@ import {
   BusinessExtractData,
   FirecrawlExtractSchema 
 } from '@/lib/types/firecrawl-contract';
+import { generateMockCrawlData, shouldUseMockCrawlData } from '@/lib/utils/mock-crawl-data';
 
 // Using contract-based types instead of inline interfaces
 
@@ -82,7 +83,33 @@ class WebCrawler implements IWebCrawler {
          } catch (fcError) {
            const errorMsg = fcError instanceof Error ? fcError.message : String(fcError);
         console.error(`[CRAWLER] ❌ Firecrawl Extract failed: ${errorMsg}`);
-        throw new Error(`Failed to extract business data: ${errorMsg}`);
+        
+        // FALLBACK: Use mock data if available for this URL
+        if (shouldUseMockCrawlData(url)) {
+          console.log(`[CRAWLER] 🎭 Using mock crawl data for: ${url}`);
+          const mockData = generateMockCrawlData(url);
+          method = 'mock-data';
+          
+          // Transform mock data to match expected structure
+          extractedData = {
+            businessName: mockData.name,
+            description: mockData.description,
+            address: mockData.address,
+            city: mockData.location?.city,
+            state: mockData.location?.state,
+            country: mockData.location?.country,
+            phone: mockData.phone,
+            email: mockData.email,
+            services: mockData.services,
+            industry: mockData.llmEnhanced?.businessCategory
+          };
+          
+          console.log(`[CRAWLER] ✅ Mock data success - using realistic test data`);
+          console.log(`[CRAWLER] 📋 Business name: "${extractedData.businessName}"`);
+          console.log(`[CRAWLER] 📍 Location: ${extractedData.city}, ${extractedData.state}`);
+        } else {
+          throw new Error(`Failed to extract business data: ${errorMsg}`);
+        }
       }
 
       if (!extractedData) {

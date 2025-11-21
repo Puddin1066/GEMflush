@@ -96,7 +96,7 @@ export async function POST(
     });
 
     // Re-run CFP processing
-    autoStartProcessing(business).catch(error => {
+    autoStartProcessing(business.id).catch(error => {
       logger.error('CFP processing failed after reset', error, {
         businessId,
         businessName: business.name,

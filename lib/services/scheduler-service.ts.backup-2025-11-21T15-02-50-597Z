@@ -6,10 +6,12 @@
  * 
  * @deprecated Use specific modules instead:
  * - scheduler-service-decision.ts for decision logic
+ * - scheduler-service-general.ts for general logic
  * - scheduler-service-execution.ts for execution logic
  */
 
 export { handleAutoPublish } from './scheduler-service-decision';
+export { that, for } from './scheduler-service-general';
 export { processScheduledAutomation, processBusinessAutomation, processWeeklyCrawls } from './scheduler-service-execution';
 
 // Legacy type exports for backward compatibility

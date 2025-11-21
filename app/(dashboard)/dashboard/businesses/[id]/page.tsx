@@ -16,6 +16,7 @@ import { BusinessDetailSkeleton } from '@/components/loading';
 import { ErrorCard } from '@/components/error';
 import { BusinessStatusIndicator } from '@/components/business/business-status-indicator';
 import { CFPProcessingLogs } from '@/components/business/cfp-processing-logs';
+import { AutomatedCFPStatus } from '@/components/business/automated-cfp-status';
 import { ActionButton } from '@/components/loading/action-button';
 import { GemOverviewCard } from '@/components/business/gem-overview-card';
 import { VisibilityIntelCard } from '@/components/fingerprint/visibility-intel-card';
@@ -45,37 +46,14 @@ export default function BusinessDetailPage() {
   const [jsonPreviewOpen, setJsonPreviewOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // For Pro tier: processing is automatic, no manual buttons needed
-  const isAutoProcessing = isPro && business?.automationEnabled;
-
-  // Manual CFP trigger - allows re-running CFP process
-  // Useful for: testing, re-processing after data updates, manual refresh
-  const handleTriggerCFP = async () => {
-    try {
-      setIsProcessing(true);
-      const response = await fetch(`/api/business/${businessId}/process`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to trigger CFP processing');
-      }
-
-      // Refresh business data to show updated status
-      refresh();
-    } catch (error) {
-      console.error('Error triggering CFP:', error);
-      alert(error instanceof Error ? error.message : 'Failed to trigger CFP processing');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // AUTOMATED CFP: Processing happens automatically upon business creation
+  // No manual buttons needed - GEMflush delivers value automatically
+  // Pro tier users always get automated processing regardless of automationEnabled flag
+  const isAutoProcessing = isPro;
 
   // Development helper: Reset fingerprint data and re-run CFP
   // Only available in development mode (server will enforce this)
   const handleResetAndRerun = async () => {
-
     if (!confirm('This will delete all fingerprint data and re-run CFP. Continue?')) {
       return;
     }
@@ -172,113 +150,69 @@ export default function BusinessDetailPage() {
         {/* Navigation - Use new component */}
         <BackButton href="/dashboard/businesses" />
 
-        {/* Status Indicator - Only show progress when actively processing */}
-        <div className="space-y-4">
+        {/* Processing Status - Only show when actively processing or has actionable error */}
+        {((business.status === 'pending' || business.status === 'crawling' || business.status === 'generating') && 
+          (isAutoProcessing || isProcessing)) && (
           <BusinessStatusIndicator
             status={business.status}
-            errorMessage={
-              business.status === 'error' && business.errorMessage
-                ? business.errorMessage.length > 100
-                  ? business.errorMessage.substring(0, 100) + '...'
-                  : business.errorMessage
-                : undefined
-            }
-            progress={
-              // Only show progress when actively processing (not error, not completed)
-              (business.status === 'pending' || business.status === 'crawling' || business.status === 'generating') &&
-              (isAutoProcessing || isProcessing)
-                ? {
-                    label: 
-                      business.status === 'pending' ? 'Starting Automatic Processing' :
-                      business.status === 'crawling' ? 'Crawling Website' :
-                      business.status === 'generating' ? 'Publishing to Wikidata' :
-                      'Processing',
-                    percentage: 
-                      business.status === 'pending' ? 10 :
-                      business.status === 'crawling' ? 33 :
-                      business.status === 'generating' ? 90 :
-                      0,
-                    message: 
-                      business.status === 'pending' ? 'Initializing automatic processing...' :
-                      business.status === 'crawling' ? 'Extracting business data from website...' :
-                      business.status === 'generating' ? 'Publishing entity to Wikidata...' :
-                      'Processing...',
-                  }
-                : // Show progress for crawled status only if waiting for fingerprint or publish
-                business.status === 'crawled' && (isAutoProcessing || isProcessing) && (!fingerprint || !isPublished)
-                ? {
-                    label: !fingerprint ? 'Analyzing Visibility' : 'Publishing to Wikidata',
-                    percentage: !fingerprint ? 66 : 90,
-                    message: !fingerprint ? 'Running AI visibility analysis...' : 'Publishing entity to Wikidata...',
-                  }
-                : undefined
-            }
+            progress={{
+              label: 
+                business.status === 'pending' ? 'Starting CFP Process' :
+                business.status === 'crawling' ? 'Crawling Website' :
+                business.status === 'generating' ? 'Publishing to Wikidata' :
+                'Processing',
+              percentage: 
+                business.status === 'pending' ? 10 :
+                business.status === 'crawling' ? 33 :
+                business.status === 'generating' ? 90 :
+                0,
+              message: 
+                business.status === 'pending' ? 'Extracting business data from your website...' :
+                business.status === 'crawling' ? 'Analyzing AI visibility and competitive positioning...' :
+                business.status === 'generating' ? 'Publishing your business to knowledge graphs...' :
+                'Processing your business data...',
+            }}
           />
-          
-          {/* Manual CFP Trigger Buttons */}
-          {/* Show buttons when business has been processed (crawled/published) or has error status */}
-          {(business.status === 'published' || business.status === 'crawled' || business.status === 'error') && (
-            <Card>
-              <CardContent className="pt-6 space-y-3">
+        )}
+
+        {/* Automated CFP Status - No Manual Buttons Needed */}
+        <AutomatedCFPStatus 
+          status={business.status} 
+          businessName={business.name}
+        />
+
+          {/* Development Only: Reset & Re-run - Hidden in production-like UI */}
+          {process.env.NODE_ENV === 'development' && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardContent className="pt-4 pb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-sm mb-1">Re-run CFP Process</h3>
+                    <h4 className="font-semibold text-xs mb-1 text-amber-700">
+                      🛠️ Development: Reset & Re-run
+                    </h4>
                     <p className="text-xs text-gray-600">
-                      Manually trigger Crawl → Fingerprint → Publish to update data and visibility score
+                      Clear all fingerprint data and start fresh (dev only)
                     </p>
                   </div>
                   <Button
-                    onClick={handleTriggerCFP}
+                    onClick={handleResetAndRerun}
                     disabled={isProcessing}
                     variant="outline"
                     size="sm"
+                    className="border-amber-300 text-amber-700 hover:bg-amber-50"
                   >
                     {isProcessing ? (
                       <>
                         <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
+                        Resetting...
                       </>
                     ) : (
                       <>
                         <RefreshCw className="mr-2 h-4 w-4" />
-                        Run CFP
+                        Reset & Re-run
                       </>
                     )}
                   </Button>
-                </div>
-                
-                {/* Development Only: Reset & Re-run */}
-                {/* Server endpoint enforces dev-only check */}
-                <div className="pt-3 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-xs mb-1 text-amber-700">
-                        🛠️ Development: Reset & Re-run
-                      </h4>
-                      <p className="text-xs text-gray-600">
-                        Clear all fingerprint data and start fresh (dev only - server will reject in production)
-                      </p>
-                    </div>
-                    <Button
-                      onClick={handleResetAndRerun}
-                      disabled={isProcessing}
-                      variant="outline"
-                      size="sm"
-                      className="border-amber-300 text-amber-700 hover:bg-amber-50"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Resetting...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Reset & Re-run
-                        </>
-                      )}
-                    </Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -292,7 +226,6 @@ export default function BusinessDetailPage() {
               status={business.status}
             />
           )}
-        </div>
 
         {/* Publishing Onboarding Journey - Only show for Free tier */}
         {!isPublished && !isAutoProcessing && (

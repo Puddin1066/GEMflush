@@ -74,6 +74,7 @@
     "refactor:apply": "npx tsx scripts/refactor/run-refactor.ts apply",
     "refactor:validate": "npx tsx scripts/refactor/run-refactor.ts validate",
     "refactor:simple": "npx tsx scripts/refactor/simple-refactor.ts",
+    "refactor:auto": "npx tsx scripts/refactor/auto-refactor.ts",
     "test:e2e:api": "tsx scripts/e2e-test.ts",
     "test:e2e:api:verbose": "tsx scripts/e2e-test.ts --verbose",
     "test:e2e:api:skip-cleanup": "tsx scripts/e2e-test.ts --skip-cleanup"

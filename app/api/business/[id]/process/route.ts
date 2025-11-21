@@ -69,7 +69,7 @@ export async function POST(
 
     // Trigger CFP processing in background
     // This will run: Crawl → Fingerprint → Publish (if automation enabled)
-    autoStartProcessing(business).catch(error => {
+    autoStartProcessing(business.id).catch(error => {
       logger.error('Manual CFP processing failed', error, {
         businessId,
         businessName: business.name,

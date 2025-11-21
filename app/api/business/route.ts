@@ -20,6 +20,7 @@ import { db } from '@/lib/db/drizzle';
 import { businesses } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { loggers } from '@/lib/utils/logger';
+import { getBusinessNameWithFallback } from '@/lib/utils/business-name-extractor';
 
 const logger = loggers.api;
 
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
     // IDEAL: Location can be null/undefined for URL-only creation (will be updated after crawl)
     const business = await createBusiness({
       teamId: team.id,
-      name: validatedData.name || 'Business', // Default name if not provided
+      name: getBusinessNameWithFallback(validatedData.url, validatedData.name), // Extract name from URL with intelligent fallback
       url: validatedData.url,
       category: validatedData.category,
       location: validatedData.location || null, // Can be null for URL-only creation
@@ -215,7 +216,7 @@ export async function POST(request: NextRequest) {
       
       // Start crawl in background to update business data
       const { autoStartProcessing } = await import('@/lib/services/business-processing');
-      autoStartProcessing(business).catch(error => {
+      autoStartProcessing(business.id).catch(error => {
         logger.error('Auto-processing failed for business', error, {
           businessId: business.id,
         });
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
     logger.debug('Starting autoStartProcessing for business', {
       businessId: business.id,
     });
-    autoStartProcessing(business).catch(error => {
+    autoStartProcessing(business.id).catch(error => {
       logger.error('Auto-processing failed for business', error, {
         businessId: business.id,
       });
