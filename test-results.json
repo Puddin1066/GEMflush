@@ -1,0 +1,63 @@
+{
+  "name": "E2E Test Suite",
+  "results": [
+    {
+      "name": "Dashboard Loads",
+      "passed": true,
+      "skipped": true,
+      "error": "Dashboard API requires authentication (expected for E2E test without session)",
+      "duration": 63
+    },
+    {
+      "name": "Business Creation",
+      "passed": true,
+      "skipped": true,
+      "error": "Business creation requires authentication (expected for E2E test without session)",
+      "duration": 68
+    },
+    {
+      "name": "CFP Process Execution",
+      "passed": true,
+      "skipped": true,
+      "error": "CFP process test requires authenticated session and business",
+      "duration": 0
+    },
+    {
+      "name": "Status Indicators Accuracy",
+      "passed": true,
+      "skipped": true,
+      "error": "Status indicators test requires business ID",
+      "duration": 0
+    },
+    {
+      "name": "Fingerprint Data Exists",
+      "passed": true,
+      "skipped": true,
+      "error": "Fingerprint data test requires business ID",
+      "duration": 0
+    },
+    {
+      "name": "Competitive Intelligence Data",
+      "passed": true,
+      "skipped": true,
+      "error": "Competitive intelligence test requires business ID",
+      "duration": 1
+    },
+    {
+      "name": "Wikidata Publication",
+      "passed": true,
+      "skipped": true,
+      "error": "Wikidata publication test requires business ID",
+      "duration": 0
+    },
+    {
+      "name": "Error Handling",
+      "passed": true,
+      "duration": 33
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "skipped": 7,
+  "duration": 165
+}

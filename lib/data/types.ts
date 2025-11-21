@@ -34,7 +34,8 @@ export interface DashboardBusinessDTO {
   trendValue: number;                // Future: actual trend calculation
   wikidataQid: string | null;
   lastFingerprint: string;           // Formatted: "2 days ago"
-  status: 'published' | 'pending' | 'crawled';
+  status: 'pending' | 'crawling' | 'crawled' | 'generating' | 'published' | 'error';
+  automationEnabled?: boolean;        // Whether automation is enabled
 }
 
 // ============================================================================

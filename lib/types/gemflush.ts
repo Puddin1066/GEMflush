@@ -62,15 +62,16 @@ export interface CrawledData {
     stockSymbol?: string | null;
   };
   // LLM-enhanced extraction
+  // Note: Fields can be null if LLM couldn't extract the information
   llmEnhanced?: {
-    extractedEntities: string[];
-    businessCategory: string;
-    serviceOfferings: string[];
-    targetAudience: string;
-    keyDifferentiators: string[];
-    confidence: number;
-    model: string;
-    processedAt: Date | string; // Can be Date or ISO string
+    extractedEntities?: string[] | null;
+    businessCategory?: string | null;
+    serviceOfferings?: string[] | null;
+    targetAudience?: string | null; // Can be null if LLM doesn't find this
+    keyDifferentiators?: string[] | null;
+    confidence?: number | null;
+    model?: string | null;
+    processedAt?: Date | string | null;
   };
 }
 

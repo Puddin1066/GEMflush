@@ -182,8 +182,45 @@ export class WikidataPublisher implements IWikidataPublisher {
       
             // DRY: Reuse error handling
       if (result.error) {
-              this.handleApiError(result.error, cleanedEntity, 'publication');
-              throw new Error(this.extractErrorMessage(result.error));
+        // Check if error indicates item already exists (has QID in error message)
+        const existingQID = this.extractQIDFromError(result.error);
+        if (existingQID && result.error.info?.includes('already has label')) {
+          console.log(`[REAL] Item already exists with QID ${existingQID}, updating instead of creating...`);
+          
+          // Remove labels/descriptions when updating (they already exist)
+          const entityForUpdate = { ...cleanedEntity };
+          delete entityForUpdate.labels;
+          delete entityForUpdate.descriptions;
+          
+          // Update existing entity
+          const updateResult = await this.callWikidataApi(baseUrl, {
+            action: 'wbeditentity',
+            id: existingQID,
+            data: JSON.stringify(entityForUpdate),
+            clear: 'false', // Don't clear existing claims, just add/update
+            token,
+            format: 'json',
+            ...(process.env.WIKIDATA_USE_BOT_FLAG === 'true' ? { bot: '1' } : {}),
+            summary: 'Updated via GEMflush - Automated business entity update',
+          }, cookies);
+          
+          if (updateResult.error) {
+            this.handleApiError(updateResult.error, cleanedEntity, 'update after duplicate detection');
+            throw new Error(this.extractErrorMessage(updateResult.error));
+          }
+          
+          if (updateResult.success) {
+            console.log(`[REAL] Entity ${existingQID} updated successfully on ${environment}`);
+            return {
+              qid: existingQID,
+              success: true,
+            };
+          }
+        }
+        
+        // If not a duplicate error, handle normally
+        this.handleApiError(result.error, cleanedEntity, 'publication');
+        throw new Error(this.extractErrorMessage(result.error));
       }
       
       // Verify successful creation
@@ -1542,16 +1579,29 @@ export class WikidataPublisher implements IWikidataPublisher {
    * Extract error message from API error response
    * DRY: Centralized error message extraction
    */
+  /**
+   * Extract QID from error message if item already exists
+   * Handles cases like: "Item [[Q242874|Q242874]] already has label..."
+   */
+  private extractQIDFromError(error: { code?: string; info?: string }): string | null {
+    if (!error.info) return null;
+    
+    // Match patterns like: "Item [[Q242874|Q242874]]" or "Item Q242874"
+    const qidMatch = error.info.match(/\[\[(Q\d+)\|/i) || error.info.match(/Item\s+(Q\d+)/i);
+    return qidMatch ? qidMatch[1] : null;
+  }
+
   private extractErrorMessage(error: { code?: string; info?: string }): string {
     let errorMessage = error.info || 'Unknown error';
-    if (error.code) {
-      errorMessage = `${error.code}: ${errorMessage}`;
-    }
     
-    if (error.info?.includes('Bad value type')) {
-      errorMessage += '\n\nThis usually means a property expects a string but received a QID (or vice versa).';
-      errorMessage += '\nCheck the entity builder logs above for type mismatches.';
-      errorMessage += '\nThe issue may be in a reference snak, not the mainsnak.';
+    // Simplify error messages for user display
+    if (error.info?.includes('already has label')) {
+      errorMessage = 'This business already exists in Wikidata. Updating existing entry...';
+    } else if (error.info?.includes('Bad value type')) {
+      errorMessage = 'Data format error. Please contact support if this persists.';
+    } else if (error.code) {
+      // Keep code but simplify message
+      errorMessage = error.info || `${error.code} error occurred`;
     }
     
     return errorMessage;

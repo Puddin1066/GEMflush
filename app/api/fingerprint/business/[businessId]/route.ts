@@ -8,14 +8,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
-import { llmFingerprints, businesses } from '@/lib/db/schema';
+import { llmFingerprints, businesses, type LLMFingerprint } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { toFingerprintDetailDTO } from '@/lib/data/fingerprint-dto';
+import { businessIdParamSchema } from '@/lib/validation/common';
+import { loggers } from '@/lib/utils/logger';
+
+const logger = loggers.fingerprint;
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ businessId: string }> }
 ) {
+  let businessId: number | undefined;
   try {
     // Authentication check
     const user = await getUser();
@@ -26,19 +31,15 @@ export async function GET(
       );
     }
 
-    const { businessId: businessIdStr } = await params;
-    const businessId = parseInt(businessIdStr);
-    
-    // Log for debugging routing issues
-    console.log(`[FINGERPRINT API] Request received for businessId: "${businessIdStr}" (parsed: ${businessId})`);
-    
-    if (isNaN(businessId)) {
-      console.error(`[FINGERPRINT API] Invalid business ID: "${businessIdStr}"`);
+    // Validate path parameter
+    const paramResult = businessIdParamSchema.safeParse(await params);
+    if (!paramResult.success) {
       return NextResponse.json(
-        { error: 'Invalid business ID' },
+        { error: 'Invalid business ID', details: paramResult.error.errors },
         { status: 400 }
       );
     }
+    businessId = paramResult.data.businessId;
 
     // Get business and verify ownership
     const [business] = await db
@@ -69,8 +70,10 @@ export async function GET(
     }
 
     // Get latest fingerprint for this business
-    // CRITICAL: Log the query to verify correct businessId is used
-    console.log(`[FINGERPRINT API] Querying fingerprints for businessId: ${businessId} (type: ${typeof businessId})`);
+    logger.debug('Querying fingerprints for business', {
+      businessId,
+      businessIdType: typeof businessId,
+    });
     
     const fingerprints = await db
       .select()
@@ -79,13 +82,14 @@ export async function GET(
       .orderBy(desc(llmFingerprints.createdAt))
       .limit(2);
     
-    console.log(`[FINGERPRINT API] Found ${fingerprints.length} fingerprint(s) for business ${businessId}`);
-    if (fingerprints.length > 0) {
-      console.log(`[FINGERPRINT API] Fingerprint IDs: ${fingerprints.map(f => f.id).join(', ')}, businessIds: ${fingerprints.map(f => f.businessId).join(', ')}`);
-    }
+    logger.debug('Found fingerprints for business', {
+      businessId,
+      count: fingerprints.length,
+      fingerprintIds: fingerprints.map(f => f.id),
+    });
 
     if (fingerprints.length === 0) {
-      console.log(`[FINGERPRINT API] No fingerprints found for business ${businessId}`);
+      logger.debug('No fingerprints found for business', { businessId });
       return NextResponse.json(null);
     }
 
@@ -94,14 +98,21 @@ export async function GET(
 
     // Verify fingerprint belongs to the correct business
     if (currentFingerprint.businessId !== businessId) {
-      console.error(`[FINGERPRINT API] MISMATCH: Fingerprint ${currentFingerprint.id} has businessId ${currentFingerprint.businessId}, but requested businessId is ${businessId}`);
+      logger.error('Fingerprint data mismatch', undefined, {
+        fingerprintId: currentFingerprint.id,
+        fingerprintBusinessId: currentFingerprint.businessId,
+        requestedBusinessId: businessId,
+      });
       return NextResponse.json(
         { error: 'Fingerprint data mismatch' },
         { status: 500 }
       );
     }
 
-    console.log(`[FINGERPRINT API] Found fingerprint ${currentFingerprint.id} for business ${businessId} (verified match)`);
+    logger.debug('Found fingerprint for business (verified match)', {
+      fingerprintId: currentFingerprint.id,
+      businessId,
+    });
 
     // Transform to DTO with error handling
     // IMPORTANT: Override businessName with current business name to ensure data matches
@@ -118,14 +129,18 @@ export async function GET(
       } : undefined;
 
       const dto = toFingerprintDetailDTO(
-        fingerprintWithCurrentName as any,
-        previousFingerprintWithCurrentName as any,
+        fingerprintWithCurrentName as LLMFingerprint,
+        previousFingerprintWithCurrentName as LLMFingerprint | undefined,
         business // Pass business data to reconstruct prompts
       );
 
       // Validate DTO has required structure
       if (!dto || !dto.summary) {
-        console.error('DTO transformation failed - missing summary:', dto);
+        logger.error('DTO transformation failed - missing summary', undefined, {
+          businessId,
+          fingerprintId: currentFingerprint.id,
+          dto: dto ? Object.keys(dto) : null,
+        });
         return NextResponse.json(
           { error: 'Fingerprint data is incomplete' },
           { status: 500 }
@@ -143,20 +158,29 @@ export async function GET(
         },
       };
 
-      console.log(`[FINGERPRINT API] Returning DTO for business ${businessId} (fingerprint ${currentFingerprint.id}, business: "${business.name}")`);
-      console.log(`[FINGERPRINT API] DTO summary: visibilityScore=${dto.visibilityScore}, trend=${dto.trend}`);
+      logger.debug('Returning DTO for business', {
+        businessId,
+        fingerprintId: currentFingerprint.id,
+        businessName: business.name,
+        visibilityScore: dto.visibilityScore,
+        trend: dto.trend,
+      });
       
       return NextResponse.json(responseWithMetadata);
     } catch (dtoError) {
-      console.error('Error transforming fingerprint to DTO:', dtoError);
-      console.error('Raw fingerprint data:', currentFingerprint);
+      logger.error('Error transforming fingerprint to DTO', dtoError, {
+        businessId,
+        fingerprintId: currentFingerprint.id,
+      });
       return NextResponse.json(
         { error: 'Failed to process fingerprint data' },
         { status: 500 }
       );
     }
   } catch (error) {
-    console.error('Error fetching fingerprint by business ID:', error);
+    logger.error('Error fetching fingerprint by business ID', error, {
+      businessId: typeof businessId === 'number' ? businessId : undefined,
+    });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

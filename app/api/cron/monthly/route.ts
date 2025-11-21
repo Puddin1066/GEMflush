@@ -1,11 +1,14 @@
 /**
  * Monthly Processing Cron Endpoint
- * SOLID: Single Responsibility - handles scheduled monthly processing
- * Protected with API key or Vercel Cron
+ * @deprecated This endpoint is kept for backward compatibility
+ * All scheduled automation now uses the unified processScheduledAutomation() function
+ * This endpoint redirects to the unified processing (frequency-aware)
+ * 
+ * For new deployments, use /api/cron/weekly-crawls which handles all frequencies
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { runMonthlyProcessing } from '@/lib/services/monthly-processing';
+import { processScheduledAutomation } from '@/lib/services/scheduler-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,12 +34,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[CRON] Monthly processing endpoint called');
-    await runMonthlyProcessing();
+    console.log('[CRON] Monthly processing endpoint called (using unified processing)');
+    const results = await processScheduledAutomation({
+      batchSize: 10,
+      catchMissed: true,
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Monthly processing completed',
+      message: 'Monthly processing completed (unified automation)',
+      results,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

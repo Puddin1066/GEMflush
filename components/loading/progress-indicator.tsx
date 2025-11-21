@@ -8,10 +8,9 @@
 
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 interface ProgressIndicatorProps {
   label: string;
@@ -32,51 +31,51 @@ export function ProgressIndicator({
   const isCompleted = status === 'completed';
   const isError = status === 'error';
 
+  // Don't show progress bar or percentage for error state or when progress is 0
+  const shouldShowProgress = progress !== undefined && progress > 0 && !isError;
+
   return (
-    <Card className={cn('gem-card', className)}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            {isInProgress && (
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
-            )}
-            {isCompleted && (
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            )}
-            {isError && (
-              <span className="h-4 w-4 text-red-600">⚠</span>
-            )}
-            <span className="text-sm font-medium text-gray-700">{label}</span>
-          </div>
-          {progress !== undefined && (
-            <span className="text-xs text-gray-500">{progress}%</span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isInProgress && (
+            <Loader2 className="h-4 w-4 text-primary animate-spin" />
           )}
+          {isCompleted && (
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          )}
+          {isError && (
+            <span className="h-4 w-4 text-red-600">⚠</span>
+          )}
+          <span className="text-sm font-medium text-gray-700">{label}</span>
         </div>
-        {progress !== undefined && (
-          <Progress
-            value={progress}
-            className={cn(
-              'h-2',
-              isError && 'bg-red-100',
-              isCompleted && 'bg-green-100',
-              isInProgress && 'bg-primary/20'
-            )}
-          />
+        {shouldShowProgress && (
+          <span className="text-xs text-gray-500">{progress}%</span>
         )}
-        {message && (
-          <p
-            className={cn(
-              'text-xs mt-2',
-              isError && 'text-red-600',
-              isCompleted && 'text-green-600',
-              isInProgress && 'text-gray-600'
-            )}
-          >
-            {message}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      {shouldShowProgress && (
+        <Progress
+          value={progress}
+          className={cn(
+            'h-2',
+            isCompleted && 'bg-green-100',
+            isInProgress && 'bg-primary/20'
+          )}
+        />
+      )}
+      {message && (
+        <p
+          className={cn(
+            'text-xs',
+            isError && 'text-red-600',
+            isCompleted && 'text-green-600',
+            isInProgress && 'text-gray-600'
+          )}
+        >
+          {message}
+        </p>
+      )}
+    </div>
   );
 }
 

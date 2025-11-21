@@ -5,6 +5,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getTeamForUser, getBusinessById } from '@/lib/db/queries';
+import { idParamSchema } from '@/lib/validation/common';
+import { loggers } from '@/lib/utils/logger';
+
+const logger = loggers.api;
 
 export async function GET(
   request: NextRequest,
@@ -29,16 +33,15 @@ export async function GET(
       );
     }
 
-    // Parse business ID from params
-    const { id } = await params;
-    businessId = parseInt(id);
-    
-    if (isNaN(businessId)) {
+    // Validate path parameter
+    const paramResult = idParamSchema.safeParse(await params);
+    if (!paramResult.success) {
       return NextResponse.json(
-        { error: 'Invalid business ID' },
+        { error: 'Invalid business ID', details: paramResult.error.errors },
         { status: 400 }
       );
     }
+    businessId = paramResult.data.id;
 
     // Fetch business by ID (efficient: single database query)
     const business = await getBusinessById(businessId);
@@ -82,18 +85,18 @@ export async function GET(
         : business.lastAutoPublishedAt,
     };
 
-    console.log(`[BUSINESS API] Returning business ${businessId} (${business.name})`);
+    logger.debug('Returning business', {
+      businessId,
+      businessName: business.name,
+    });
     
     return NextResponse.json({
       business: serializableBusiness,
     });
   } catch (error) {
-    const errorId = businessId ?? 'unknown';
-    console.error(`[BUSINESS API] Error fetching business ${errorId}:`, error);
-    if (error instanceof Error) {
-      console.error(`[BUSINESS API] Error message:`, error.message);
-      console.error(`[BUSINESS API] Error stack:`, error.stack);
-    }
+    logger.error('Error fetching business', error, {
+      businessId: businessId ?? undefined,
+    });
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

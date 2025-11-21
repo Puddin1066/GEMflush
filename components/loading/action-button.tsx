@@ -10,7 +10,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import type React from 'react';
 
 type ButtonProps = React.ComponentProps<typeof Button>;

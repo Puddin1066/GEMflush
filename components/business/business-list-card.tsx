@@ -11,6 +11,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/loading/status-badge';
+import { BusinessProcessingStatus } from '@/components/business/business-processing-status';
 import { WikidataRubyIcon, GemIcon } from '@/components/ui/gem-icon';
 import { Globe, MapPin, ExternalLink, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -29,6 +30,7 @@ interface BusinessListCardProps {
     } | null;
     wikidataQID?: string | null;
     createdAt: Date | string;
+    automationEnabled?: boolean;
   };
   className?: string;
 }
@@ -60,8 +62,19 @@ export function BusinessListCard({ business, className }: BusinessListCardProps)
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-4">
-                <StatusBadge status={business.status as any} />
+              <div className="flex items-center gap-2 mt-4 flex-wrap">
+                {/* Show processing status if business is processing */}
+                {(business.status === 'pending' || 
+                  business.status === 'crawling' || 
+                  business.status === 'generating') ? (
+                  <BusinessProcessingStatus
+                    status={business.status as any}
+                    automationEnabled={business.automationEnabled}
+                    size="sm"
+                  />
+                ) : (
+                  <StatusBadge status={business.status as any} />
+                )}
                 {business.wikidataQID && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <WikidataRubyIcon size={12} />

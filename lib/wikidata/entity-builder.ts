@@ -15,6 +15,7 @@ import { BUSINESS_PROPERTY_MAP, type PropertyMapping } from './property-mapping'
 import type { Reference } from './notability-checker';
 import { IWikidataEntityBuilder } from '@/lib/types/service-contracts';
 import { validateWikidataEntity } from '@/lib/validation/wikidata';
+import { sparqlService } from './sparql';
 
 // Type alias for service contract compatibility (returns strict contract internally)
 type WikidataEntityData = WikidataEntityDataContract;
@@ -34,7 +35,8 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     notabilityReferences?: Reference[]
   ): Promise<WikidataEntityData> {
     // Build basic claims (existing logic)
-    const basicClaims = this.buildClaims(business, crawledData);
+    // CRITICAL: buildClaims is now async to support QID lookups for rich properties
+    const basicClaims = await this.buildClaims(business, crawledData);
     
     // LLM: Suggest additional properties based on crawled data
     const suggestedClaims = await this.suggestAdditionalProperties(business, crawledData);
@@ -156,7 +158,12 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     };
   }
   
-  private buildClaims(business: Business, crawledData?: CrawledData): WikidataEntityData['claims'] {
+  /**
+   * Build claims from business and crawled data
+   * CRITICAL: Now async to support QID lookups for location, industry, and other properties
+   * Ensures at least 10 properties are extracted from crawlData (user requirement)
+   */
+  private async buildClaims(business: Business, crawledData?: CrawledData): Promise<WikidataEntityData['claims']> {
     const claims: WikidataEntityData['claims'] = {};
     
     // P31: instance of - business (Q4830453)
@@ -235,19 +242,101 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     }
     
     // P131: located in (administrative territorial entity)
-    // Note: This requires city QID lookup, but we can add the claim structure
-    // The QID resolution can happen later or be added manually
-    // For now, we'll log that location data is available for future enhancement
+    // CRITICAL: Extract location data from crawlData and add P131 claim
+    // This is essential for rich entity publication (user requirement: at least 10 properties)
     if (crawledData?.location?.city || business.location?.city) {
       const city = crawledData?.location?.city || business.location?.city;
       const state = crawledData?.location?.state || business.location?.state;
       const country = crawledData?.location?.country || business.location?.country || 'US';
-      console.log(`[ENTITY BUILDER] Location data available: ${city}, ${state}, ${country} (P131 QID lookup needed for full implementation)`);
-      // TODO: Add P131 claim once city QID lookup is implemented
+      
+      if (city) {
+        // Try to find city QID (use fast mode to avoid blocking)
+        try {
+          const countryQID = country === 'US' ? 'Q30' : 'Q30'; // Default to US for now
+          const cityQID = await sparqlService.findCityQID(city, state || undefined, countryQID, true); // fast mode
+          if (cityQID) {
+            claims.P131 = [this.createItemClaim('P131', cityQID, business.url)];
+            console.log(`[ENTITY BUILDER] ✓ Added P131 (located in): ${city}, ${state} → ${cityQID}`);
+          } else {
+            console.log(`[ENTITY BUILDER] ⚠ P131 (located in) NOT added - city QID not found for ${city}, ${state}`);
+          }
+        } catch (error) {
+          console.warn(`[ENTITY BUILDER] Error looking up city QID for P131: ${error}`);
+        }
+      }
     }
     
-    // P159: headquarters location (city QID would need to be looked up)
-    // For now, we'll skip this as it requires SPARQL lookup
+    // P17: country
+    // CRITICAL: Extract country from location data (user requirement: at least 10 properties)
+    const country = crawledData?.location?.country || business.location?.country || 'US';
+    if (country) {
+      // Map common country codes to QIDs
+      const countryQIDMap: Record<string, string> = {
+        'US': 'Q30',
+        'CA': 'Q16',
+        'GB': 'Q145',
+        'UK': 'Q145',
+        'AU': 'Q408',
+        'DE': 'Q183',
+        'FR': 'Q142',
+        'IT': 'Q38',
+        'ES': 'Q29',
+        'MX': 'Q96',
+        'BR': 'Q155',
+        'IN': 'Q668',
+        'CN': 'Q148',
+        'JP': 'Q17',
+      };
+      
+      const countryQID = countryQIDMap[country.toUpperCase()] || countryQIDMap['US']; // Default to US
+      if (countryQID) {
+        claims.P17 = [this.createItemClaim('P17', countryQID, business.url)];
+        console.log(`[ENTITY BUILDER] ✓ Added P17 (country): ${country} → ${countryQID}`);
+      }
+    }
+    
+    // P159: headquarters location (same as P131 for most businesses)
+    // Use same city QID if available
+    if (claims.P131 && claims.P131[0]?.mainsnak?.datavalue?.value) {
+      const value = claims.P131[0].mainsnak.datavalue.value;
+      if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
+        const cityQID = value.id;
+        claims.P159 = [this.createItemClaim('P159', cityQID, business.url)];
+        console.log(`[ENTITY BUILDER] ✓ Added P159 (headquarters): ${cityQID}`);
+      }
+    }
+    
+    // P452: industry
+    // CRITICAL: Extract industry from crawlData (user requirement: at least 10 properties)
+    const industry = crawledData?.businessDetails?.industry || crawledData?.businessDetails?.sector || null;
+    if (industry) {
+      try {
+        const industryQID = await sparqlService.findIndustryQID(industry, true); // fast mode
+        if (industryQID) {
+          claims.P452 = [this.createItemClaim('P452', industryQID, business.url)];
+          console.log(`[ENTITY BUILDER] ✓ Added P452 (industry): ${industry} → ${industryQID}`);
+        } else {
+          console.log(`[ENTITY BUILDER] ⚠ P452 (industry) NOT added - industry QID not found for ${industry}`);
+        }
+      } catch (error) {
+        console.warn(`[ENTITY BUILDER] Error looking up industry QID for P452: ${error}`);
+      }
+    }
+    
+    // P1454: legal form
+    // Extract legal form from crawlData if available
+    const legalForm = crawledData?.businessDetails?.legalForm || null;
+    if (legalForm) {
+      try {
+        const legalFormQID = await sparqlService.findLegalFormQID(legalForm);
+        if (legalFormQID) {
+          claims.P1454 = [this.createItemClaim('P1454', legalFormQID, business.url)];
+          console.log(`[ENTITY BUILDER] ✓ Added P1454 (legal form): ${legalForm} → ${legalFormQID}`);
+        }
+      } catch (error) {
+        console.warn(`[ENTITY BUILDER] Error looking up legal form QID for P1454: ${error}`);
+      }
+    }
     
     // P1448: official name
     // DRY: Normalize name to remove test timestamps before using in Wikidata
@@ -335,6 +424,48 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       if (crawledData.businessDetails.stockSymbol) {
         claims.P249 = [this.createStringClaim('P249', crawledData.businessDetails.stockSymbol, business.url)];
       }
+    }
+    
+    // CRITICAL: Log property count and ensure we're meeting the 10-property requirement
+    const propertyCount = Object.keys(claims).length;
+    console.log(`[ENTITY BUILDER] Property count: ${propertyCount} (target: 10+)`);
+    
+    if (propertyCount < 10) {
+      console.warn(`[ENTITY BUILDER] ⚠ WARNING: Only ${propertyCount} properties extracted. Target is at least 10 properties for rich publication.`);
+      console.log(`[ENTITY BUILDER] Available properties: ${Object.keys(claims).join(', ')}`);
+      
+      // Log what's missing
+      const availableButNotExtracted: string[] = [];
+      if (crawledData?.businessDetails?.industry && !claims.P452) {
+        availableButNotExtracted.push('P452 (industry)');
+      }
+      if (crawledData?.location?.city && !claims.P131) {
+        availableButNotExtracted.push('P131 (located in)');
+      }
+      if (crawledData?.location?.country && !claims.P17) {
+        availableButNotExtracted.push('P17 (country)');
+      }
+      if (crawledData?.businessDetails?.legalForm && !claims.P1454) {
+        availableButNotExtracted.push('P1454 (legal form)');
+      }
+      if (crawledData?.email && !claims.P968) {
+        availableButNotExtracted.push('P968 (email)');
+      }
+      if (crawledData?.phone && !claims.P1329) {
+        availableButNotExtracted.push('P1329 (phone)');
+      }
+      if (crawledData?.founded && !claims.P571) {
+        availableButNotExtracted.push('P571 (founded)');
+      }
+      if (crawledData?.socialLinks && !claims.P2002 && !claims.P2013 && !claims.P2003 && !claims.P4264) {
+        availableButNotExtracted.push('Social media properties');
+      }
+      
+      if (availableButNotExtracted.length > 0) {
+        console.warn(`[ENTITY BUILDER] Missing properties that could be extracted: ${availableButNotExtracted.join(', ')}`);
+      }
+    } else {
+      console.log(`[ENTITY BUILDER] ✓ Successfully extracted ${propertyCount} properties (meets 10+ requirement)`);
     }
     
     return claims;

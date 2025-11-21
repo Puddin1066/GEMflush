@@ -70,7 +70,10 @@
     "db:migrate:automation": "npx tsx scripts/apply-automation-migration.ts",
     "db:studio": "drizzle-kit studio",
     "deploy:check": "npx tsx scripts/deploy-automation.ts",
-    "refactor:analyze": "npx tsx scripts/holistic-refactor.ts"
+    "refactor:analyze": "npx tsx scripts/holistic-refactor.ts",
+    "test:e2e:api": "tsx scripts/e2e-test.ts",
+    "test:e2e:api:verbose": "tsx scripts/e2e-test.ts --verbose",
+    "test:e2e:api:skip-cleanup": "tsx scripts/e2e-test.ts --skip-cleanup"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -98,6 +101,7 @@
     "radix-ui": "^1.4.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "recharts": "^3.4.1",
     "resend": "^6.4.2",
     "server-only": "^0.0.1",
     "stripe": "^18.1.0",

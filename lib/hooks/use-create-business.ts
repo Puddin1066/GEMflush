@@ -52,8 +52,11 @@ export function useCreateBusiness(): UseCreateBusinessReturn {
       if (response.status === 422 && data.needsLocation && data.business?.id) {
         // Business was created - redirect to it first
         // The location form will be shown on the business detail page
+        // Add small delay to ensure database transaction is committed
         mutate('/api/business');
-        router.push(`/dashboard/businesses/${data.business.id}`);
+        setTimeout(() => {
+          router.push(`/dashboard/businesses/${data.business.id}`);
+        }, 100);
         setNeedsLocation(true);
         setCrawledData(data.crawledData || { url: formattedUrl });
         setLoading(false);
@@ -131,7 +134,10 @@ export function useCreateBusiness(): UseCreateBusinessReturn {
       mutate('/api/business');
 
       // Redirect to business detail page
-      router.push(`/dashboard/businesses/${data.business.id}`);
+      // Add small delay to ensure database transaction is committed
+      setTimeout(() => {
+        router.push(`/dashboard/businesses/${data.business.id}`);
+      }, 100);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create business';
       setError(errorMessage);

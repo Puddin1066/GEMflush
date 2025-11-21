@@ -1,11 +1,14 @@
 /**
- * Weekly Crawls Cron Endpoint
- * SOLID: Single Responsibility - handles scheduled weekly crawl processing
+ * Scheduled Automation Cron Endpoint
+ * SOLID: Single Responsibility - handles scheduled automation processing
+ * REFACTORED: Unified endpoint for all frequencies (weekly/monthly/daily)
  * Protected with API key or Vercel Cron
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { processWeeklyCrawls } from '@/lib/services/scheduler-service';
+import { processScheduledAutomation } from '@/lib/services/scheduler-service';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,16 +32,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[CRON] Weekly crawls endpoint called');
-    await processWeeklyCrawls();
+    console.log('[CRON] Scheduled automation endpoint called');
+    const results = await processScheduledAutomation({
+      batchSize: 10,
+      catchMissed: true,
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Weekly crawls processed',
+      message: 'Scheduled automation processed',
+      results,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('[CRON] Error processing weekly crawls:', error);
+    console.error('[CRON] Error processing scheduled automation:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

@@ -6,7 +6,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CompetitorRow } from './competitor-row';
 import { MarketPositionBadge } from './market-position-badge';
-import { Trophy, TrendingUp, Lightbulb } from 'lucide-react';
+import { CompetitiveLeaderboardExplanation } from './competitive-leaderboard-explanation';
+import { MetricExplanation } from './metric-explanation';
+import { Trophy, TrendingUp, Lightbulb, Info, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { CompetitiveLeaderboardDTO } from '@/lib/data/types';
 
 interface CompetitiveLeaderboardProps {
@@ -34,6 +37,11 @@ export function CompetitiveLeaderboard({
     recommendation: 'Run more analyses with recommendation prompts to get competitive insights.',
   };
 
+  // Calculate total mentions for market share (must match calculation in fingerprint-dto.ts)
+  const totalMentions =
+    targetBusiness.mentionCount +
+    competitors.reduce((sum, comp) => sum + comp.mentionCount, 0);
+
   // Merge target business into sorted list
   const allCompetitors = [...competitors];
   const targetAsCompetitor = {
@@ -42,7 +50,9 @@ export function CompetitiveLeaderboard({
     mentionCount: targetBusiness.mentionCount,
     avgPosition: targetBusiness.rank || 0, // Use rank as avgPosition
     appearsWithTarget: targetBusiness.mentionCount,
-    marketShare: totalQueries > 0 ? (targetBusiness.mentionCount / totalQueries) * 100 : 0,
+    // CRITICAL: Use totalMentions (not totalQueries) to match competitor calculation
+    // This ensures all market shares add up to 100%
+    marketShare: totalMentions > 0 ? (targetBusiness.mentionCount / totalMentions) * 100 : 0,
   };
 
   // Insert target in correct position
@@ -60,6 +70,7 @@ export function CompetitiveLeaderboard({
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5" />
                 Competitive Leaderboard
+                <CompetitiveLeaderboardExplanation totalQueries={totalQueries} />
               </CardTitle>
               <CardDescription>
                 Based on {totalQueries} LLM recommendation {totalQueries === 1 ? 'query' : 'queries'}
@@ -68,6 +79,71 @@ export function CompetitiveLeaderboard({
             <MarketPositionBadge position={safeInsights.marketPosition} size="lg" />
           </div>
         </CardHeader>
+      </Card>
+
+      {/* Metrics Overview */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Understanding the Metrics
+              </CardTitle>
+              <CardDescription>
+                Click the info icons next to each metric to learn more
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="flex items-center gap-2 mb-1">
+                <strong className="text-sm text-blue-900">Market Share</strong>
+                <MetricExplanation metric="marketShare">
+                  <Info className="h-3 w-3 text-blue-600 cursor-help" />
+                </MetricExplanation>
+              </div>
+              <p className="text-xs text-blue-800">
+                Percentage of all mentions (you + competitors) that belong to each business. Higher = more relative visibility.
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+              <div className="flex items-center gap-2 mb-1">
+                <strong className="text-sm text-green-900">Mention Count</strong>
+                <MetricExplanation metric="mentionCount">
+                  <Info className="h-3 w-3 text-green-600 cursor-help" />
+                </MetricExplanation>
+              </div>
+              <p className="text-xs text-green-800">
+                Total times a business appears in recommendation queries. More mentions = higher visibility.
+              </p>
+            </div>
+            <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+              <div className="flex items-center gap-2 mb-1">
+                <strong className="text-sm text-purple-900">Average Position</strong>
+                <MetricExplanation metric="avgPosition">
+                  <Info className="h-3 w-3 text-purple-600 cursor-help" />
+                </MetricExplanation>
+              </div>
+              <p className="text-xs text-purple-800">
+                Average ranking when mentioned (1-5). Lower is better - #1 is top position.
+              </p>
+            </div>
+            <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+              <div className="flex items-center gap-2 mb-1">
+                <strong className="text-sm text-amber-900">Mention Rate</strong>
+                <MetricExplanation metric="mentionRate">
+                  <Info className="h-3 w-3 text-amber-600 cursor-help" />
+                </MetricExplanation>
+              </div>
+              <p className="text-xs text-amber-800">
+                Percentage of queries where business is mentioned. Shows consistency of visibility.
+              </p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Rankings */}

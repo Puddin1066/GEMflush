@@ -63,7 +63,8 @@ function transformBusinessToDTO(
     trendValue: 0,  // TODO: Calculate actual trend from historical data
     wikidataQid: business.wikidataQID,
     lastFingerprint: formatTimestamp(fingerprint?.createdAt),
-    status: business.status as 'published' | 'pending' | 'crawled',
+    status: business.status as DashboardBusinessDTO['status'],
+    automationEnabled: business.automationEnabled ?? false,
   };
 }
 

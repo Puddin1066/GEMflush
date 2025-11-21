@@ -12,6 +12,11 @@ vi.mock('@/lib/llm/openrouter', () => ({
 // Mock global fetch
 global.fetch = vi.fn();
 
+// Mock Firecrawl API key to avoid real API calls in unit tests
+beforeEach(() => {
+  process.env.FIRECRAWL_API_KEY = 'fc-test-key';
+});
+
 describe('WebCrawler', () => {
   let crawler: WebCrawler;
 

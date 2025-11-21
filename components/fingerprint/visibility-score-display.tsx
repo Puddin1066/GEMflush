@@ -3,7 +3,7 @@
  * Single Responsibility: Display visibility score with trend indicator
  */
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { formatVisibilityScore, formatTrend } from '@/lib/utils/format';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 

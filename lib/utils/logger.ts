@@ -36,8 +36,21 @@ class Logger {
 
   /**
    * Log with level and context
+   * DRY: Centralized logging logic with environment-aware behavior
+   * SOLID: Single Responsibility - handles all logging concerns
    */
   log(level: LogLevel, message: string, context?: LogContext): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const logLevel = process.env.LOG_LEVEL || (isProduction ? 'warn' : 'debug');
+    
+    // In production, only log warnings and errors unless LOG_LEVEL is set
+    if (isProduction && level === 'info' && logLevel !== 'info' && logLevel !== 'debug') {
+      return;
+    }
+    if (isProduction && level === 'debug' && logLevel !== 'debug') {
+      return;
+    }
+
     const timestamp = new Date().toISOString();
     const prefix = `[${this.service}]`;
     const contextStr = context ? this.formatContext(context) : '';
@@ -45,7 +58,7 @@ class Logger {
 
     switch (level) {
       case 'debug':
-        if (process.env.LOG_LEVEL === 'debug') {
+        if (logLevel === 'debug') {
           console.log(`🔍 ${logMessage}`);
         }
         break;

@@ -1,7 +1,13 @@
-// Manual Publication Storage
-// Stores assembled entity JSON for manual review and batch publishing
-// SOLID: Single Responsibility - handles storage of entities for manual publication
-// DRY: Centralized storage logic
+/**
+ * @deprecated Review usage - unclear if this manual workflow is actively used.
+ * If actively used, consider consolidating with auto-publish logic.
+ * If not used, consider removing.
+ * 
+ * Manual Publication Storage
+ * Stores assembled entity JSON for manual review and batch publishing
+ * SOLID: Single Responsibility - handles storage of entities for manual publication
+ * DRY: Centralized storage logic
+ */
 
 import { promises as fs } from 'fs';
 import { join } from 'path';

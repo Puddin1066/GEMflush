@@ -5,7 +5,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { formatMarketPosition } from '@/lib/utils/format';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 interface MarketPositionBadgeProps {
   position: 'leading' | 'competitive' | 'emerging' | 'unknown';

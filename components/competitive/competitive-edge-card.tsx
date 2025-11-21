@@ -6,8 +6,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MarketPositionBadge } from './market-position-badge';
+import { MetricExplanation } from './metric-explanation';
 import { formatRank } from '@/lib/utils/format';
-import { Trophy, ArrowRight } from 'lucide-react';
+import { Trophy, ArrowRight, Info } from 'lucide-react';
 import Link from 'next/link';
 import type { CompetitiveLeaderboardDTO } from '@/lib/data/types';
 
@@ -75,7 +76,12 @@ export function CompetitiveEdgeCard({
       <CardContent className="space-y-4">
         {/* Market Position */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Market Position:</span>
+          <span className="text-sm text-gray-600 flex items-center gap-1">
+            Market Position:
+            <MetricExplanation metric="marketPosition">
+              <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+            </MetricExplanation>
+          </span>
           <MarketPositionBadge position={insights.marketPosition} />
         </div>
 

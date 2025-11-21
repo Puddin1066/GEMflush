@@ -11,7 +11,7 @@
 import { StatusBadge } from '@/components/loading/status-badge';
 import { ProgressIndicator } from '@/components/loading/progress-indicator';
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 interface BusinessStatusIndicatorProps {
   status: string;
@@ -20,15 +20,18 @@ interface BusinessStatusIndicatorProps {
     percentage?: number;
     message?: string;
   };
+  errorMessage?: string; // Simplified error message to display
   className?: string;
 }
 
 export function BusinessStatusIndicator({
   status,
   progress,
+  errorMessage,
   className,
 }: BusinessStatusIndicatorProps) {
   const statusType = status as any;
+  const isError = statusType === 'error';
 
   return (
     <Card className={cn('gem-card', className)}>
@@ -42,7 +45,7 @@ export function BusinessStatusIndicator({
             <ProgressIndicator
               label={progress.label}
               status={
-                statusType === 'crawling' || statusType === 'analyzing'
+                statusType === 'crawling' || statusType === 'generating' || statusType === 'pending'
                   ? 'in-progress'
                   : statusType === 'error'
                   ? 'error'
@@ -53,6 +56,11 @@ export function BusinessStatusIndicator({
               progress={progress.percentage}
               message={progress.message}
             />
+          )}
+          {isError && errorMessage && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+              {errorMessage}
+            </div>
           )}
         </div>
       </CardContent>

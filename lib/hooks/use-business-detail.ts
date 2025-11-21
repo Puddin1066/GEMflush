@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { FingerprintDetailDTO, WikidataEntityDetailDTO } from '@/lib/data/types';
 
 export interface BusinessDetail {
@@ -42,6 +43,7 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
   const [entity, setEntity] = useState<WikidataEntityDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Clear state when businessId changes to prevent showing wrong data
   useEffect(() => {
@@ -52,12 +54,32 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
     setLoading(true);
   }, [businessId]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (retryCount = 0) => {
     try {
       setLoading(true);
 
       const response = await fetch(`/api/business/${businessId}`);
       if (!response.ok) {
+        // If 404 and this is the first attempt (retryCount === 0), retry once after a short delay
+        // This handles race conditions where business was just created
+        if (response.status === 404 && retryCount === 0) {
+          console.log(`[BUSINESS-DETAIL] Business ${businessId} not found on first attempt, retrying...`);
+          setTimeout(() => {
+            void load(1); // Retry once
+          }, 1000); // Wait 1 second for database transaction to commit
+          return;
+        }
+        
+        // If still 404 after retry, business truly doesn't exist
+        // Redirect to businesses list instead of showing error
+        if (response.status === 404 && retryCount > 0) {
+          console.warn(`[BUSINESS-DETAIL] Business ${businessId} not found after retry, redirecting to businesses list`);
+          setLoading(false);
+          // Redirect to businesses list
+          router.push('/dashboard/businesses');
+          return;
+        }
+        
         if (response.status === 404) {
           setError('Business not found. It may have been deleted or you may not have access.');
         } else {

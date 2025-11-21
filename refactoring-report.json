@@ -1,9 +1,9 @@
 {
-  "timestamp": "2025-11-20T01:18:28.705Z",
-  "filesAnalyzed": 74,
-  "filesToKeep": 39,
-  "filesToRefactor": 29,
-  "filesToDeprecate": 6,
+  "timestamp": "2025-11-20T01:33:57.376Z",
+  "filesAnalyzed": 75,
+  "filesToKeep": 47,
+  "filesToRefactor": 23,
+  "filesToDeprecate": 5,
   "filesToArchive": 0,
   "filesToRemove": 0,
   "changes": [
@@ -229,9 +229,17 @@
           "isExternal": false
         },
         {
-          "from": "fs",
+          "from": "@/lib/types/service-contracts",
           "imports": [
             "openRouterClient"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
+          "from": "fs",
+          "imports": [
+            "fs"
           ],
           "isInternal": false,
           "isExternal": true
@@ -249,7 +257,6 @@
       "isUsed": true,
       "usageCount": 0,
       "issues": [
-        "Should implement IWebCrawler contract",
         "Contains `any` types - should use proper types"
       ],
       "action": "refactor",
@@ -1959,6 +1966,14 @@
           "isExternal": false
         },
         {
+          "from": "@/lib/types/service-contracts",
+          "imports": [
+            "ILLMFingerprinter"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
+        {
           "from": "./openrouter",
           "imports": [
             "openRouterClient"
@@ -1978,35 +1993,35 @@
       "functions": [
         {
           "name": "term",
-          "line": 312,
+          "line": 313,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "to",
-          "line": 652,
-          "isExported": false,
-          "isUsed": false,
-          "usageCount": 0
-        },
-        {
-          "name": "countKeywords",
           "line": 653,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
+          "name": "countKeywords",
+          "line": 654,
+          "isExported": false,
+          "isUsed": false,
+          "usageCount": 0
+        },
+        {
           "name": "isPlaceholder",
-          "line": 709,
+          "line": 710,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "mentionRate",
-          "line": 772,
+          "line": 773,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
@@ -2014,12 +2029,9 @@
       ],
       "isUsed": true,
       "usageCount": 0,
-      "issues": [
-        "Should implement ILLMFingerprinter contract",
-        "Contains `any` types - should use proper types"
-      ],
-      "action": "refactor",
-      "reason": "Contract compliance issues detected"
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
     },
     {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/llm/openrouter.ts",
@@ -2029,6 +2041,14 @@
         "openRouterClient"
       ],
       "imports": [
+        {
+          "from": "@/lib/types/service-contracts",
+          "imports": [
+            "IOpenRouterClient"
+          ],
+          "isInternal": true,
+          "isExternal": false
+        },
         {
           "from": "fs",
           "imports": [
@@ -2057,7 +2077,7 @@
       "functions": [
         {
           "name": "referenceCount",
-          "line": 226,
+          "line": 227,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
@@ -2065,11 +2085,9 @@
       ],
       "isUsed": true,
       "usageCount": 0,
-      "issues": [
-        "Should implement IOpenRouterClient contract"
-      ],
-      "action": "refactor",
-      "reason": "Contract compliance issues detected"
+      "issues": [],
+      "action": "keep",
+      "reason": "Critical CFP workflow dependency"
     },
     {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/payments/actions.ts",
@@ -2174,7 +2192,9 @@
         "createCustomerPortalSession",
         "handleSubscriptionChange",
         "getStripePrices",
-        "getStripeProducts"
+        "getStripeProducts",
+        "StripeService",
+        "stripeService"
       ],
       "imports": [
         {
@@ -2216,61 +2236,69 @@
           ],
           "isInternal": true,
           "isExternal": false
+        },
+        {
+          "from": "@/lib/types/service-contracts",
+          "imports": [
+            "IPaymentService"
+          ],
+          "isInternal": true,
+          "isExternal": false
         }
       ],
       "functions": [
         {
           "name": "getBaseUrl",
-          "line": 22,
+          "line": 23,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "createCheckoutSession",
-          "line": 45,
+          "line": 46,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "createCustomerPortalSession",
-          "line": 128,
+          "line": 129,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "normalizeProductNameToPlanId",
-          "line": 204,
+          "line": 205,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "planIds",
-          "line": 219,
+          "line": 220,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "handleSubscriptionChange",
-          "line": 224,
+          "line": 225,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "getStripePrices",
-          "line": 308,
+          "line": 309,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "getStripeProducts",
-          "line": 326,
+          "line": 327,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
@@ -2279,7 +2307,6 @@
       "isUsed": true,
       "usageCount": 0,
       "issues": [
-        "Should implement IPaymentService contract",
         "Contains `any` types - should use proper types"
       ],
       "action": "refactor",
@@ -2616,21 +2643,21 @@
       "functions": [
         {
           "name": "runMonthlyProcessing",
-          "line": 22,
+          "line": 28,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "duration",
-          "line": 88,
+          "line": 94,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "processBusinessMonthly",
-          "line": 101,
+          "line": 107,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
@@ -2957,6 +2984,47 @@
       "reason": "Critical CFP workflow dependency"
     },
     {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils/cn.ts",
+      "relativePath": "lib/utils/cn.ts",
+      "exports": [
+        "cn"
+      ],
+      "imports": [
+        {
+          "from": "clsx",
+          "imports": [
+            "clsx",
+            "type ClassValue"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        },
+        {
+          "from": "tailwind-merge",
+          "imports": [
+            "clsx",
+            "type ClassValue"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "cn",
+          "line": 4,
+          "isExported": true,
+          "isUsed": false,
+          "usageCount": 0
+        }
+      ],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
+    },
+    {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils/format.ts",
       "relativePath": "lib/utils/format.ts",
       "exports": [
@@ -3132,50 +3200,6 @@
       "reason": "Active code"
     },
     {
-      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/utils.ts",
-      "relativePath": "lib/utils.ts",
-      "exports": [
-        "cn"
-      ],
-      "imports": [
-        {
-          "from": "clsx",
-          "imports": [
-            "clsx",
-            "type ClassValue"
-          ],
-          "isInternal": false,
-          "isExternal": true
-        },
-        {
-          "from": "tailwind-merge",
-          "imports": [
-            "clsx",
-            "type ClassValue"
-          ],
-          "isInternal": false,
-          "isExternal": true
-        }
-      ],
-      "functions": [
-        {
-          "name": "cn",
-          "line": 4,
-          "isExported": true,
-          "isUsed": false,
-          "usageCount": 0
-        }
-      ],
-      "isUsed": true,
-      "usageCount": 0,
-      "issues": [
-        "Duplicate of another file",
-        "Usage unclear - may be redundant"
-      ],
-      "action": "deprecate",
-      "reason": "Questionable usage - needs review"
-    },
-    {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/validation/business.ts",
       "relativePath": "lib/validation/business.ts",
       "exports": [
@@ -3208,6 +3232,32 @@
       "issues": [],
       "action": "keep",
       "reason": "Critical CFP workflow dependency"
+    },
+    {
+      "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/validation/common.ts",
+      "relativePath": "lib/validation/common.ts",
+      "exports": [
+        "idParamSchema",
+        "businessIdParamSchema",
+        "fingerprintIdParamSchema",
+        "jobIdParamSchema"
+      ],
+      "imports": [
+        {
+          "from": "zod",
+          "imports": [
+            "z"
+          ],
+          "isInternal": false,
+          "isExternal": true
+        }
+      ],
+      "functions": [],
+      "isUsed": true,
+      "usageCount": 0,
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
     },
     {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/lib/validation/crawl.ts",
@@ -3429,35 +3479,35 @@
       "functions": [
         {
           "name": "ensureStorageDir",
-          "line": 24,
+          "line": 30,
           "isExported": false,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "storeEntityForManualPublish",
-          "line": 43,
+          "line": 49,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "listStoredEntities",
-          "line": 105,
+          "line": 111,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "loadStoredEntity",
-          "line": 149,
+          "line": 155,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
         },
         {
           "name": "deleteStoredEntity",
-          "line": 161,
+          "line": 167,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
@@ -3834,12 +3884,20 @@
           ],
           "isInternal": true,
           "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/common",
+          "imports": [
+            "idParamSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
         }
       ],
       "functions": [
         {
           "name": "GET",
-          "line": 9,
+          "line": 10,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
@@ -3847,10 +3905,8 @@
       ],
       "isUsed": true,
       "usageCount": 0,
-      "issues": [
-        "API route may be missing input validation"
-      ],
-      "action": "refactor",
+      "issues": [],
+      "action": "keep",
       "reason": "Active code"
     },
     {
@@ -4283,12 +4339,20 @@
           ],
           "isInternal": true,
           "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/common",
+          "imports": [
+            "fingerprintIdParamSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
         }
       ],
       "functions": [
         {
           "name": "GET",
-          "line": 15,
+          "line": 16,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
@@ -4296,12 +4360,9 @@
       ],
       "isUsed": true,
       "usageCount": 0,
-      "issues": [
-        "Contains `any` types - should use proper types",
-        "API route may be missing input validation"
-      ],
-      "action": "refactor",
-      "reason": "Contract compliance issues detected"
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
     },
     {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/fingerprint/business/[businessId]/route.ts",
@@ -4361,12 +4422,20 @@
           ],
           "isInternal": true,
           "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/common",
+          "imports": [
+            "businessIdParamSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
         }
       ],
       "functions": [
         {
           "name": "GET",
-          "line": 15,
+          "line": 16,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
@@ -4374,12 +4443,9 @@
       ],
       "isUsed": true,
       "usageCount": 0,
-      "issues": [
-        "Contains `any` types - should use proper types",
-        "API route may be missing input validation"
-      ],
-      "action": "refactor",
-      "reason": "Contract compliance issues detected"
+      "issues": [],
+      "action": "keep",
+      "reason": "Active code"
     },
     {
       "path": "/Users/JJR/saas_starter_Nov9/saas-starter/app/api/fingerprint/route.ts",
@@ -4509,12 +4575,20 @@
           ],
           "isInternal": true,
           "isExternal": false
+        },
+        {
+          "from": "@/lib/validation/common",
+          "imports": [
+            "jobIdParamSchema"
+          ],
+          "isInternal": true,
+          "isExternal": false
         }
       ],
       "functions": [
         {
           "name": "GET",
-          "line": 8,
+          "line": 9,
           "isExported": true,
           "isUsed": false,
           "usageCount": 0
@@ -4522,10 +4596,8 @@
       ],
       "isUsed": true,
       "usageCount": 0,
-      "issues": [
-        "API route may be missing input validation"
-      ],
-      "action": "refactor",
+      "issues": [],
+      "action": "keep",
       "reason": "Active code"
     },
     {
@@ -4951,25 +5023,15 @@
       "lib/db/seed.ts",
       "lib/db/setup.ts",
       "lib/services/monthly-processing.ts",
-      "lib/utils.ts",
       "lib/wikidata/manual-publish-storage.ts",
       "lib/wikidata/tiered-entity-builder.ts"
     ],
-    "contractViolations": [
-      "lib/crawler/index.ts: Should implement IWebCrawler contract",
-      "lib/llm/fingerprinter.ts: Should implement ILLMFingerprinter contract",
-      "lib/llm/openrouter.ts: Should implement IOpenRouterClient contract",
-      "lib/payments/stripe.ts: Should implement IPaymentService contract"
-    ],
+    "contractViolations": [],
     "validationGaps": [
-      "app/api/business/[id]/route.ts: API route may be missing input validation",
       "app/api/cron/monthly/route.ts: API route may be missing input validation",
       "app/api/cron/weekly-crawls/route.ts: API route may be missing input validation",
       "app/api/dashboard/route.ts: API route may be missing input validation",
-      "app/api/fingerprint/[id]/route.ts: API route may be missing input validation",
-      "app/api/fingerprint/business/[businessId]/route.ts: API route may be missing input validation",
       "app/api/fingerprint/route.ts: API route may be missing input validation",
-      "app/api/job/[jobId]/route.ts: API route may be missing input validation",
       "app/api/team/route.ts: API route may be missing input validation",
       "app/api/test/team/customer-id/route.ts: API route may be missing input validation",
       "app/api/user/route.ts: API route may be missing input validation",

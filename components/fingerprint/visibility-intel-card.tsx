@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { VisibilityScoreDisplay } from './visibility-score-display';
+import { VisibilityScoreExplanation } from './visibility-score-explanation';
+import { VisibilityScoreChart } from './visibility-score-chart';
 import { formatSentiment, formatModelName } from '@/lib/utils/format';
 import { Eye, Sparkles, Info, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
@@ -19,6 +21,14 @@ interface VisibilityIntelCardProps {
   isPublished?: boolean;
   showAutoProgress?: boolean;
   businessId?: number;
+  /**
+   * Business status - passed to chart for polling
+   */
+  businessStatus?: string;
+  /**
+   * Whether automation is enabled - affects chart polling
+   */
+  automationEnabled?: boolean;
 }
 
 export function VisibilityIntelCard({
@@ -28,6 +38,8 @@ export function VisibilityIntelCard({
   isPublished = false,
   showAutoProgress = false,
   businessId,
+  businessStatus,
+  automationEnabled = false,
 }: VisibilityIntelCardProps) {
   // Empty state
   if (!fingerprint && !loading) {
@@ -135,11 +147,17 @@ export function VisibilityIntelCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Big Score Display */}
-        <div className="flex justify-center py-4">
+        <div className="flex justify-center items-center gap-2 py-4">
           <VisibilityScoreDisplay
             score={fingerprint.visibilityScore}
             trend={fingerprint.trend}
             size="lg"
+          />
+          <VisibilityScoreExplanation
+            score={fingerprint.visibilityScore}
+            mentionRate={fingerprint.summary.mentionRate}
+            avgRankPosition={fingerprint.summary.averageRank}
+            results={fingerprint.results}
           />
         </div>
 
@@ -243,6 +261,17 @@ export function VisibilityIntelCard({
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Mini Chart Preview */}
+        {businessId && (
+          <div className="pt-4 border-t">
+            <VisibilityScoreChart 
+              businessId={businessId}
+              businessStatus={businessStatus}
+              automationEnabled={automationEnabled || showAutoProgress}
+            />
           </div>
         )}
 

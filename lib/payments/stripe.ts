@@ -7,6 +7,7 @@ import {
   getUser,
   updateTeamSubscription
 } from '@/lib/db/queries';
+import { IPaymentService } from '@/lib/types/service-contracts';
 import type {
   StripePriceDTO,
   StripeProductDTO,
@@ -339,3 +340,31 @@ export async function getStripeProducts(): Promise<StripeProductDTO[]> {
         : product.default_price?.id || null
   }));
 }
+
+/**
+ * Stripe Payment Service
+ * Implements IPaymentService contract
+ */
+export class StripeService implements IPaymentService {
+  async createCheckoutSession(input: CreateCheckoutSessionInput): Promise<void> {
+    return createCheckoutSession(input);
+  }
+
+  async createCustomerPortalSession(team: { stripeCustomerId: string | null; stripeProductId: string | null }): Promise<{ url: string }> {
+    return createCustomerPortalSession(team as Team);
+  }
+
+  async handleSubscriptionChange(subscription: Stripe.Subscription): Promise<void> {
+    return handleSubscriptionChange(subscription);
+  }
+
+  async getStripePrices(): Promise<StripePriceDTO[]> {
+    return getStripePrices();
+  }
+
+  async getStripeProducts(): Promise<StripeProductDTO[]> {
+    return getStripeProducts();
+  }
+}
+
+export const stripeService = new StripeService();

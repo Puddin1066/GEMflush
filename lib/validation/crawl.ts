@@ -52,16 +52,19 @@ export const businessDetailsSchema = z.object({
 /**
  * LLM-enhanced extraction schema
  * Validates LLM-processed crawl data
+ * 
+ * Note: Fields can be null if LLM couldn't extract the information
+ * This allows graceful degradation when LLM extraction fails for specific fields
  */
 export const llmEnhancedSchema = z.object({
-  extractedEntities: z.array(z.string()),
-  businessCategory: z.string(),
-  serviceOfferings: z.array(z.string()),
-  targetAudience: z.string(),
-  keyDifferentiators: z.array(z.string()),
-  confidence: z.number().min(0).max(1),
-  model: z.string(),
-  processedAt: z.date().or(z.string()),
+  extractedEntities: z.array(z.string()).nullish(),
+  businessCategory: z.string().nullish(),
+  serviceOfferings: z.array(z.string()).nullish(),
+  targetAudience: z.string().nullish(), // Allow null - LLM may not find this
+  keyDifferentiators: z.array(z.string()).nullish(),
+  confidence: z.number().min(0).max(1).nullish(),
+  model: z.string().nullish(),
+  processedAt: z.date().or(z.string()).nullish(),
 }).optional();
 
 /**

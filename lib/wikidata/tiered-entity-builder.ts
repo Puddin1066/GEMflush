@@ -1,4 +1,8 @@
 /**
+ * @deprecated This wrapper may only be needed for DTOs, not core workflow.
+ * Review usage - if only used in lib/data/wikidata-dto.ts, consider moving to data layer.
+ * If not actively used, consider removing.
+ * 
  * Tiered Entity Builder
  * SOLID: Single Responsibility - handles tier-based entity richness
  * DRY: Wraps existing entity builder with tier filtering

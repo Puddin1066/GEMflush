@@ -226,24 +226,75 @@ export function toCompetitiveLeaderboardDTO(
       ? (targetBusiness.mentionCount / totalRecommendationQueries) * 100
       : 0;
 
-  // Calculate total mentions for market share
+  // Normalize competitor name for deduplication (remove common variations)
+  const normalizeCompetitorName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/^(the|a|an)\s+/i, '')
+      .replace(/\s+(llc|inc|corp|ltd|co|limited|company|corporation)\.?$/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Deduplicate competitors by normalizing names and merging metrics
+  const competitorMap = new Map<string, {
+    name: string; // Keep original name (first occurrence)
+    mentionCount: number;
+    totalPosition: number; // Sum of positions for weighted average
+    positionCount: number; // Count of mentions for average calculation
+    appearsWithTarget: number;
+  }>();
+
+  for (const comp of competitors) {
+    const normalized = normalizeCompetitorName(comp.name);
+    const existing = competitorMap.get(normalized);
+    
+    if (existing) {
+      // Merge: sum metrics
+      existing.mentionCount += comp.mentionCount;
+      existing.totalPosition += comp.avgPosition * comp.mentionCount; // Weighted sum
+      existing.positionCount += comp.mentionCount;
+      existing.appearsWithTarget += comp.appearsWithTarget;
+    } else {
+      // First occurrence - keep original name
+      competitorMap.set(normalized, {
+        name: comp.name,
+        mentionCount: comp.mentionCount,
+        totalPosition: comp.avgPosition * comp.mentionCount,
+        positionCount: comp.mentionCount,
+        appearsWithTarget: comp.appearsWithTarget,
+      });
+    }
+  }
+
+  // Convert map back to array and sort by mention count (descending)
+  const deduplicatedCompetitors = Array.from(competitorMap.values())
+    .map(comp => ({
+      name: comp.name,
+      mentionCount: comp.mentionCount,
+      avgPosition: comp.positionCount > 0 ? comp.totalPosition / comp.positionCount : 0,
+      appearsWithTarget: comp.appearsWithTarget,
+    }))
+    .sort((a, b) => b.mentionCount - a.mentionCount);
+
+  // Calculate total mentions for market share (using deduplicated data)
   const totalMentions =
     targetBusiness.mentionCount +
-    competitors.reduce((sum, comp) => sum + comp.mentionCount, 0);
+    deduplicatedCompetitors.reduce((sum, comp) => sum + comp.mentionCount, 0);
 
   // Transform competitors with rankings and market share
-  const competitorDTOs: CompetitorDTO[] = competitors.map((comp, idx) => ({
+  const competitorDTOs: CompetitorDTO[] = deduplicatedCompetitors.map((comp, idx) => ({
     rank: idx + 1,
     name: comp.name,
     mentionCount: comp.mentionCount,
-    avgPosition: comp.avgPosition,
+    avgPosition: Math.round(comp.avgPosition * 10) / 10, // Round to 1 decimal
     appearsWithTarget: comp.appearsWithTarget,
     marketShare: totalMentions > 0 ? (comp.mentionCount / totalMentions) * 100 : 0,
     badge: idx === 0 ? 'top' : undefined, // Top competitor gets badge
   }));
 
-  // Determine market position
-  const topCompetitor = competitors.length > 0 ? competitors[0] : null;
+  // Determine market position (use deduplicated competitors)
+  const topCompetitor = deduplicatedCompetitors.length > 0 ? deduplicatedCompetitors[0] : null;
   const marketPosition = determineMarketPosition(
     targetBusiness.mentionCount,
     topCompetitor?.mentionCount,

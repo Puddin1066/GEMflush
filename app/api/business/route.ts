@@ -10,7 +10,6 @@ import {
 import { canAddBusiness, getMaxBusinesses } from '@/lib/gemflush/permissions';
 import { createBusinessSchema, createBusinessFromUrlSchema } from '@/lib/validation/business';
 import { z } from 'zod';
-import { webCrawler } from '@/lib/crawler';
 import {
   getIdempotencyKey,
   getCachedResponse,
@@ -20,6 +19,9 @@ import {
 import { db } from '@/lib/db/drizzle';
 import { businesses } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { loggers } from '@/lib/utils/logger';
+
+const logger = loggers.api;
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
       maxBusinesses: getMaxBusinesses(team),
     });
   } catch (error) {
-    console.error('Error fetching businesses:', error);
+    logger.error('Error fetching businesses', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -97,7 +99,10 @@ export async function POST(request: NextRequest) {
     let crawledDataForLocation: { name?: string; category?: string; url?: string } | null = null;
     
     if (body.url && (!body.name || !body.location)) {
-      console.log('[BUSINESS] URL-only creation detected - creating business immediately, crawling in background...');
+      logger.info('URL-only creation detected - creating business immediately, crawling in background', {
+        url: body.url,
+        teamId: team.id,
+      });
       
       // IDEAL: Use URL-only schema which makes location optional
       // Create business with URL only, location will be updated after crawl
@@ -178,7 +183,10 @@ export async function POST(request: NextRequest) {
 
     // Verify business was created with ID (SOLID: proper validation)
     if (!business || !business.id) {
-      console.error('Business created but ID missing:', business);
+      logger.error('Business created but ID missing', undefined, {
+        business: business ? { name: business.name, url: business.url } : null,
+        teamId: team.id,
+      });
       return NextResponse.json(
         { error: 'Business created but ID not returned' },
         { status: 500 }
@@ -208,7 +216,9 @@ export async function POST(request: NextRequest) {
       // Start crawl in background to update business data
       const { autoStartProcessing } = await import('@/lib/services/business-processing');
       autoStartProcessing(business).catch(error => {
-        console.error('Auto-processing failed for business:', business.id, error);
+        logger.error('Auto-processing failed for business', error, {
+          businessId: business.id,
+        });
       });
       
       return NextResponse.json(response, { status: 422 });
@@ -219,10 +229,13 @@ export async function POST(request: NextRequest) {
     // DRY: Centralized processing logic
     // Fire and forget - don't block response
     const { autoStartProcessing } = await import('@/lib/services/business-processing');
-    console.log(`[DEBUG] Business creation: Starting autoStartProcessing for business ${business.id}`);
+    logger.debug('Starting autoStartProcessing for business', {
+      businessId: business.id,
+    });
     autoStartProcessing(business).catch(error => {
-      console.error(`[ERROR] Auto-processing failed for business ${business.id}:`, error);
-      console.error(`[ERROR] Error stack:`, error instanceof Error ? error.stack : 'No stack');
+      logger.error('Auto-processing failed for business', error, {
+        businessId: business.id,
+      });
       // Don't fail business creation if auto-processing fails
     });
 
@@ -246,7 +259,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('Validation error:', error.errors);
+      logger.error('Validation error', error, {
+        errors: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+        })),
+      });
       return NextResponse.json(
         { 
           error: 'Validation error', 
@@ -259,7 +277,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Error creating business:', error);
+    // Note: user and team may not be in scope if error occurred before their declaration
+    const errorContext: { userId?: number; teamId?: number } = {};
+    try {
+      const errorUser = await getUser();
+      if (errorUser) errorContext.userId = errorUser.id;
+      const errorTeam = await getTeamForUser();
+      if (errorTeam) errorContext.teamId = errorTeam.id;
+    } catch {
+      // Ignore errors when trying to get user/team for logging
+    }
+    logger.error('Error creating business', error, errorContext);
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Internal server error',

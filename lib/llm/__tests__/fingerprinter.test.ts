@@ -23,7 +23,15 @@ describe('LLMFingerprinter', () => {
     wikidataQID: null,
     wikidataPublishedAt: null,
     lastCrawledAt: null,
-    crawlData: null,
+    // crawlData is REQUIRED for fingerprinting (input is only a URL)
+    crawlData: {
+      description: 'A cozy coffee shop serving artisanal coffee and pastries',
+      services: ['coffee', 'pastries', 'breakfast'],
+      businessDetails: {
+        industry: 'Food & Beverage',
+        sector: 'Retail',
+      },
+    },
     status: 'crawled',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -54,9 +62,10 @@ describe('LLMFingerprinter', () => {
     it('should include location in prompts', () => {
       const prompts = (fingerprinter as any).generatePrompts(mockBusiness);
 
-      expect(prompts.factual).toContain('San Francisco, CA');
-      expect(prompts.opinion).toContain('San Francisco, CA');
-      expect(prompts.recommendation).toContain('San Francisco, CA');
+      // Location should appear in "in [location]" format for customer queries
+      expect(prompts.factual).toContain('in San Francisco, CA');
+      expect(prompts.opinion).toContain('in San Francisco, CA');
+      expect(prompts.recommendation).toContain('in San Francisco, CA');
     });
 
     it('should handle missing location gracefully', () => {
@@ -67,8 +76,24 @@ describe('LLMFingerprinter', () => {
 
       const prompts = (fingerprinter as any).generatePrompts(businessWithoutLocation);
 
-      expect(prompts.factual).toContain('the area');
-      expect(prompts.opinion).toContain('the area');
+      // Should still generate prompts without location context
+      expect(prompts.factual).toBeDefined();
+      expect(prompts.opinion).toBeDefined();
+      expect(prompts.recommendation).toBeDefined();
+      // Should not include location in prompts when location is missing
+      expect(prompts.factual).not.toContain('in ');
+      expect(prompts.opinion).not.toContain('in ');
+    });
+
+    it('should require crawlData for prompt generation', () => {
+      const businessWithoutCrawlData: Business = {
+        ...mockBusiness,
+        crawlData: null,
+      };
+
+      expect(() => {
+        (fingerprinter as any).generatePrompts(businessWithoutCrawlData);
+      }).toThrow('crawlData is required for prompt generation');
     });
   });
 

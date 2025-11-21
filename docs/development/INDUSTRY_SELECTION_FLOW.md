@@ -159,3 +159,4 @@ Website URL
    - Allow users to correct industry classification
    - Use corrections to improve future extractions
 
+

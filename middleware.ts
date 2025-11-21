@@ -19,6 +19,7 @@ export async function middleware(request: NextRequest) {
     try {
       const parsed = await verifyToken(sessionCookie.value);
       const expiresInOneDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const isProduction = process.env.NODE_ENV === 'production';
 
       res.cookies.set({
         name: 'session',
@@ -27,7 +28,7 @@ export async function middleware(request: NextRequest) {
           expires: expiresInOneDay.toISOString()
         }),
         httpOnly: true,
-        secure: true,
+        secure: isProduction, // Only secure in production (HTTPS)
         sameSite: 'lax',
         expires: expiresInOneDay
       });

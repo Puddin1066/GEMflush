@@ -5,7 +5,10 @@
 
 import { Business } from '@/lib/db/schema';
 import { getBusinessById, updateBusiness, createCrawlJob, updateCrawlJob, getTeamForUser, getTeamForBusiness } from '@/lib/db/queries';
-import { webCrawler } from '@/lib/crawler';
+import { WebCrawler } from '@/lib/crawler/index';
+
+// Create crawler instance
+const webCrawler = new WebCrawler();
 import { llmFingerprinter } from '@/lib/llm/fingerprinter';
 import { db } from '@/lib/db/drizzle';
 import { llmFingerprints } from '@/lib/db/schema';
@@ -310,11 +313,19 @@ export async function executeCrawlJob(jobId: number | null, businessId: number, 
       }
       
       // Update name if crawl extracted it and business has default name
+      // IMPORTANT: Only update if extracted name is valid (not 'Unknown Business')
       if (result.data.name && 
+          result.data.name !== 'Unknown Business' &&
           businessData.name && 
           (businessData.name === 'Business' || businessData.name === 'Unknown Business')) {
         updateData.name = result.data.name;
         log.info('Updating business name from crawl data', { businessId, name: result.data.name });
+      } else if (result.data.name === 'Unknown Business') {
+        log.warn('Crawl failed to extract business name, keeping existing name', {
+          businessId,
+          currentName: businessData.name,
+          url: businessData.url,
+        });
       }
       
       if (nextCrawlAt) {
@@ -605,8 +616,20 @@ export async function autoStartProcessing(business: Business): Promise<void> {
     const fingerprintStartTime = Date.now();
     
     try {
-      // OPTIMIZATION: Pass current business object instead of re-fetching
-      currentBusiness = await executeFingerprint(currentBusiness, true);
+      // DEFENSIVE: Refresh business to ensure we have latest name and crawlData
+      // This ensures fingerprint uses the updated business name from crawl
+      const businessForFingerprint = await getBusinessById(businessId);
+      if (!businessForFingerprint) {
+        throw new Error('Business not found before fingerprint');
+      }
+      log.debug('Business refreshed before fingerprint', {
+        businessId,
+        name: businessForFingerprint.name,
+        hasCrawlData: !!businessForFingerprint.crawlData,
+      });
+      
+      // OPTIMIZATION: Pass refreshed business object
+      currentBusiness = await executeFingerprint(businessForFingerprint, true);
       
       const fingerprintDuration = Date.now() - fingerprintStartTime;
       log.performance('Step 2/3: Fingerprint', fingerprintDuration, { businessId });

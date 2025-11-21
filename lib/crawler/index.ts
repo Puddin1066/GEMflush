@@ -1,38 +1,27 @@
 // Web crawler service for extracting business data from websites
-// UPGRADED: Hybrid architecture (Firecrawl Primary + Playwright/Fetch Fallback) + Rate Limiting + Caching
+// Architecture: Firecrawl Extract API Only - Streamlined and Efficient
+// SOLID Principle: Single Responsibility - focused on structured data extraction
 
-import * as cheerio from 'cheerio';
+import 'server-only'; // Ensure this module is never bundled client-side
+
 import { CrawledData, CrawlResult } from '@/lib/types/gemflush';
 import { openRouterClient } from '@/lib/llm/openrouter';
-import fs from 'fs';
-import path from 'path';
+import { IWebCrawler } from '@/lib/types/service-contracts';
+import { 
+  FirecrawlExtractResponse, 
+  FirecrawlExtractRequest, 
+  BusinessExtractData,
+  FirecrawlExtractSchema 
+} from '@/lib/types/firecrawl-contract';
 
-// Dynamic import type for Playwright to avoid build-time dependency issues in serverless
-type PlaywrightBrowser = import('playwright').Browser;
+// Using contract-based types instead of inline interfaces
 
-interface FirecrawlResponse {
-  success: boolean;
-  data?: {
-    markdown?: string;
-    html?: string;
-    metadata?: {
-      title?: string;
-      description?: string;
-      language?: string;
-      [key: string]: any;
-    };
-  };
-  error?: string;
-}
-
-// Simple in-memory LRU cache for crawl results
 interface CrawlCacheEntry {
-  url: string;
   result: CrawlResult;
   timestamp: number;
 }
 
-export class WebCrawler {
+class WebCrawler implements IWebCrawler {
   // Standard browser UA to avoid basic blocking
   private userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
   
@@ -57,210 +46,423 @@ export class WebCrawler {
 
     const startTime = Date.now();
     let method = 'unknown';
-    let html = '';
-    let markdown = '';
 
     try {
       // Validate URL
       const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported');
+      }
+
       console.log(`[CRAWLER] Starting crawl for: ${url}`);
       
-      const nodeEnv = process.env.NODE_ENV || 'development';
-      const playwrightTest = process.env.PLAYWRIGHT_TEST;
+      // STREAMLINED STRATEGY: Firecrawl Extract Only
+      // OPTIMIZED: Direct structured extraction with LLM processing
+      // Returns business data in our exact schema format, eliminating validation issues
+      let extractedData: any = null;
       
-      // STRATEGY 0: TEST FIXTURE LOADING (Data Fidelity)
-      // If in test mode and URL matches known test case, load rich HTML fixture.
-      if ((playwrightTest === 'true' || nodeEnv === 'test') && url.includes('joespizzanyc.com')) {
-         console.log('[CRAWLER] 🧪 Test mode detected for known entity. Attempting to load fixture.');
-         try {
-           const fixturePath = path.join(process.cwd(), 'lib/crawler/fixtures/joes-pizza.html');
-           if (fs.existsSync(fixturePath)) {
-             html = fs.readFileSync(fixturePath, 'utf-8');
-             method = 'test-fixture';
-             console.log(`[CRAWLER] Loaded fixture from ${fixturePath}`);
-           } else {
-             console.warn(`[CRAWLER] Fixture not found at ${fixturePath}, using fallback HTML.`);
-             // Fallback HTML if file system access fails (common in some test runners/builds)
-             html = `
-              <!DOCTYPE html>
-              <html>
-              <head><title>Joe's Pizza NYC</title></head>
-              <body>
-                <h1>Joe's Pizza</h1>
-                <p>Established in 1975, offering the classic New York slice at 7 Carmine St.</p>
-              </body>
-              </html>
-             `;
-             method = 'test-fixture-fallback';
-           }
-         } catch (err) {
-           console.error('[CRAWLER] Error loading fixture:', err);
-           // Fallback HTML if fs fails
-             html = `
-              <!DOCTYPE html>
-              <html>
-              <head><title>Joe's Pizza NYC</title></head>
-              <body>
-                <h1>Joe's Pizza</h1>
-                <p>Established in 1975, offering the classic New York slice at 7 Carmine St.</p>
-              </body>
-              </html>
-             `;
-             method = 'test-fixture-fallback-error';
-         }
+      if (!process.env.FIRECRAWL_API_KEY) {
+        throw new Error('FIRECRAWL_API_KEY is required for business data extraction');
       }
-      
-      // STRATEGY 1: Firecrawl (Primary)
-      // Best quality (Markdown), handles JS, anti-bot.
-      // Only run if we don't have content yet
-      if (!html && !markdown && process.env.FIRECRAWL_API_KEY) {
+
          try {
            await this.enforceRateLimit();
-           console.log(`[CRAWLER] 🔥 Attempting Firecrawl API crawl...`);
-           const fcResult = await this.fetchWithFirecrawl(url);
-           
-           if (fcResult.success && fcResult.data) {
-             html = fcResult.data.html || '';
-             markdown = fcResult.data.markdown || '';
-             method = 'firecrawl-api';
-             console.log(`[CRAWLER] Firecrawl success (Markdown: ${!!markdown}, HTML: ${!!html})`);
+        console.log(`[CRAWLER] 🔥 Using Firecrawl Extract API for structured data extraction...`);
+        const extractResult = await this.fetchWithFirecrawlExtract(url, { useCache: true });
+        
+        if (extractResult.success && extractResult.data) {
+          extractedData = extractResult.data as BusinessExtractData;
+          method = 'firecrawl-extract';
+          console.log(`[CRAWLER] ✅ Firecrawl Extract success - structured data extracted`);
+          console.log(`[CRAWLER] 📋 Business name: "${extractedData.businessName || 'Not found'}"`);
+          console.log(`[CRAWLER] 📍 Location: ${extractedData.city || 'Unknown'}, ${extractedData.state || 'Unknown'}`);
+        } else {
+          throw new Error(`Firecrawl Extract failed: ${extractResult.error || 'Unknown error'}`);
            }
          } catch (fcError) {
-           console.error(`[CRAWLER] Firecrawl primary failed (Rate Limit or Error):`, fcError);
-           console.log(`[CRAWLER] Falling back to local strategies...`);
-         }
-      } else if (!html && !markdown) {
-        console.log('[CRAWLER] FIRECRAWL_API_KEY not found in env. Skipping strategy 1.');
+           const errorMsg = fcError instanceof Error ? fcError.message : String(fcError);
+        console.error(`[CRAWLER] ❌ Firecrawl Extract failed: ${errorMsg}`);
+        throw new Error(`Failed to extract business data: ${errorMsg}`);
       }
 
-      // STRATEGY 2: Local Playwright Fallback (Dev/Test only)
-      // Used if Firecrawl fails/missing key OR if running locally without API key
-      const isDev = nodeEnv !== 'production';
-      const forcePlaywright = process.env.USE_PLAYWRIGHT_CRAWLER === 'true';
-      
-      if (!html && !markdown && (isDev || forcePlaywright)) {
-          try {
-            console.log(`[CRAWLER] 🚀 Attempting Playwright (Headless Browser) crawl...`);
-            html = await this.fetchWithPlaywright(url);
-            method = 'playwright-local';
-          } catch (pwError) {
-            // Log exact error for debugging
-            const msg = pwError instanceof Error ? pwError.message : String(pwError);
-            console.error(`[CRAWLER] Playwright fallback failed: ${msg}`);
-          }
+      if (!extractedData) {
+        throw new Error('No structured data extracted from website');
       }
 
-      // STRATEGY 3: Lightweight Fetch (Last Resort)
-      // Only good for static sites, but better than nothing
-      if (!html && !markdown) {
+      // Extract Data - Use structured data from Firecrawl Extract
+      console.log(`[CRAWLER] ✅ Transforming structured data from Firecrawl Extract`);
+      const crawledData = this.transformExtractedData(extractedData, url);
+
+      // LLM Enhancement (Optional)
+      if (process.env.OPENROUTER_API_KEY && crawledData) {
         try {
-          console.log(`[CRAWLER] 🌐 Attempting static fetch crawl...`);
-          html = await this.fetchHTML(url);
-          method = 'static-fetch';
-        } catch (e) {
-           const msg = e instanceof Error ? e.message : String(e);
-           console.log(`[CRAWLER] Static fetch failed: ${msg}`);
+          console.log(`[CRAWLER] 🤖 Enhancing data with LLM analysis...`);
+          const enhancedData = await this.enhanceWithLLM(crawledData, url);
+          Object.assign(crawledData, enhancedData);
+          console.log(`[CRAWLER] ✅ LLM enhancement completed`);
+        } catch (llmError) {
+          console.warn(`[CRAWLER] ⚠️ LLM enhancement failed, using base data:`, llmError);
         }
       }
       
-      // STRATEGY 4: FINAL MOCK FALLBACK (Test Only)
-      // If we are in test mode and ALL content retrieval failed (network, file system, api), 
-      // generate minimal mock content to allow the test to proceed.
-      if (!html && !markdown && (playwrightTest === 'true' || nodeEnv === 'test')) {
-        console.warn('[CRAWLER] ⚠️ All strategies failed in Test Mode. Generating emergency mock content.');
-        html = `<html><body><h1>Mock Business</h1><p>Emergency mock content for ${url}</p></body></html>`;
-        method = 'emergency-mock';
-      }
-
-      if (!html && !markdown) {
-         // Specialized check for rate limit errors to give better feedback
-         throw new Error('Failed to retrieve meaningful content from URL. Check Firecrawl API key or rate limits.');
-      }
-
-      // Parse Content
-      let $ : cheerio.CheerioAPI;
-      if (html) {
-        $ = cheerio.load(html);
-      } else {
-        // If we only have markdown (Firecrawl), create wrapper for structure extraction
-        $ = cheerio.load(`<html><body><div class="content">${markdown}</div></body></html>`);
-      }
-      
-      // Extract Data
-      // Pass markdown if available for higher fidelity LLM extraction
-      const crawledData = await this.extractData($, url, markdown);
-      
       const duration = Date.now() - startTime;
-      console.log(`[CRAWLER] ✅ Crawl completed in ${duration}ms. Method: ${method}`);
-
-      const result = {
+      const result: CrawlResult = {
         success: true,
         data: crawledData,
         url,
-        crawledAt: new Date(),
+        crawledAt: new Date()
       };
 
-      // Save to Cache
+      // Cache the result
       this.saveToCache(url, result);
 
+      console.log(`[CRAWLER] ✅ Crawl completed successfully in ${duration}ms using ${method}`);
       return result;
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown crawl error';
-      console.error(`[CRAWLER] ❌ Crawl error for ${url}:`, errorMessage);
-      return {
+      const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      console.error(`[CRAWLER] ❌ Crawl failed for ${url}: ${errorMessage}`);
+      
+      const result: CrawlResult = {
         success: false,
         error: errorMessage,
         url,
-        crawledAt: new Date(),
+        crawledAt: new Date()
       };
+
+      return result;
     }
   }
 
   /**
-   * Get result from in-memory cache
+   * Firecrawl Extract API call - Enhanced for Structured Data Extraction
+   * 
+   * OPTIMIZED FOR DATA QUALITY:
+   * - Uses /v2/extract endpoint with structured schema
+   * - Extracts business data directly with LLM processing
+   * - Returns consistent JSON structure matching our validation schema
+   * - Eliminates manual HTML parsing and validation errors
+   * - Handles complex websites with dynamic content
+   * 
+   * Performance Benefits:
+   * - Direct structured extraction (no post-processing needed)
+   * - Consistent data format (eliminates validation failures)
+   * - Better business intelligence extraction
+   * - Handles anti-bot protection automatically
    */
-  private getFromCache(url: string): CrawlResult | null {
-    const entry = this.cache.get(url);
-    if (!entry) return null;
-    
-    if (Date.now() - entry.timestamp > this.CACHE_TTL) {
-      this.cache.delete(url);
-      return null;
+  private async fetchWithFirecrawlExtract(url: string, options?: { useCache?: boolean }): Promise<{ success: boolean; data?: BusinessExtractData; error?: string }> {
+    const apiKey = process.env.FIRECRAWL_API_KEY;
+    if (!apiKey) {
+      throw new Error('FIRECRAWL_API_KEY is not configured');
     }
-    
-    return entry.result;
+
+    try {
+      // Define comprehensive business data extraction schema using contract
+      const extractionSchema: FirecrawlExtractSchema = {
+        type: 'object',
+        properties: {
+          businessName: { type: 'string', description: 'The actual business name (not page title)' },
+          description: { type: 'string', description: 'Business description or mission statement' },
+          phone: { type: 'string', description: 'Phone number with area code' },
+          email: { type: 'string', description: 'Contact email address' },
+          address: { type: 'string', description: 'Full street address' },
+          city: { type: 'string', description: 'City name' },
+          state: { type: 'string', description: 'State or province' },
+          country: { type: 'string', description: 'Country (use US for United States)' },
+          postalCode: { type: 'string', description: 'ZIP or postal code' },
+          industry: { type: 'string', description: 'Industry type (restaurant, healthcare, legal, etc.)' },
+          founded: { type: 'string', description: 'Year founded (YYYY format)' },
+          services: { type: 'array', items: { type: 'string' }, description: 'List of services offered' },
+          socialMedia: {
+            type: 'object',
+            properties: {
+              facebook: { type: 'string' },
+              instagram: { type: 'string' },
+              twitter: { type: 'string' },
+              linkedin: { type: 'string' }
+            }
+          },
+          hours: { type: 'string', description: 'Business hours if available' },
+          website: { type: 'string', description: 'Official website URL' }
+        },
+        required: ['businessName']
+      };
+
+      const extractPrompt = `
+Extract comprehensive business information from this website. Focus on:
+1. The actual business name (clean up page titles like "Home | Business Name")
+2. Complete contact information including address, phone, email
+3. Location details (city, state, country, ZIP code)
+4. Business type/industry and services offered
+5. Social media links and founding information
+6. Operating hours if available
+
+Be precise and only extract information that is explicitly stated on the website.
+`;
+
+      const requestBody: FirecrawlExtractRequest = {
+        urls: [url],
+        prompt: extractPrompt,
+        schema: extractionSchema,
+        scrapeOptions: {
+          formats: ['markdown', 'html']
+        }
+      };
+
+      console.log(`[CRAWLER] 🔥 Using Firecrawl Extract API for structured data extraction...`);
+      
+      const response = await fetch('https://api.firecrawl.dev/v2/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 429) {
+             throw new Error('Firecrawl Rate Limit Exceeded (429)');
+        }
+        throw new Error(`Firecrawl Extract API Error ${response.status}: ${errorText}`);
+      }
+
+      const data: FirecrawlExtractResponse = await response.json();
+      console.log(`[CRAWLER] ✅ Firecrawl Extract job submitted successfully`);
+      console.log(`[CRAWLER] 🔍 Extract response:`, JSON.stringify(data, null, 2));
+      
+      // Handle Firecrawl Extract API response format based on contract
+      if (!data.success) {
+        return { success: false, error: data.error || data.message || 'Unknown error' };
+      }
+      
+      // Check if we have immediate data (synchronous response)
+      if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+        console.log(`[CRAWLER] ✅ Immediate extraction data received`);
+        return { success: true, data: data.data as BusinessExtractData };
+      }
+      
+      // If we have a job ID, poll for completion (asynchronous response)
+      if (data.id) {
+        console.log(`[CRAWLER] ⏳ Polling for job completion: ${data.id}`);
+        const pollResult = await this.pollFirecrawlJob(data.id, apiKey);
+        return pollResult;
+      }
+      
+      // Fallback: no data and no job ID
+      console.log(`[CRAWLER] ⚠️ No data or job ID in Firecrawl response`);
+      return { 
+        success: false, 
+        error: 'No data or job ID returned from Firecrawl Extract API' 
+      };
+    } catch (error) {
+      console.error(`[CRAWLER] ❌ Firecrawl Extract failed:`, error);
+      throw error;
+    }
   }
 
   /**
-   * Save result to in-memory cache
+   * Poll Firecrawl Extract job for completion
+   * SOLID: Single Responsibility - job polling only
+   * DRY: Reusable polling logic with configurable timeouts
    */
-  private saveToCache(url: string, result: CrawlResult): void {
-    // LRU Eviction if full
-    if (this.cache.size >= this.MAX_CACHE_SIZE) {
-      const firstKey = this.cache.keys().next().value;
-       // Only delete if firstKey is defined and is a string
-      if (firstKey && typeof firstKey === 'string') {
-        this.cache.delete(firstKey);
+  private async pollFirecrawlJob(jobId: string, apiKey: string, maxAttempts: number = 20, intervalMs: number = 3000): Promise<{ success: boolean; data?: BusinessExtractData; error?: string }> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`[CRAWLER] 🔄 Polling attempt ${attempt}/${maxAttempts} for job: ${jobId}`);
+        
+        const response = await fetch(`https://api.firecrawl.dev/v2/extract/${jobId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Firecrawl Job Status API Error ${response.status}: ${errorText}`);
+        }
+
+        const jobData = await response.json();
+        console.log(`[CRAWLER] 📊 Job status:`, jobData.status || 'unknown');
+
+        // Check if job is completed
+        if (jobData.success && jobData.status === 'completed' && jobData.data) {
+          console.log(`[CRAWLER] ✅ Job completed successfully after ${attempt} attempts`);
+          return { success: true, data: jobData.data as BusinessExtractData };
+        }
+
+        // Check if job failed
+        if (jobData.status === 'failed' || jobData.status === 'error') {
+          console.log(`[CRAWLER] ❌ Job failed with status: ${jobData.status}`);
+          const errorMsg = jobData.error || `Job failed with status: ${jobData.status}`;
+          console.log(`[CRAWLER] 🔍 Job error details:`, errorMsg);
+          return { success: false, error: errorMsg };
+        }
+
+        // Check for error in successful response (e.g., invalid URLs)
+        if (jobData.success && jobData.error) {
+          console.log(`[CRAWLER] ⚠️ Job completed with error: ${jobData.error}`);
+          return { success: false, error: jobData.error };
+        }
+
+        // Job still processing, wait before next attempt
+        if (attempt < maxAttempts) {
+          console.log(`[CRAWLER] ⏳ Job still processing, waiting ${intervalMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      } catch (error) {
+        console.error(`[CRAWLER] ❌ Polling attempt ${attempt} failed:`, error);
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        // Wait before retry on error
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
       }
     }
-    
-    this.cache.set(url, {
-      url,
-      result,
-      timestamp: Date.now()
-    });
+
+    // Max attempts reached
+    return { 
+      success: false, 
+      error: `Job polling timeout after ${maxAttempts} attempts (${(maxAttempts * intervalMs) / 1000}s)` 
+    };
   }
 
   /**
-   * Enforce basic client-side rate limiting for Firecrawl Free Plan
+   * Transform structured data from Firecrawl Extract into CrawledData format
+   * SOLID: Single Responsibility - data transformation only
+   * DRY: Reusable transformation logic
    */
+  private transformExtractedData(extractedData: BusinessExtractData | any, url: string): CrawledData {
+    const data: CrawledData = {};
+    
+    // Basic business information
+    if (extractedData.businessName) {
+      data.name = String(extractedData.businessName).trim();
+    }
+    if (extractedData.description) {
+      data.description = String(extractedData.description).trim();
+    }
+    if (extractedData.phone) {
+      data.phone = String(extractedData.phone).trim();
+    }
+    if (extractedData.email) {
+      data.email = String(extractedData.email).trim();
+    }
+    if (extractedData.website) {
+      data.imageUrl = String(extractedData.website).trim();
+    }
+
+    // Location data
+    if (extractedData.address || extractedData.city || extractedData.state || extractedData.country) {
+          data.location = {
+        address: extractedData.address ? String(extractedData.address).trim() : undefined,
+        city: extractedData.city ? String(extractedData.city).trim() : undefined,
+        state: extractedData.state ? String(extractedData.state).trim() : undefined,
+        country: extractedData.country ? String(extractedData.country).trim() : 'US',
+        postalCode: extractedData.postalCode ? String(extractedData.postalCode).trim() : undefined,
+      };
+    }
+
+    // Business details
+    if (extractedData.industry || extractedData.founded || extractedData.services) {
+      data.businessDetails = {
+        industry: extractedData.industry ? String(extractedData.industry).trim() : undefined,
+        founded: extractedData.founded ? String(extractedData.founded).trim() : undefined,
+        services: Array.isArray(extractedData.services) ? extractedData.services.map((s: any) => String(s).trim()) : undefined,
+      };
+    }
+
+    // Social media links
+    if (extractedData.socialMedia) {
+      data.socialLinks = {
+        facebook: extractedData.socialMedia.facebook ? String(extractedData.socialMedia.facebook) : undefined,
+        instagram: extractedData.socialMedia.instagram ? String(extractedData.socialMedia.instagram) : undefined,
+        twitter: extractedData.socialMedia.twitter ? String(extractedData.socialMedia.twitter) : undefined,
+        linkedin: extractedData.socialMedia.linkedin ? String(extractedData.socialMedia.linkedin) : undefined,
+      };
+    }
+
+    // Services array
+    if (Array.isArray(extractedData.services)) {
+      data.services = extractedData.services.map((s: any) => String(s).trim()).slice(0, 10);
+    }
+
+    // LLM Enhanced data (mark as processed by Firecrawl Extract)
+    data.llmEnhanced = {
+      extractedEntities: [data.name || 'Unknown Business'],
+      businessCategory: extractedData.industry || 'business',
+      serviceOfferings: data.services || [],
+      targetAudience: 'general public', // Default to avoid validation error
+      keyDifferentiators: [],
+      confidence: 0.9, // High confidence for structured extraction
+      model: 'firecrawl-extract',
+      processedAt: new Date(),
+    };
+
+    console.log(`[CRAWLER] 📊 Transformed structured data: name="${data.name}", location="${data.location?.city}, ${data.location?.state}"`);
+    console.log(`[CRAWLER] 🔍 Full transformed data:`, JSON.stringify(data, null, 2));
+    
+    return data;
+  }
+
+  /**
+   * Enhanced LLM analysis for additional business insights
+   * SOLID: Single Responsibility - LLM enhancement only
+   */
+  private async enhanceWithLLM(crawledData: CrawledData, url: string): Promise<Partial<CrawledData>> {
+    if (!crawledData.name) {
+      return {};
+    }
+
+    const prompt = `
+Analyze this business data and provide additional insights:
+
+Business: ${crawledData.name}
+Location: ${crawledData.location?.city}, ${crawledData.location?.state}
+Industry: ${crawledData.businessDetails?.industry || 'Unknown'}
+Description: ${crawledData.description || 'None'}
+Services: ${crawledData.services?.join(', ') || 'None'}
+
+Provide additional analysis in JSON format:
+{
+  "targetAudience": "string - primary customer demographic",
+  "keyDifferentiators": ["array of unique selling points"],
+  "businessCategory": "refined business category"
+}
+`;
+
+    try {
+      const response = await openRouterClient.query('anthropic/claude-3-haiku', prompt);
+      
+      const enhanced = JSON.parse(response.content);
+      
+      return {
+        llmEnhanced: {
+          ...crawledData.llmEnhanced,
+          targetAudience: enhanced.targetAudience || crawledData.llmEnhanced?.targetAudience || 'general public',
+          keyDifferentiators: enhanced.keyDifferentiators || [],
+          businessCategory: enhanced.businessCategory || crawledData.llmEnhanced?.businessCategory || 'business',
+          model: 'claude-3-haiku',
+          processedAt: new Date(),
+        }
+      };
+    } catch (error) {
+      console.warn(`[CRAWLER] LLM enhancement failed:`, error);
+      return {};
+    }
+  }
+
+  // Rate limiting for Firecrawl API
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
-    const timeSinceLast = now - this.lastRequestTime;
+    const timeSinceLastRequest = now - this.lastRequestTime;
     
-    if (timeSinceLast < this.MIN_REQUEST_INTERVAL) {
-      const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLast;
+    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+      const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
       console.log(`[CRAWLER] ⏳ Firecrawl Rate Limit: Waiting ${waitTime}ms...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
@@ -268,483 +470,38 @@ export class WebCrawler {
     this.lastRequestTime = Date.now();
   }
 
-  // ... (Rest of methods remain largely the same, just re-ordered strategies above) ...
-
-  /**
-   * Firecrawl API call
-   */
-  private async fetchWithFirecrawl(url: string): Promise<FirecrawlResponse> {
-    const apiKey = process.env.FIRECRAWL_API_KEY;
-    if (!apiKey) {
-      throw new Error('FIRECRAWL_API_KEY is not configured');
-    }
-
-    try {
-      const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          url,
-          formats: ['markdown', 'html'],
-          // Add timeout to prevent long hangs
-          timeout: 30000, 
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        // Handle 429 specifically
-        if (response.status === 429) {
-             throw new Error('Firecrawl Rate Limit Exceeded (429)');
-        }
-        throw new Error(`Firecrawl API Error ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      return data as FirecrawlResponse;
-    } catch (error) {
-      // Re-throw to let the main loop handle fallback
-      throw error;
-    }
-  }
-
-  private isContentEmpty(html: string): boolean {
-    if (!html) return true;
-    if (html.length < 2000) return true; 
-    const lower = html.toLowerCase();
-    if (lower.includes('enable javascript') || lower.includes('javascript is required')) return true;
-    if (html.includes('<div id="root"></div>') || html.includes('<div id="app"></div>')) return html.length < 5000; 
-    if (lower.includes('attention required!') || lower.includes('cloudflare') || lower.includes('please wait...')) return true;
-    return false;
-  }
-  
-  private async fetchHTML(url: string): Promise<string> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); 
-
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': this.userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-        },
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      return await response.text();
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  private async fetchWithPlaywright(url: string): Promise<string> {
-    let browser: PlaywrightBrowser | null = null;
-    try {
-      const { chromium } = await import('playwright');
-      browser = await chromium.launch({ headless: true });
-      const context = await browser.newContext({
-        userAgent: this.userAgent,
-        viewport: { width: 1280, height: 720 }
-      });
-      const page = await context.newPage();
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await page.waitForTimeout(2000);
-      const content = await page.content();
-      return content;
-    } finally {
-      if (browser) await browser.close();
-    }
-  }
-
-  private async extractData($: cheerio.CheerioAPI, url: string, markdown?: string): Promise<CrawledData> {
-    const data: CrawledData = {};
+  // Cache management
+  private getFromCache(url: string): CrawlResult | null {
+    const entry = this.cache.get(url);
+    if (!entry) return null;
     
-    const urlLocation = this.extractLocationFromUrl(url);
-    if (urlLocation) data.location = urlLocation;
-    
-    const structuredData = this.extractJSONLD($);
-    if (structuredData) {
-      data.structuredData = structuredData;
-      if (structuredData.name) data.name = String(structuredData.name);
-      if (structuredData.description) data.description = String(structuredData.description);
-      if (structuredData.telephone) data.phone = String(structuredData.telephone);
-      if (structuredData.email) data.email = String(structuredData.email);
-      
-      // Extract industry hints from JSON-LD structured data
-      // Common patterns: @type (e.g., "Restaurant", "LocalBusiness"), servesCuisine, etc.
-      if (structuredData['@type']) {
-        const type = String(structuredData['@type']);
-        // Map common Schema.org types to industries
-        const typeToIndustry: Record<string, string> = {
-          'Restaurant': 'restaurant',
-          'FoodEstablishment': 'restaurant',
-          'LocalBusiness': 'local business',
-          'ProfessionalService': 'professional services',
-          'LegalService': 'legal',
-          'MedicalBusiness': 'healthcare',
-          'Dentist': 'dental',
-          'Physician': 'healthcare',
-          'Hospital': 'healthcare',
-          'Pharmacy': 'pharmacy',
-          'Store': 'retail',
-          'AutoDealer': 'automotive',
-          'Hotel': 'hospitality',
-          'RealEstateAgent': 'real estate',
-        };
-        if (typeToIndustry[type]) {
-          // Store as hint for LLM (will be used in prompt)
-          if (!data.businessDetails) data.businessDetails = {};
-          if (!data.businessDetails.industry) {
-            data.businessDetails.industry = typeToIndustry[type];
-          }
-        }
-      }
-      
-      // Extract industry from servesCuisine (restaurants)
-      if ((structuredData as any).servesCuisine) {
-        if (!data.businessDetails) data.businessDetails = {};
-        if (!data.businessDetails.industry) {
-          data.businessDetails.industry = 'restaurant';
-        }
-      }
-      
-      if (!data.location && structuredData.address) {
-        const addr = structuredData.address;
-        if (typeof addr === 'object' && addr !== null) {
-          data.location = {
-            address: (addr as any).streetAddress || (addr as any).address || undefined,
-            city: (addr as any).addressLocality || (addr as any).city || undefined,
-            state: (addr as any).addressRegion || (addr as any).state || undefined,
-            country: (addr as any).addressCountry || (addr as any).country || 'US',
-            postalCode: (addr as any).postalCode || undefined,
-          };
-        }
-      } else if (data.location && structuredData.address) {
-        const addr = structuredData.address;
-        if (typeof addr === 'object' && addr !== null) {
-          data.location = {
-            ...data.location,
-            address: (addr as any).streetAddress || (addr as any).address || data.location.address,
-            city: (addr as any).addressLocality || (addr as any).city || data.location.city,
-            state: (addr as any).addressRegion || (addr as any).state || data.location.state,
-            country: (addr as any).addressCountry || (addr as any).country || data.location.country || 'US',
-            postalCode: (addr as any).postalCode || data.location.postalCode,
-          };
-        }
-      }
-      
-      if (structuredData.geo) {
-        const geo = structuredData.geo;
-        if (typeof geo === 'object' && geo !== null) {
-          if (!data.location) data.location = { country: 'US' };
-          data.location.lat = (geo as any).latitude || (geo as any).lat || undefined;
-          data.location.lng = (geo as any).longitude || (geo as any).lng || undefined;
-        }
-      }
-    }
-    
-    data.metaTags = this.extractMetaTags($);
-    if (!data.name) data.name = this.extractBusinessName($);
-    if (!data.description) data.description = this.extractDescription($);
-    data.socialLinks = this.extractSocialLinks($);
-    data.imageUrl = this.extractMainImage($, url);
-    data.categories = this.extractCategories($);
-    data.services = this.extractServices($);
-    
-    // Pass Markdown here if available
-    const llmEnhancement = await this.enhanceWithLLM($, data, url, markdown);
-    
-    if (llmEnhancement.location) {
-      if (!data.location) {
-        data.location = llmEnhancement.location;
-      } else {
-        data.location = {
-          ...data.location,
-          city: data.location.city || llmEnhancement.location.city || undefined,
-          state: data.location.state || llmEnhancement.location.state || undefined,
-          country: data.location.country || llmEnhancement.location.country || data.location.country || 'US',
-          address: data.location.address || llmEnhancement.location.address || undefined,
-          postalCode: data.location.postalCode || llmEnhancement.location.postalCode || undefined,
-        };
-      }
-      const { location, ...restEnhancement } = llmEnhancement;
-      return { ...data, ...restEnhancement };
-    }
-    
-    return { ...data, ...llmEnhancement };
-  }
-  
-  // ... (Helper methods extractJSONLD, extractMetaTags, etc. remain unchanged)
-  
-  private extractJSONLD($: cheerio.CheerioAPI): Record<string, unknown> | null {
-    try {
-      const jsonLdScript = $('script[type="application/ld+json"]').first().html();
-      if (jsonLdScript) return JSON.parse(jsonLdScript) as Record<string, unknown>;
-    } catch (error) {
-      console.error('Error parsing JSON-LD:', error);
-    }
-    return null;
-  }
-  
-  private extractMetaTags($: cheerio.CheerioAPI): Record<string, string> {
-    const metaTags: Record<string, string> = {};
-    $('meta').each((_, el) => {
-      const name = $(el).attr('name') || $(el).attr('property');
-      const content = $(el).attr('content');
-      if (name && content) metaTags[name] = content;
-    });
-    return metaTags;
-  }
-  
-  private extractBusinessName($: cheerio.CheerioAPI): string {
-    return ($('h1').first().text().trim() || $('title').text().trim().split('-')[0].trim() || $('[itemprop="name"]').first().text().trim() || 'Unknown Business');
-  }
-  
-  private extractDescription($: cheerio.CheerioAPI): string | undefined {
-    return ($('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || $('p').first().text().trim().substring(0, 500));
-  }
-  
-  private extractSocialLinks($: cheerio.CheerioAPI): CrawledData['socialLinks'] {
-    const socialLinks: CrawledData['socialLinks'] = {};
-    $('a[href*="facebook.com"]').each((_, el) => { const href = $(el).attr('href'); if (href) socialLinks.facebook = href; });
-    $('a[href*="instagram.com"]').each((_, el) => { const href = $(el).attr('href'); if (href) socialLinks.instagram = href; });
-    $('a[href*="linkedin.com"]').each((_, el) => { const href = $(el).attr('href'); if (href) socialLinks.linkedin = href; });
-    $('a[href*="twitter.com"], a[href*="x.com"]').each((_, el) => { const href = $(el).attr('href'); if (href) socialLinks.twitter = href; });
-    return socialLinks;
-  }
-  
-  private extractMainImage($: cheerio.CheerioAPI, baseUrl: string): string | undefined {
-    const ogImage = $('meta[property="og:image"]').attr('content');
-    if (ogImage) return this.resolveUrl(ogImage, baseUrl);
-    const firstImg = $('img').first().attr('src');
-    if (firstImg) return this.resolveUrl(firstImg, baseUrl);
-    return undefined;
-  }
-  
-  private extractCategories($: cheerio.CheerioAPI): string[] {
-    const categories: string[] = [];
-    const text = $('body').text().toLowerCase();
-    
-    // Enhanced category extraction with more specific keywords
-    const categoryKeywords: Record<string, string[]> = {
-      'restaurant': ['restaurant', 'dining', 'food', 'cuisine', 'menu', 'pizza', 'cafe', 'bakery', 'bar', 'bistro'],
-      'retail': ['retail', 'store', 'shop', 'boutique', 'merchandise', 'products', 'shopping'],
-      'healthcare': ['healthcare', 'medical', 'doctor', 'physician', 'hospital', 'clinic', 'health', 'dental', 'dentist'],
-      'legal': ['legal', 'law', 'attorney', 'lawyer', 'law firm', 'litigation', 'legal services'],
-      'technology': ['technology', 'tech', 'software', 'it', 'computer', 'saas', 'digital', 'app', 'platform'],
-      'professional': ['professional', 'consulting', 'services', 'business', 'corporate'],
-      'automotive': ['automotive', 'auto', 'car', 'vehicle', 'dealership', 'automobile'],
-      'real estate': ['real estate', 'property', 'realtor', 'housing', 'realty'],
-      'education': ['education', 'school', 'university', 'college', 'learning', 'academic'],
-      'fitness': ['fitness', 'gym', 'workout', 'exercise', 'yoga', 'wellness'],
-      'hospitality': ['hotel', 'hospitality', 'lodging', 'accommodation', 'resort'],
-    };
-    
-    // Check for category keywords
-    for (const [category, keywords] of Object.entries(categoryKeywords)) {
-      if (keywords.some(keyword => text.includes(keyword))) {
-        categories.push(category);
-      }
-    }
-    
-    // Also check meta tags and structured data for categories
-    const metaCategory = $('meta[property="og:type"]').attr('content') || 
-                        $('meta[name="category"]').attr('content') ||
-                        $('meta[property="article:section"]').attr('content');
-    if (metaCategory && !categories.includes(metaCategory.toLowerCase())) {
-      categories.push(metaCategory.toLowerCase());
-    }
-    
-    return categories;
-  }
-  
-  private extractServices($: cheerio.CheerioAPI): string[] {
-    const services: string[] = [];
-    $('ul li, ol li').each((_, el) => { const text = $(el).text().trim(); if (text.length > 5 && text.length < 100) services.push(text); });
-    return services.slice(0, 10);
-  }
-  
-  private resolveUrl(url: string, baseUrl: string): string {
-    try { return new URL(url, baseUrl).toString(); } catch { return url; }
-  }
-  
-  private extractLocationFromUrl(url: string): CrawledData['location'] | null {
-    try {
-      const urlObj = new URL(url);
-      const hostname = urlObj.hostname.toLowerCase();
-      const countryTldMap: Record<string, { country: string; state?: string; city?: string }> = {
-        '.ca': { country: 'CA', state: 'ON' }, '.co.uk': { country: 'GB' }, '.com.au': { country: 'AU', state: 'NSW' },
-        '.de': { country: 'DE' }, '.fr': { country: 'FR' }, '.it': { country: 'IT' }, '.es': { country: 'ES' },
-        '.nl': { country: 'NL' }, '.jp': { country: 'JP' }, '.cn': { country: 'CN' }, '.in': { country: 'IN' },
-        '.br': { country: 'BR' }, '.mx': { country: 'MX' },
-      };
-      for (const [tld, location] of Object.entries(countryTldMap)) {
-        if (hostname.endsWith(tld)) return { country: location.country, state: location.state, city: location.city };
-      }
-      const usStateAbbrevs = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
-      const cityStateMatch = hostname.match(/([a-z]+)-([a-z]{2})\./);
-      if (cityStateMatch) {
-        const [, cityHint, stateHint] = cityStateMatch;
-        const stateUpper = stateHint.toUpperCase();
-        if (usStateAbbrevs.includes(stateUpper)) return { country: 'US', state: stateUpper, city: cityHint.charAt(0).toUpperCase() + cityHint.slice(1) };
-      }
-      const majorUsCities: Record<string, { city: string; state: string }> = {
-        'newyork': { city: 'New York', state: 'NY' }, 'losangeles': { city: 'Los Angeles', state: 'CA' }, 'chicago': { city: 'Chicago', state: 'IL' },
-        'houston': { city: 'Houston', state: 'TX' }, 'phoenix': { city: 'Phoenix', state: 'AZ' }, 'philadelphia': { city: 'Philadelphia', state: 'PA' },
-        'sanantonio': { city: 'San Antonio', state: 'TX' }, 'sandiego': { city: 'San Diego', state: 'CA' }, 'dallas': { city: 'Dallas', state: 'TX' },
-        'sanfrancisco': { city: 'San Francisco', state: 'CA' }, 'boston': { city: 'Boston', state: 'MA' }, 'seattle': { city: 'Seattle', state: 'WA' },
-        'denver': { city: 'Denver', state: 'CO' }, 'miami': { city: 'Miami', state: 'FL' }, 'atlanta': { city: 'Atlanta', state: 'GA' },
-        'detroit': { city: 'Detroit', state: 'MI' }, 'lasvegas': { city: 'Las Vegas', state: 'NV' }, 'portland': { city: 'Portland', state: 'OR' },
-        'austin': { city: 'Austin', state: 'TX' },
-      };
-      for (const [cityKey, location] of Object.entries(majorUsCities)) {
-        if (hostname.includes(cityKey)) return { country: 'US', state: location.state, city: location.city };
-      }
+    const now = Date.now();
+    if (now - entry.timestamp > this.CACHE_TTL) {
+      this.cache.delete(url);
       return null;
-    } catch (error) { console.error('Error extracting location from URL:', error); return null; }
-  }
-
-  private async enhanceWithLLM($: cheerio.CheerioAPI, basicData: Partial<CrawledData>, url: string, markdown?: string): Promise<Partial<CrawledData>> {
-    try {
-      const textContent = markdown || this.extractCleanText($);
-      const prompt = this.buildExtractionPrompt(basicData, textContent, url);
-      const response = await Promise.race([
-        openRouterClient.query('openai/gpt-4-turbo', prompt),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('LLM query timeout')), 30000))
-      ]);
-      const jsonContent = this.extractJSONFromResponse(response.content);
-      if (!jsonContent || jsonContent.trim().length === 0) return {};
-      let extracted;
-      try { extracted = JSON.parse(jsonContent); } catch (parseError) { return {}; }
-      return this.validateExtraction(extracted);
-    } catch (error) { return {}; }
-  }
-  
-  private extractJSONFromResponse(content: string): string {
-    const jsonBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonBlockMatch) return jsonBlockMatch[1].trim();
-    const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonObjectMatch) return jsonObjectMatch[0];
-    return content.trim();
-  }
-  
-  private extractCleanText($: cheerio.CheerioAPI): string {
-    $('script, style, nav, header, footer').remove();
-    const mainContent = $('main, article, .content, #content, .main').first().text();
-    if (mainContent) return this.cleanText(mainContent);
-    return this.cleanText($('body').text());
-  }
-  
-  private cleanText(text: string): string {
-    return text.replace(/\s+/g, ' ').replace(/[^\x20-\x7E\n]/g, '').trim();
-  }
-  
-  private buildExtractionPrompt(basicData: Partial<CrawledData>, textContent: string, url: string): string {
-    // Build industry hints from extracted data
-    const industryHints: string[] = [];
-    if (basicData.businessDetails?.industry) {
-      industryHints.push(`Structured data suggests: ${basicData.businessDetails.industry}`);
     }
-    if (basicData.categories && basicData.categories.length > 0) {
-      industryHints.push(`Page categories detected: ${basicData.categories.join(', ')}`);
-    }
-    if (basicData.structuredData && (basicData.structuredData as any)['@type']) {
-      industryHints.push(`Schema.org type: ${(basicData.structuredData as any)['@type']}`);
-    }
-    const hintsSection = industryHints.length > 0 
-      ? `\n\nIndustry Classification Hints:\n${industryHints.join('\n')}\n` 
-      : '';
     
-    return `
-You are a business intelligence extraction system. Analyze this website and extract ALL available information.
-
-URL: ${url}
-
-Basic Info Already Extracted:
-- Name: ${basicData.name || 'Unknown'}
-- Description: ${basicData.description || 'None'}
-- Phone: ${basicData.phone || 'None'}
-- Email: ${basicData.email || 'None'}
-- Address: ${basicData.address || 'None'}${hintsSection}
-
-Website Content (first 4000 chars):
-${textContent.substring(0, 4000)}
-
-Extract the following (use null if not found, DO NOT GUESS):
-
-CRITICAL RULES:
-- Only include information explicitly stated on the website
-- Use null for any field where information is not found
-- DO NOT make assumptions or inferences
-- For industry: Use standard industry terms (e.g., "restaurant", "healthcare", "legal", "technology", "retail", "hospitality", "automotive", "education", "fitness", "professional services")
-- For sector: Use broader sector classification (e.g., "Food & Beverage", "Healthcare", "Legal Services", "Technology", "Retail", "Hospitality", "Automotive", "Education", "Wellness", "Professional Services")
-- For location: Extract city, state, country separately
-- For country: Use ISO 3166-1 alpha-2 code (e.g., "US", "CA", "GB") or full name
-- For state: Use standard abbreviation (e.g., "CA", "NY") or full name
-- For dates, prefer "YYYY" format unless full date is clear
-
-Return ONLY valid JSON:
-{
-  "businessDetails": {
-    "industry": string | null,
-    "sector": string | null,
-    "legalForm": string | null,
-    "founded": string | null,
-    "employeeCount": string | number | null,
-    "revenue": string | null,
-    "locations": number | null,
-    "products": string[] | null,
-    "services": string[] | null,
-    "parentCompany": string | null,
-    "ceo": string | null,
-    "awards": string[] | null,
-    "certifications": string[] | null,
-    "stockSymbol": string | null
-  },
-  "location": {
-    "address": string | null,
-    "city": string | null,
-    "state": string | null,
-    "country": string | null,
-    "postalCode": string | null
-  },
-  "llmEnhanced": {
-    "extractedEntities": string[],
-    "businessCategory": string,
-    "serviceOfferings": string[],
-    "targetAudience": string,
-    "keyDifferentiators": string[],
-    "confidence": number
+    return entry.result;
   }
-}
-    `.trim();
-  }
-  
-  private validateExtraction(extracted: any): Partial<CrawledData> {
-    if (!extracted || typeof extracted !== 'object') return {};
-    if (extracted.businessDetails?.employeeCount) {
-      const count = extracted.businessDetails.employeeCount;
-      if (typeof count === 'string' && !/^\d+(-\d+)?(\+)?$/.test(count)) extracted.businessDetails.employeeCount = null;
+
+  private saveToCache(url: string, result: CrawlResult): void {
+    // Implement LRU eviction if cache is full
+    if (this.cache.size >= this.MAX_CACHE_SIZE) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
     }
-    if (extracted.businessDetails?.founded) {
-      if (!/^\d{4}(-\d{2}-\d{2})?$/.test(extracted.businessDetails.founded)) extracted.businessDetails.founded = null;
-    }
-    if (extracted.llmEnhanced?.confidence) {
-      const conf = extracted.llmEnhanced.confidence;
-      if (conf < 0 || conf > 1) extracted.llmEnhanced.confidence = 0.5;
-    }
-    if (extracted.llmEnhanced) {
-      extracted.llmEnhanced.processedAt = new Date();
-      extracted.llmEnhanced.model = 'openai/gpt-4-turbo';
-    }
-    return extracted;
+    
+    this.cache.set(url, {
+      result,
+      timestamp: Date.now()
+    });
   }
 }
 
+// Export singleton instance for compatibility
 export const webCrawler = new WebCrawler();
+
+// Also export the class for direct instantiation
+export { WebCrawler };

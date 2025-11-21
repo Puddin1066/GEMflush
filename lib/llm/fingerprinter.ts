@@ -1,13 +1,14 @@
 // LLM Fingerprinting service - tests business visibility across multiple LLMs
 
 import { Business } from '@/lib/db/schema';
-import { FingerprintAnalysis, LLMResult } from '@/lib/types/gemflush';
+import { FingerprintAnalysis, LLMResult, CrawledData } from '@/lib/types/gemflush';
+import { ILLMFingerprinter } from '@/lib/types/service-contracts';
 import { openRouterClient } from './openrouter';
 import { loggers } from '@/lib/utils/logger';
 
 const log = loggers.fingerprint;
 
-export class LLMFingerprinter {
+export class LLMFingerprinter implements ILLMFingerprinter {
   // Models confirmed to work with OpenRouter API
   // Note: Model availability depends on your OpenRouter API tier
   // Limited to 3 models (one per provider) to control costs while maintaining diversity
@@ -41,7 +42,33 @@ export class LLMFingerprinter {
       url: business.url,
     });
     
-    // Generate prompts
+    // REQUIREMENT: crawlData is required for effective fingerprinting
+    // Since input is only a URL, we need crawled data to provide context to LLMs
+    if (!business.crawlData) {
+      const error = new Error(
+        'Crawl data is required for fingerprinting. Please complete crawl first.'
+      );
+      log.error('Fingerprint attempted without crawlData', error, {
+        businessId: business.id,
+        businessName: business.name,
+        url: business.url,
+      });
+      throw error;
+    }
+    
+    // Validate crawlData structure
+    if (typeof business.crawlData !== 'object') {
+      const error = new Error(
+        'Invalid crawlData format. Expected object, got: ' + typeof business.crawlData
+      );
+      log.error('Invalid crawlData format', error, {
+        businessId: business.id,
+        crawlDataType: typeof business.crawlData,
+      });
+      throw error;
+    }
+    
+    // Generate prompts (now guaranteed to have crawlData)
     const prompts = this.generatePrompts(business);
     
     // Log generated prompts for debugging
@@ -461,67 +488,159 @@ export class LLMFingerprinter {
   }
   
   /**
-   * Generate prompts for testing
+   * Generate prompts that emulate customer query syntax
+   * Designed to produce measurable responses about local business visibility
+   * 
+   * Customer queries are natural, location-focused, and search-oriented.
+   * Responses enable objective measurement of visibility metrics:
+   * - Mention detection (yes/no)
+   * - Ranking position (1-5)
+   * - Sentiment (positive/neutral/negative)
+   * - Competitive context (who else is mentioned)
+   * 
+   * REQUIRES crawlData: Since input is only a URL, we need crawled data
+   * to provide business context (industry, services, description) to LLMs.
    */
   private generatePrompts(business: Business): Record<string, string> {
-    // Extract industry information from crawlData if available
-    let industry: string | null = null;
-    let businessCategory: string | null = null;
-    
-    if (business.crawlData && typeof business.crawlData === 'object') {
-      const crawlData = business.crawlData as any;
-      industry = crawlData.businessDetails?.industry || crawlData.businessDetails?.sector || null;
-      businessCategory = crawlData.llmEnhanced?.businessCategory || null;
+    // REQUIREMENT: crawlData must exist (validated in fingerprint() method)
+    if (!business.crawlData || typeof business.crawlData !== 'object') {
+      throw new Error('crawlData is required for prompt generation');
     }
+    
+    const crawlData = business.crawlData as CrawledData;
+    
+    // Extract rich context from crawlData (REQUIRED for effective prompts)
+    // Since input is only a URL, we need all context from crawlData
+    const industry = crawlData.businessDetails?.industry || crawlData.businessDetails?.sector || null;
+    const businessCategory = crawlData.llmEnhanced?.businessCategory || null;
+    const services = crawlData.services || crawlData.businessDetails?.services || [];
+    const description = crawlData.description || null; // Description is on crawlData directly
+    const founded = crawlData.founded || crawlData.businessDetails?.founded || null;
+    const awards = crawlData.businessDetails?.awards || [];
+    const certifications = crawlData.businessDetails?.certifications || [];
     
     // Get industry-specific plural term
     const industryPlural = this.getIndustryPlural(industry, business.category, businessCategory);
     
-    // Handle location more gracefully - don't use "Unknown" in prompts
+    // Build service context from crawled data (more specific than category)
+    const serviceContext = services.length > 0 
+      ? services[0].toLowerCase()
+      : business.category?.toLowerCase() || industryPlural;
+    
+    // Handle location - critical for local business visibility
     let location: string;
+    let locationQuery: string;
     if (business.location && business.location.city && business.location.state) {
       const city = business.location.city !== 'Unknown' ? business.location.city : '';
       const state = business.location.state !== 'Unknown' ? business.location.state : '';
       if (city && state) {
         location = `${city}, ${state}`;
+        locationQuery = `in ${city}, ${state}`;
       } else if (city) {
         location = city;
+        locationQuery = `in ${city}`;
       } else if (state) {
         location = state;
-      } else if (business.location.country && business.location.country !== 'US') {
-        location = business.location.country;
+        locationQuery = `in ${state}`;
       } else {
-        // Fallback: extract domain from URL if available
-        try {
-          const urlObj = new URL(business.url);
-          const domain = urlObj.hostname.replace('www.', '');
-          location = `(${domain})`;
-        } catch {
-          location = '';
-        }
+        location = '';
+        locationQuery = '';
       }
     } else {
-      // Fallback: extract domain from URL if no location
-      try {
-        const urlObj = new URL(business.url);
-        const domain = urlObj.hostname.replace('www.', '');
-        location = `(${domain})`;
-      } catch {
-        location = '';
-      }
+      location = '';
+      locationQuery = '';
     }
     
-    // Build prompts with location context (or skip location if not available)
-    const locationContext = location ? ` located in ${location}` : '';
+    // Build rich context from crawled data for more effective prompts
+    // Since input is only a URL, we need to provide all context from crawlData
+    const contextParts: string[] = [];
+    
+    // Business description (primary context - helps LLM recognize the business)
+    if (description) {
+      // Use first 100 chars of description to provide context without overwhelming
+      const descPreview = description.length > 100 
+        ? description.substring(0, 100) + '...'
+        : description;
+      contextParts.push(descPreview);
+    }
+    
+    // Services offered (helps LLM understand what they do)
+    if (services.length > 0) {
+      const servicesList = services.slice(0, 3).join(', ');
+      contextParts.push(`They offer ${servicesList}`);
+    }
+    
+    // Credibility signals (founded date, certifications, awards)
+    const credibilityParts: string[] = [];
+    if (founded) {
+      const year = parseInt(founded);
+      if (!isNaN(year) && year > 1900 && year <= new Date().getFullYear()) {
+        credibilityParts.push(`operating since ${founded}`);
+      }
+    }
+    if (certifications.length > 0) {
+      credibilityParts.push(`certified ${certifications.slice(0, 2).join(' and ')}`);
+    }
+    if (awards.length > 0) {
+      credibilityParts.push(`awarded ${awards[0]}`);
+    }
+    if (credibilityParts.length > 0) {
+      contextParts.push(`(${credibilityParts.join(', ')})`);
+    }
+    
+    // Build context string (combine all parts)
+    const businessContext = contextParts.length > 0 
+      ? ` ${contextParts.join('. ')}.`
+      : '';
+    
+    // PROMPT 1: Direct Search Query (Factual)
+    // Emulates: "tell me about [business name]"
+    // Measures: Basic recognition and knowledge
+    // Uses crawled description and services to help LLM recognize the business
+    // CRITICAL: Always include location when available for geographic specificity
+    const factual = location
+      ? `Tell me about ${business.name}, a ${serviceContext} located ${locationQuery}.${businessContext} What do you know about this local business?`
+      : `Tell me about ${business.name}, a ${serviceContext}.${businessContext} What do you know about them?`;
+    
+    // PROMPT 2: Review/Reputation Query (Opinion)
+    // Emulates: "is [business name] good?" or "[business name] reviews"
+    // Measures: Reputation and sentiment
+    // Uses crawled services to make query more specific
+    // CRITICAL: Always include location when available for geographic specificity
+    const opinion = location
+      ? `Is ${business.name}, a ${serviceContext} located ${locationQuery}, a good option?${businessContext} What are people in ${location} saying about this local business?`
+      : `Is ${business.name}, a ${serviceContext}, a good option?${businessContext} What are people saying about them?`;
+    
+    // PROMPT 3: Local Search Query (Recommendation)
+    // Emulates: "best [service] near me" or "top [service] in [location]"
+    // Measures: Competitive ranking and local visibility
+    // CRITICAL: Must focus on LOCAL businesses in the same geographic region
+    // This ensures competitive leaderboard compares businesses within the same market
+    const industryField = industry || businessCategory || business.category;
+    
+    // Build objective recommendation prompt with explicit industry/field and geographic context
+    const industryContext = industryField 
+      ? ` in the ${industryField} industry`
+      : '';
+    
+    // Location is REQUIRED for recommendation prompt to ensure local comparisons
+    let recommendation: string;
+    if (location) {
+      // With location: Focus on LOCAL businesses in the specific geographic area
+      const locationEmphasis = location.includes(',') 
+        ? `specifically in ${location}` 
+        : `in the ${location} area`;
+      
+      recommendation = `What are the top 5 LOCAL ${industryPlural}${industryContext} ${locationEmphasis}? Please only include businesses that operate in ${location} and rank them 1-5. Explain why you're recommending each one based on objective criteria such as quality of service, reputation, expertise, and customer satisfaction. Focus on businesses that serve customers in this specific geographic region, not national or international chains unless they have a significant local presence in ${location}.`;
+    } else {
+      // Without location: Still emphasize local/regional context
+      recommendation = `What are the top 5 LOCAL ${industryPlural}${industryContext} similar to ${business.name}? Please only include businesses that operate in the same geographic region and rank them 1-5. Explain why you're recommending each one based on objective criteria such as quality of service, reputation, expertise, and customer satisfaction. Focus on businesses that serve customers in the same local or regional market, not national or international businesses.`;
+    }
     
     return {
-      factual: `What information do you have about ${business.name}${locationContext}? Please provide factual details about their services, reputation, and any notable characteristics.`,
-      
-      opinion: `I'm considering using the services of ${business.name}${locationContext}. Based on what you know, would you say they are a reputable and reliable ${business.category || 'business'}? Explain your reasoning.`,
-      
-      recommendation: location ? 
-        `Can you recommend the top 5 ${industryPlural} in ${location}? Please rank them and explain why you're recommending each one.` :
-        `Can you recommend the top 5 ${industryPlural} similar to ${business.name}? Please rank them and explain why you're recommending each one.`,
+      factual,
+      opinion,
+      recommendation,
     };
   }
   
@@ -686,11 +805,30 @@ export class LLMFingerprinter {
   /**
    * Extract competitor business names from recommendation response
    * Returns list of competitors mentioned alongside the target business
-   * IMPROVED: Better extraction, filters out generic/placeholder names
+   * IMPROVED: Better extraction, filters out generic/placeholder names and action phrases
    */
   private extractCompetitorMentions(response: string, businessName: string): string[] {
     const competitors: string[] = [];
     const lines = response.split('\n');
+    
+    // Action phrases that indicate non-business names (e.g., "Checking recent online reviews")
+    const actionPhrases = [
+      'checking',
+      'asking for',
+      'verifying',
+      'comparing',
+      'looking for',
+      'searching for',
+      'reviewing',
+      'considering',
+      'evaluating',
+      'researching',
+      'consulting',
+      'contacting',
+      'visiting',
+      'reading',
+      'browsing',
+    ];
     
     // Common placeholder/generic names to filter out
     const placeholderNames = [
@@ -706,16 +844,52 @@ export class LLMFingerprinter {
       'nearby business',
     ];
     
+    // Business name indicators (must contain at least one)
+    const businessIndicators = [
+      /\b(inc|llc|corp|ltd|co|company|corporation|limited|group|associates|partners|services|medical|health|clinic|hospital|center|centre)\b/i,
+      /\b(physicians|doctors|lawyers|attorneys|dentists|veterinarians|accountants|consultants)\b/i,
+      /\b(university|college|school|academy|institute)\b/i,
+    ];
+    
     const isPlaceholder = (name: string): boolean => {
       const lower = name.toLowerCase();
       return placeholderNames.some(placeholder => lower.includes(placeholder));
+    };
+    
+    const isActionPhrase = (name: string): boolean => {
+      const lower = name.toLowerCase();
+      return actionPhrases.some(phrase => lower.startsWith(phrase) || lower.includes(` ${phrase} `));
+    };
+    
+    const looksLikeBusinessName = (name: string): boolean => {
+      // Must be at least 3 characters
+      if (name.length < 3) return false;
+      
+      // Must not be just numbers
+      if (/^\d+$/.test(name)) return false;
+      
+      // Must not start with action phrase
+      if (isActionPhrase(name)) return false;
+      
+      // Must contain business indicators OR be a proper noun (starts with capital)
+      const hasBusinessIndicator = businessIndicators.some(pattern => pattern.test(name));
+      const isProperNoun = /^[A-Z]/.test(name.trim());
+      
+      // If it's very short (3-5 chars), must be a proper noun
+      if (name.length <= 5 && !isProperNoun) return false;
+      
+      // Must be either a proper noun or have business indicators
+      return hasBusinessIndicator || isProperNoun;
     };
     
     for (const line of lines) {
       // Match numbered list items: "1. Business Name" or "1) Business Name" or "Top 1: Business Name"
       const listMatch = line.match(/^\s*(?:top\s+)?(\d+)[.)\s:]\s*(.+?)(?:\s*-|\s*:|$)/i);
       if (listMatch) {
-        const competitor = listMatch[2].trim();
+        let competitor = listMatch[2].trim();
+        
+        // Remove markdown formatting (**bold**, *italic*)
+        competitor = competitor.replace(/\*\*/g, '').replace(/\*/g, '').trim();
         
         // Skip if it's the target business
         if (this.detectMention(competitor, businessName)) {
@@ -731,14 +905,32 @@ export class LLMFingerprinter {
           continue;
         }
         
-        // Clean up common prefixes/suffixes
+        // Skip if it's an action phrase (not a business name)
+        if (isActionPhrase(competitor)) {
+          log.debug('Filtered out action phrase (not a business name)', {
+            competitor,
+            line: line.substring(0, 100),
+          });
+          continue;
+        }
+        
+        // Validate it looks like a business name
+        if (!looksLikeBusinessName(competitor)) {
+          log.debug('Filtered out invalid competitor name (does not look like business)', {
+            competitor,
+            line: line.substring(0, 100),
+          });
+          continue;
+        }
+        
+        // Clean up common prefixes/suffixes but keep the cleaned version
         const cleaned = competitor
           .replace(/^(The|A|An)\s+/i, '')
           .replace(/\s+(LLC|Inc|Corp|Ltd|Co|Limited|Company)\.?$/i, '')
           .trim();
         
-        // Must be meaningful (at least 3 chars, not just numbers)
-        if (cleaned.length >= 3 && !/^\d+$/.test(cleaned)) {
+        // Final validation on cleaned name
+        if (cleaned.length >= 3 && !/^\d+$/.test(cleaned) && looksLikeBusinessName(cleaned)) {
           competitors.push(cleaned);
         }
       }

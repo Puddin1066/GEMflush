@@ -15,7 +15,18 @@ import {
   canAccessAPI,
 } from '@/lib/gemflush/permissions';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (res.status === 401) {
+    // Redirect to sign-in on authentication failure
+    window.location.href = '/sign-in';
+    throw new Error('Authentication required');
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to fetch: ${res.statusText}`);
+  }
+  return res.json();
+};
 
 export interface UseTeamReturn {
   team: Team | null;
@@ -76,6 +87,9 @@ export function useTeam(): UseTeamReturn {
     planPrice,
   };
 }
+
+
+
 
 
 

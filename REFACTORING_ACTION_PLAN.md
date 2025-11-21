@@ -1,12 +1,12 @@
 # Refactoring Action Plan
 
-Generated: 2025-11-20T01:18:28.705Z
+Generated: 2025-11-20T01:33:57.376Z
 
 ## Summary
 
-- Files to Keep: 39
-- Files to Refactor: 29
-- Files to Deprecate: 6
+- Files to Keep: 47
+- Files to Refactor: 23
+- Files to Deprecate: 5
 - Files to Archive: 0
 - Files to Remove: 0
 
@@ -27,11 +27,6 @@ Generated: 2025-11-20T01:18:28.705Z
 - **Issues:** Usage unclear - may be redundant
 - **Action:** Add `@deprecated` JSDoc comments
 
-### lib/utils.ts
-- **Reason:** Questionable usage - needs review
-- **Issues:** Duplicate of another file, Usage unclear - may be redundant
-- **Action:** Add `@deprecated` JSDoc comments
-
 ### lib/wikidata/manual-publish-storage.ts
 - **Reason:** Questionable usage - needs review
 - **Issues:** Usage unclear - may be redundant
@@ -50,7 +45,7 @@ Generated: 2025-11-20T01:18:28.705Z
 
 ### lib/crawler/index.ts
 - **Reason:** Contract compliance issues detected
-- **Issues:** Should implement IWebCrawler contract, Contains `any` types - should use proper types
+- **Issues:** Contains `any` types - should use proper types
 
 ### lib/data/dashboard-dto.ts
 - **Reason:** Contract compliance issues detected
@@ -72,17 +67,9 @@ Generated: 2025-11-20T01:18:28.705Z
 - **Reason:** Contract compliance issues detected
 - **Issues:** Contains `any` types - should use proper types
 
-### lib/llm/fingerprinter.ts
-- **Reason:** Contract compliance issues detected
-- **Issues:** Should implement ILLMFingerprinter contract, Contains `any` types - should use proper types
-
-### lib/llm/openrouter.ts
-- **Reason:** Contract compliance issues detected
-- **Issues:** Should implement IOpenRouterClient contract
-
 ### lib/payments/stripe.ts
 - **Reason:** Contract compliance issues detected
-- **Issues:** Should implement IPaymentService contract, Contains `any` types - should use proper types
+- **Issues:** Contains `any` types - should use proper types
 
 ### lib/services/business-processing.ts
 - **Reason:** Contract compliance issues detected
@@ -108,10 +95,6 @@ Generated: 2025-11-20T01:18:28.705Z
 - **Reason:** Contract compliance issues detected
 - **Issues:** Contains `any` types - should use proper types
 
-### app/api/business/[id]/route.ts
-- **Reason:** Active code
-- **Issues:** API route may be missing input validation
-
 ### app/api/cron/monthly/route.ts
 - **Reason:** Active code
 - **Issues:** API route may be missing input validation
@@ -124,21 +107,9 @@ Generated: 2025-11-20T01:18:28.705Z
 - **Reason:** Active code
 - **Issues:** API route may be missing input validation
 
-### app/api/fingerprint/[id]/route.ts
-- **Reason:** Contract compliance issues detected
-- **Issues:** Contains `any` types - should use proper types, API route may be missing input validation
-
-### app/api/fingerprint/business/[businessId]/route.ts
-- **Reason:** Contract compliance issues detected
-- **Issues:** Contains `any` types - should use proper types, API route may be missing input validation
-
 ### app/api/fingerprint/route.ts
 - **Reason:** Contract compliance issues detected
 - **Issues:** Contains `any` types - should use proper types, API route may be missing input validation
-
-### app/api/job/[jobId]/route.ts
-- **Reason:** Active code
-- **Issues:** API route may be missing input validation
 
 ### app/api/team/route.ts
 - **Reason:** Active code

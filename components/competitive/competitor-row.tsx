@@ -3,10 +3,12 @@
  * Single Responsibility: Display individual competitor in leaderboard
  */
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { formatRank, formatPercentage } from '@/lib/utils/format';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { MetricExplanation } from './metric-explanation';
+import { Info } from 'lucide-react';
 import type { CompetitorDTO } from '@/lib/data/types';
 
 interface CompetitorRowProps {
@@ -54,24 +56,46 @@ export function CompetitorRow({
             )}
           </div>
           
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <span>
+          <div className="flex items-center gap-4 text-sm text-gray-600 flex-wrap">
+            <span className="flex items-center gap-1">
               <strong className="text-gray-900">{competitor.mentionCount}</strong> mentions
+              <MetricExplanation metric="mentionCount">
+                <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+              </MetricExplanation>
             </span>
-            <span>
+            <span className="flex items-center gap-1">
               Avg position: <strong className="text-gray-900">#{competitor.avgPosition.toFixed(1)}</strong>
+              <MetricExplanation metric="avgPosition">
+                <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+              </MetricExplanation>
             </span>
-            <span>
+            <span className="flex items-center gap-1">
               Market share: <strong className="text-gray-900">{formatPercentage(competitor.marketShare)}</strong>
+              <MetricExplanation metric="marketShare">
+                <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+              </MetricExplanation>
             </span>
+            {competitor.appearsWithTarget > 0 && (
+              <span className="flex items-center gap-1">
+                Appears with you: <strong className="text-gray-900">{competitor.appearsWithTarget}</strong>
+                <MetricExplanation metric="appearsWithTarget">
+                  <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+                </MetricExplanation>
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Market Share Progress Bar */}
+      {/* Mention Rate Progress Bar */}
       <div className="space-y-1">
-        <div className="flex justify-between text-xs text-gray-500">
-          <span>Mention rate</span>
+        <div className="flex justify-between items-center text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            Mention rate
+            <MetricExplanation metric="mentionRate">
+              <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+            </MetricExplanation>
+          </span>
           <span>{mentionRate.toFixed(1)}%</span>
         </div>
         <Progress 

@@ -10,7 +10,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { GemIcon, WikidataRubyIcon } from '@/components/ui/gem-icon';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export type TierType = 'free' | 'pro' | 'agency';
 

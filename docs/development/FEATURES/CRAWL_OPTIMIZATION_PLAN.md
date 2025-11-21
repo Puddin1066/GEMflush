@@ -5,10 +5,10 @@
 ### Dependencies
 
 1. **Fingerprinting** (`lib/llm/fingerprinter.ts`):
-   - ✅ **Independent of crawl** - Uses only: `business.name`, `business.url`, `business.category`, `business.location`
-   - Does NOT need `crawlData`
+   - ⚠️ **REQUIRES crawlData** - Since input is only a URL, crawlData is required for effective prompts
+   - Uses `business.name`, `business.url`, `business.category`, `business.location` + **crawlData** (description, services, industry)
    - Makes 9 LLM API calls (3 models × 3 prompts) in parallel (~3-5s)
-   - Can run immediately on business creation
+   - **Must run AFTER crawl completes** (sequential: Crawl → Fingerprint)
 
 2. **Crawling** (`lib/crawler/index.ts`):
    - Fetches HTML from URL
@@ -24,11 +24,11 @@
 
 ## Optimization Strategy
 
-### 1. ✅ Parallel Execution (Crawl + Fingerprint)
+### 1. ✅ Sequential Execution (Crawl → Fingerprint)
 
 **Current**: Sequential - User clicks "Crawl" → waits → clicks "Fingerprint" → waits
 
-**Optimized**: Parallel - Both start automatically on business creation
+**Optimized**: Auto-sequential - Both start automatically, but fingerprint waits for crawl
 
 ```typescript
 // On business creation (POST /api/business)
@@ -36,22 +36,20 @@ async function createBusinessWithAutoProcessing(businessData) {
   // 1. Create business
   const business = await createBusiness(businessData);
   
-  // 2. Start crawl and fingerprint IN PARALLEL (they're independent!)
-  Promise.all([
-    executeCrawlJob(null, business.id),  // Crawl (1 LLM call)
-    llmFingerprinter.fingerprint(business)  // Fingerprint (9 LLM calls)
-  ]).catch(error => {
-    console.error('Auto-processing error:', error);
-  });
+  // 2. Start crawl, then fingerprint AFTER crawl completes
+  // Fingerprint REQUIRES crawlData, so must be sequential
+  await executeCrawlJob(null, business.id);  // Crawl (1 LLM call, ~2s)
+  const crawledBusiness = await getBusinessById(business.id);
+  await llmFingerprinter.fingerprint(crawledBusiness);  // Fingerprint (9 LLM calls, ~5s)
   
   return business;
 }
 ```
 
 **Benefits**:
-- User sees fingerprint results immediately (~5s) while crawl completes in background (~2s)
-- Total time: ~5s (parallel) vs ~7s (sequential)
-- Better UX: No waiting for crawl to finish before fingerprinting
+- Automatic processing (no manual steps)
+- Total time: ~7s (sequential: crawl ~2s + fingerprint ~5s)
+- Accurate results: Fingerprint uses crawlData for better prompts
 
 ### 2. ✅ Lazy Entity Assembly
 

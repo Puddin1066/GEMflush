@@ -1,0 +1,561 @@
+
+> @ dev /Users/JJR/saas_starter_Nov9/saas-starter
+> next dev --turbopack
+
+   ▲ Next.js 15.4.0-canary.47 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.86.238:3000
+   - Environments: .env
+   - Experiments (use with caution):
+     ✓ ppr
+     ✓ nodeMiddleware
+     ✓ clientSegmentCache
+
+ ✓ Starting...
+ ✓ Compiled middleware in 179ms
+ ✓ Ready in 1221ms
+ ○ Compiling / ...
+ ✓ Compiled / in 5.2s
+ GET / 200 in 6156ms
+ ○ Compiling /_not-found/page ...
+ ✓ Compiled /_not-found/page in 2.5s
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 2581ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 1538ms
+ ○ Compiling /api/user ...
+ ✓ Compiled /api/user in 3s
+ GET /api/user 200 in 4003ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 2.6s
+ GET /dashboard 200 in 2895ms
+ ○ Compiling /api/dashboard ...
+ GET /api/team 200 in 7237ms
+ GET /api/dashboard 200 in 7493ms
+ ✓ Compiled /api/dashboard in 8.9s
+ GET /api/business 200 in 9280ms
+ GET /api/business 200 in 9284ms
+ GET /api/team 200 in 176ms
+ ○ Compiling /dashboard/businesses/[id] ...
+ ✓ Compiled /dashboard/businesses/[id] in 10.8s
+ GET /dashboard/businesses/768 200 in 12268ms
+ GET /favicon.ico?favicon.45db1c09.ico 200 in 319ms
+ ○ Compiling /api/business/[id] ...
+ GET /api/team 200 in 650ms
+ ✓ Compiled /api/business/[id] in 3.6s
+[BUSINESS API] Returning business 768 (Unknown Business)
+ GET /api/business/768 200 in 4685ms
+[BUSINESS API] Returning business 768 (Unknown Business)
+ GET /api/business/768 200 in 4696ms
+ ○ Compiling /api/fingerprint/business/[businessId] ...
+ ✓ Compiled /api/fingerprint/business/[businessId] in 1973ms
+[FINGERPRINT API] Querying fingerprints for businessId: 768 (type: number)
+[FINGERPRINT API] Querying fingerprints for businessId: 768 (type: number)
+[FINGERPRINT API] Found 1 fingerprint(s) for business 768
+[FINGERPRINT API] Fingerprint IDs: 432, businessIds: 768
+[FINGERPRINT API] Found fingerprint 432 for business 768 (verified match)
+[FINGERPRINT API] Returning DTO for business 768 (fingerprint 432, business: "Unknown Business")
+[FINGERPRINT API] DTO summary: visibilityScore=59, trend=neutral
+ GET /api/fingerprint/business/768 200 in 2604ms
+[FINGERPRINT API] Found 1 fingerprint(s) for business 768
+[FINGERPRINT API] Fingerprint IDs: 432, businessIds: 768
+[FINGERPRINT API] Found fingerprint 432 for business 768 (verified match)
+[FINGERPRINT API] Returning DTO for business 768 (fingerprint 432, business: "Unknown Business")
+[FINGERPRINT API] DTO summary: visibilityScore=59, trend=neutral
+ GET /api/fingerprint/business/768 200 in 2611ms
+ GET /api/team 200 in 192ms
+ GET /api/user 200 in 1785ms
+ GET /api/team 200 in 1809ms
+ GET /api/dashboard 200 in 2436ms
+ ○ Compiling /dashboard/businesses/new ...
+ ✓ Compiled /dashboard/businesses/new in 5s
+ GET /dashboard/businesses/new 200 in 5355ms
+[BUSINESS] URL-only creation detected - creating business immediately, crawling in background...
+ℹ️  [PROCESSING] ▶ Auto-Processing Pipeline | business=770, url=https://alphadentalcenter.com/benefit-dental-care/, businessName=Business, operationId=Auto-Processing Pipeline-1763609108795-cfg9y72hz
+ℹ️  [PROCESSING] Business missing location - crawl will attempt to extract it | business=770, url=https://alphadentalcenter.com/benefit-dental-care/, hasLocation=false
+ POST /api/business 422 in 936ms
+ GET /dashboard/businesses/770 200 in 94ms
+ℹ️  [PROCESSING] Automation enabled (Pro tier) | business=770, planName=pro, crawlFrequency=monthly, nextCrawlAt=2025-12-20T03:25:08.926Z
+ℹ️  [PROCESSING] Step 1/3: Starting crawl | business=770
+ℹ️  [PROCESSING] ▶ Crawl Job | business=770, job=389, operationId=Crawl Job-1763609109069-4d2l9pk5u
+ℹ️  [PROCESSING] 🔄 Status: pending → crawling | business=770, job=389
+ℹ️  [PROCESSING] Crawl attempt 1/3 | business=770, job=389, url=https://alphadentalcenter.com/benefit-dental-care/, attempt=1/3
+[CRAWLER] Starting crawl for: https://alphadentalcenter.com/benefit-dental-care/
+[CRAWLER] 🔥 Attempting Firecrawl API crawl (with cache enabled for speed)...
+ GET /api/team 200 in 301ms
+[BUSINESS API] Returning business 770 (Business)
+ GET /api/business/770 200 in 415ms
+[BUSINESS API] Returning business 770 (Business)
+ GET /api/business/770 200 in 425ms
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 0 fingerprint(s) for business 770
+[FINGERPRINT API] No fingerprints found for business 770
+ GET /api/fingerprint/business/770 200 in 254ms
+[FINGERPRINT API] Found 0 fingerprint(s) for business 770
+[FINGERPRINT API] No fingerprints found for business 770
+ GET /api/fingerprint/business/770 200 in 270ms
+[CRAWLER] 🔥 Firecrawl response received (cached: possible)
+[CRAWLER] ✅ Firecrawl success (Markdown: true, HTML: true, Metadata: true)
+[CRAWLER] 📋 Firecrawl extracted title: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[CRAWLER] 📝 Firecrawl extracted description: "Discover affordable & quality dental care in Providence, RI with Benefit Dental Care. Your smile is ..."
+[CRAWLER] ✅ Using Firecrawl metadata title: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[CRAWLER] ✅ Using Firecrawl metadata description
+[CRAWLER] ✅ Using Firecrawl og:image
+[OpenRouter] API key loaded from environment.
+[OpenRouter] Querying openai/gpt-4-turbo...
+[BUSINESS API] Returning business 770 (Business)
+ GET /api/business/770 200 in 387ms
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 0 fingerprint(s) for business 770
+[FINGERPRINT API] No fingerprints found for business 770
+ GET /api/fingerprint/business/770 200 in 920ms
+ GET /api/team 200 in 380ms
+[BUSINESS API] Returning business 770 (Business)
+ GET /api/business/770 200 in 364ms
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 0 fingerprint(s) for business 770
+[FINGERPRINT API] No fingerprints found for business 770
+ GET /api/fingerprint/business/770 200 in 399ms
+ GET /api/team 200 in 261ms
+[CRAWLER] ✅ Crawl completed in 11630ms. Method: firecrawl-api
+ℹ️  [PROCESSING] ⏱️  Crawl attempt 1 completed in 11.63s | business=770, duration=11632ms, success=true, durationMs=11632
+ℹ️  [PROCESSING] Crawl attempt 1 succeeded | business=770, duration=11632ms
+ℹ️  [PROCESSING] Crawl succeeded | business=770, job=389
+ℹ️  [PROCESSING] Crawl data validation passed | business=770
+ℹ️  [PROCESSING] Updating business location from crawl data | business=770
+ℹ️  [PROCESSING] Updating business name from crawl data | business=770, name=Benefit Dental Care: Providence, RI | Alpha Dental Center
+ℹ️  [PROCESSING] 🔄 Status: crawling → crawled | business=770, job=389, nextCrawlAt=2025-12-20T03:25:20.970Z
+ℹ️  [PROCESSING] ⏱️  Crawl Job completed in 11.99s | business=770, job=389, status=crawled, duration=11995ms, nextCrawlAt=2025-12-20T03:25:20.970Z, durationMs=11995
+ℹ️  [PROCESSING] ⏱️  Step 1/3: Crawl completed in 12.13s | business=770, duration=12135ms, durationMs=12135
+ℹ️  [PROCESSING] Step 2/3: Starting fingerprint | business=770
+ℹ️  [PROCESSING] ▶ Fingerprint | business=770, operationId=Fingerprint-1763609121136-7yt7c8m6p
+ℹ️  [PROCESSING] 🔄 Status: crawled → generating | business=770
+ℹ️  [FINGERPRINT] ▶ Fingerprint Analysis | business=770, url=https://alphadentalcenter.com/benefit-dental-care/, businessName=Benefit Dental Care: Providence, RI | Alpha Dental Center, operationId=Fingerprint Analysis-1763609121200-ztk0121h9
+ℹ️  [FINGERPRINT] Executing 9 queries | business=770, models=3, promptTypes=3, mode=parallel, batchSize=15
+ℹ️  [FINGERPRINT] Executing all 9 queries in parallel
+[OpenRouter] Querying openai/gpt-4-turbo...
+[OpenRouter] Querying openai/gpt-4-turbo...
+[OpenRouter] Querying openai/gpt-4-turbo...
+[OpenRouter] Querying anthropic/claude-3-opus...
+[OpenRouter] Querying anthropic/claude-3-opus...
+[OpenRouter] Querying anthropic/claude-3-opus...
+[OpenRouter] Querying google/gemini-pro...
+[OpenRouter] Querying google/gemini-pro...
+[OpenRouter] Querying google/gemini-pro...
+OpenRouter query error: Error: OpenRouter API error: Bad Request
+    at OpenRouterClient.query (lib/llm/openrouter.ts:168:14)
+    at async LLMFingerprinter.executeQuery (lib/llm/fingerprinter.ts:239:23)
+    at async LLMFingerprinter.executeParallel (lib/llm/fingerprinter.ts:132:22)
+    at async LLMFingerprinter.fingerprint (lib/llm/fingerprinter.ts:79:19)
+    at async executeFingerprint (lib/services/business-processing.ts:421:21)
+    at async autoStartProcessing (lib/services/business-processing.ts:609:24)
+  166 |       
+  167 |       if (!response.ok) {
+> 168 |         throw new Error(`OpenRouter API error: ${response.statusText}`);
+      |              ^
+  169 |       }
+  170 |       
+  171 |       const data: OpenRouterResponse = await response.json();
+OpenRouter query error: Error: OpenRouter API error: Bad Request
+    at OpenRouterClient.query (lib/llm/openrouter.ts:168:14)
+    at async LLMFingerprinter.executeQuery (lib/llm/fingerprinter.ts:239:23)
+    at async LLMFingerprinter.executeParallel (lib/llm/fingerprinter.ts:132:22)
+    at async LLMFingerprinter.fingerprint (lib/llm/fingerprinter.ts:79:19)
+    at async executeFingerprint (lib/services/business-processing.ts:421:21)
+    at async autoStartProcessing (lib/services/business-processing.ts:609:24)
+  166 |       
+  167 |       if (!response.ok) {
+> 168 |         throw new Error(`OpenRouter API error: ${response.statusText}`);
+      |              ^
+  169 |       }
+  170 |       
+  171 |       const data: OpenRouterResponse = await response.json();
+⚠️  [FINGERPRINT] Response appears to be mock data | model=google/gemini-pro, promptType=factual, responsePreview=Based on available information, this business is a reputable local establishment known for providing quality services. They have been serving the comm
+OpenRouter query error: Error: OpenRouter API error: Bad Request
+    at OpenRouterClient.query (lib/llm/openrouter.ts:168:14)
+    at async LLMFingerprinter.executeQuery (lib/llm/fingerprinter.ts:239:23)
+    at async LLMFingerprinter.executeParallel (lib/llm/fingerprinter.ts:132:22)
+    at async LLMFingerprinter.fingerprint (lib/llm/fingerprinter.ts:79:19)
+    at async executeFingerprint (lib/services/business-processing.ts:421:21)
+    at async autoStartProcessing (lib/services/business-processing.ts:609:24)
+  166 |       
+  167 |       if (!response.ok) {
+> 168 |         throw new Error(`OpenRouter API error: ${response.statusText}`);
+      |              ^
+  169 |       }
+  170 |       
+  171 |       const data: OpenRouterResponse = await response.json();
+[BUSINESS API] Returning business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+ GET /api/business/770 200 in 418ms
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 0 fingerprint(s) for business 770
+[FINGERPRINT API] No fingerprints found for business 770
+ GET /api/fingerprint/business/770 200 in 284ms
+ ○ Compiling /api/wikidata/entity/[businessId] ...
+[BUSINESS API] Returning business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+ GET /api/business/770 200 in 496ms
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 0 fingerprint(s) for business 770
+[FINGERPRINT API] No fingerprints found for business 770
+ GET /api/fingerprint/business/770 200 in 423ms
+[BUSINESS API] Returning business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+ GET /api/business/770 200 in 529ms
+ℹ️  [FINGERPRINT] ⏱️  Parallel query execution completed in 15.57s | duration=15568ms, total=9, successful=9, failed=0, durationMs=15568
+ℹ️  [FINGERPRINT] Query execution completed | business=770, totalQueries=9, mentioned=4, notMentioned=5, errors=0, mentionRate=44%
+ℹ️  [FINGERPRINT] Competitive leaderboard built | business=770, targetMentions=0, totalRecommendationQueries=3, competitorsFound=12, topCompetitors=["**Rhode Island Hospital**","Lifespan","Professional Solutions"]
+⚠️  [FINGERPRINT] Target business not mentioned in any recommendation responses | business=770, businessName=Benefit Dental Care: Providence, RI | Alpha Dental Center, recommendationQueries=3
+ℹ️  [FINGERPRINT] ⏱️  Fingerprint Analysis completed in 15.62s | business=770, duration=15616ms, visibilityScore=63, mentionRate=44.44444444444444, sentimentScore=0.875, hasCompetitiveData=true, durationMs=15616
+ℹ️  [FINGERPRINT] ⏱️  Fingerprint Analysis completed in 15.62s | business=770, duration=15619ms, visibilityScore=63, mentionRate=44.44444444444444, resultsCount=9, durationMs=15619
+ℹ️  [PROCESSING] ⏱️  Fingerprint analysis completed in 15.62s | business=770, duration=15620ms, visibilityScore=63, mentionRate=44.44444444444444, durationMs=15620
+ℹ️  [PROCESSING] 🔄 Status: generating → crawled | business=770
+ℹ️  [PROCESSING] ⏱️  Fingerprint completed in 16.04s | business=770, duration=16039ms, visibilityScore=63, mentionRate=44.44444444444444, sentimentScore=0.875, durationMs=16039
+ℹ️  [PROCESSING] ⏱️  Step 2/3: Fingerprint completed in 16.04s | business=770, duration=16040ms, durationMs=16040
+ℹ️  [PROCESSING] Step 3/3: Starting auto-publish | business=770
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+ℹ️  [PROCESSING] Step 3/3: Checking auto-publish conditions | business=770, status=crawled, autoPublish=true, hasWikidataQID=false, shouldAutoPublish=true
+[DEBUG] autoStartProcessing: shouldAutoPublish=true, status=crawled, autoPublish=true
+[FINGERPRINT API] Found 1 fingerprint(s) for business 770
+[FINGERPRINT API] Fingerprint IDs: 433, businessIds: 770
+[FINGERPRINT API] Found fingerprint 433 for business 770 (verified match)
+[FINGERPRINT API] Returning DTO for business 770 (fingerprint 433, business: "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[FINGERPRINT API] DTO summary: visibilityScore=63, trend=neutral
+ GET /api/fingerprint/business/770 200 in 4035ms
+ℹ️  [PROCESSING] Step 3/3: Calling handleAutoPublish | business=770
+ℹ️  [SCHEDULER] ▶ Auto-Publish | business=770, operationId=Auto-Publish-1763609142957-lfmboh9f6
+ℹ️  [SCHEDULER] 🔄 Status: crawled → generating | business=770
+ℹ️  [SCHEDULER] Fetching publish data | business=770
+[DEBUG] handleAutoPublish: Fetching publish data for business 770
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+ GET /api/team 200 in 2328ms
+[BUSINESS API] Returning business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+ GET /api/business/770 200 in 2419ms
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[FINGERPRINT API] Found 1 fingerprint(s) for business 770
+[FINGERPRINT API] Fingerprint IDs: 433, businessIds: 770
+[FINGERPRINT API] Found fingerprint 433 for business 770 (verified match)
+[FINGERPRINT API] Returning DTO for business 770 (fingerprint 433, business: "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[FINGERPRINT API] DTO summary: visibilityScore=63, trend=neutral
+ GET /api/fingerprint/business/770 200 in 537ms
+ ✓ Compiled /api/wikidata/entity/[businessId] in 20s
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Querying openai/gpt-4-turbo...
+ GET /api/wikidata/entity/770 200 in 14999ms
+✓ Local industry QID: Healthcare → Q31207
+⏳ SPARQL lookup for city: Providence
+Database cache save error: [Error [PostgresError]: there is no unique or exclusion constraint matching the ON CONFLICT specification] {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42P10',
+  file: 'plancat.c',
+  line: '943',
+  routine: 'infer_arbiter_indexes'
+}
+✓ SPARQL found: Providence → Q18383
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+[DEBUG] handleAutoPublish: canPublish=true, isNotable=true, confidence=0.4
+ℹ️  [SCHEDULER] Publish data fetched | business=770, canPublish=true, isNotable=true, confidence=0.4, testMode=false
+[MANUAL-PUBLISH] Stored entity for business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+[MANUAL-PUBLISH] Entity: entity-770-2025-11-20T03-25-50-379Z.json
+[MANUAL-PUBLISH] Metadata: entity-770-2025-11-20T03-25-50-379Z.metadata.json
+ℹ️  [SCHEDULER] Publishing entity to Wikidata | business=770
+[DEBUG] handleAutoPublish: Calling publishEntity, WIKIDATA_PUBLISH_MODE=real
+[REAL] Publishing entity to test.wikidata.org
+[REAL] Entity cleaned for Wikidata API - Richness preserved:
+[REAL]   - Properties (PIDs): 4
+[REAL]   - Total statements: 4
+[REAL]   - Labels (languages): 1
+[REAL]   - Descriptions (languages): 1
+[REAL]   - All QIDs, references, and claim data preserved
+[REAL] Querying property types from test.wikidata.org
+[REAL] Querying property info for: P31|P854|P813|P856|P1448|P6375
+Database cache save error: [Error [PostgresError]: there is no unique or exclusion constraint matching the ON CONFLICT specification] {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42P10',
+  file: 'plancat.c',
+  line: '943',
+  routine: 'infer_arbiter_indexes'
+}
+[REAL] Property P31 expects datatype: url (API type: string)
+[REAL] WARNING: Property P31 type mismatch!
+[REAL]   Our mapping says: item -> wikibase-entityid
+[REAL]   Wikidata says: url -> string
+[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)
+[REAL] Property P854 expects datatype: globe-coordinate (API type: globecoordinate)
+[REAL] WARNING: Property P854 type mismatch!
+[REAL]   Our mapping says: url -> string
+[REAL]   Wikidata says: globe-coordinate -> globecoordinate
+[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)
+[REAL] Property P813 expects datatype: wikibase-item (API type: wikibase-entityid)
+[REAL] WARNING: Property P813 type mismatch!
+[REAL]   Our mapping says: time -> time
+[REAL]   Wikidata says: wikibase-item -> wikibase-entityid
+[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)
+[REAL] Property P856 expects datatype: globe-coordinate (API type: globecoordinate)
+[REAL] WARNING: Property P856 type mismatch!
+[REAL]   Our mapping says: url -> string
+[REAL]   Wikidata says: globe-coordinate -> globecoordinate
+[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)
+[REAL] Property P1448 expects datatype: string (API type: string)
+[REAL] Property P6375 expects datatype: string (API type: string)
+[REAL] Querying property info for: P31|P854|P813|P856|P1448|P6375
+[BUSINESS API] Returning business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+ GET /api/business/770 200 in 307ms
+[REAL] Property P31 expects datatype: wikibase-item (API type: wikibase-entityid)
+[REAL] Property P854 expects datatype: url (API type: string)
+[REAL] Property P813 expects datatype: time (API type: time)
+[REAL] Property P856 expects datatype: url (API type: string)
+[REAL] Property P1448 expects datatype: monolingualtext (API type: monolingualtext)
+[REAL] WARNING: Property P1448 type mismatch!
+[REAL]   Our mapping says: string -> string
+[REAL]   Wikidata says: monolingualtext -> monolingualtext
+[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)
+[REAL] Property P6375 expects datatype: monolingualtext (API type: monolingualtext)
+[REAL] WARNING: Property P6375 type mismatch!
+[REAL]   Our mapping says: string -> string
+[REAL]   Wikidata says: monolingualtext -> monolingualtext
+[REAL]   Using Wikidata's definition (test.wikidata.org may differ from production)
+[REAL] Property type differences between test and production:
+[REAL]   P31: test expects string, production expects wikibase-entityid
+[REAL]   P854: test expects globecoordinate, production expects string
+[REAL]   P813: test expects wikibase-entityid, production expects time
+[REAL]   P856: test expects globecoordinate, production expects string
+[REAL]   P1448: test expects string, production expects monolingualtext
+[REAL]   P6375: test expects string, production expects monolingualtext
+[REAL] Adapting entity for test.wikidata.org property definitions...
+[REAL] Property P31 type mismatch for test: expected string, got wikibase-entityid
+[REAL] Property P856 type mismatch for test: expected globecoordinate, got string
+[REAL] Removed 2 properties for test: P31, P856
+[REAL] Removed 2 references for test
+[REAL] Publishing to test - 2 properties remaining, 0 references
+[VALIDATION] ========================================
+[VALIDATION] Starting entity validation...
+[VALIDATION] Validating 2 properties: P1448, P6375
+[VALIDATION] ========================================
+[VALIDATION] Checking property P1448...
+[VALIDATION] mainsnak (P1448): mapping.dataType=string, expectedType=string, actualType=string
+[VALIDATION] mainsnak (P1448): Type check passed (string)
+[VALIDATION] Checking property P6375...
+[VALIDATION] mainsnak (P6375): mapping.dataType=string, expectedType=string, actualType=string
+[VALIDATION] mainsnak (P6375): Type check passed (string)
+[VALIDATION] ========================================
+[VALIDATION] Entity structure validated successfully
+[VALIDATION] ========================================
+[REAL] Authenticating to test.wikidata.org (https://test.wikidata.org/w/api.php)
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 1 fingerprint(s) for business 770
+[FINGERPRINT API] Fingerprint IDs: 433, businessIds: 770
+[FINGERPRINT API] Found fingerprint 433 for business 770 (verified match)
+[FINGERPRINT API] Returning DTO for business 770 (fingerprint 433, business: "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[FINGERPRINT API] DTO summary: visibilityScore=63, trend=neutral
+ GET /api/fingerprint/business/770 200 in 291ms
+[REAL] Extracted 9 cookies from token response
+[REAL] Attempting login with NEW FORMAT:
+[REAL]   lgname: Puddin1066@Puddin1066@kgaasbot
+[REAL]   lgpassword: 0g435bt282nfk3fhq7rq... (length: 32)
+[REAL]   Including 9 cookies from token request
+[REAL] NEW FORMAT response: {
+  "login": {
+    "result": "Success",
+    "lguserid": 8388,
+    "lgusername": "Puddin1066"
+  }
+}
+[REAL] Successfully authenticated as Puddin1066
+[REAL] CSRF token obtained successfully
+[REAL] Entity JSON length: 643 characters
+[REAL] Entity JSON preview (first 1000 chars): {"labels":{"en":{"language":"en","value":"Benefit Dental Care: Providence, RI | Alpha Dental Center"}},"descriptions":{"en":{"language":"en","value":"Discover affordable & quality dental care in Providence, RI with Benefit Dental Care. Your smile is our priority. Schedule your dental appointment with us today!"}},"claims":{"P1448":[{"mainsnak":{"snaktype":"value","property":"P1448","datavalue":{"value":"Benefit Dental Care: Providence, RI | Alpha Dental Center","type":"string"}},"type":"statement"}],"P6375":[{"mainsnak":{"snaktype":"value","property":"P6375","datavalue":{"value":"Providence, RI","type":"string"}},"type":"statement"}]}}
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[REAL] Entity published successfully to test.wikidata.org with QID: Q242865
+[REAL] View entity: https://test.wikidata.org/wiki/Q242865
+[REAL] Same entity structure can be published to production by setting production=true
+[DEBUG] handleAutoPublish: publishResult.success=true, qid=Q242865
+ℹ️  [SCHEDULER] ⏱️  Publication to Wikidata completed in 1.59s | business=770, duration=1587ms, qid=Q242865, durationMs=1587
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+ℹ️  [SCHEDULER] 🔄 Status: generating → published | business=770, qid=Q242865
+ℹ️  [SCHEDULER] ⏱️  Auto-Publish completed in 9.16s | business=770, status=published, duration=9160ms, qid=Q242865, durationMs=9160
+ℹ️  [PROCESSING] Step 3/3: Publish completed | business=770, status=published, qid=Q242865
+ℹ️  [PROCESSING] ⏱️  Step 3/3: Auto-publish completed in 15.00s | business=770, duration=15004ms, durationMs=15004
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Cache hit for openai/gpt-4-turbo
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+ GET /api/wikidata/entity/770 200 in 10295ms
+ℹ️  [PROCESSING] ⏱️  Auto-Processing Pipeline completed in 43.44s | business=770, duration=43444ms, finalStatus=published, published=Yes (Q242865), visibilityScore=completed, durationMs=43444
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Cache hit for openai/gpt-4-turbo
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Cache hit for openai/gpt-4-turbo
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+ GET /api/wikidata/entity/770 200 in 7131ms
+ GET /api/team 200 in 177ms
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Cache hit for openai/gpt-4-turbo
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Cache hit for openai/gpt-4-turbo
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+ GET /api/wikidata/entity/770 200 in 1612ms
+[BUSINESS API] Returning business 770 (Benefit Dental Care: Providence, RI | Alpha Dental Center)
+ GET /api/business/770 200 in 480ms
+[FINGERPRINT API] Querying fingerprints for businessId: 770 (type: number)
+[FINGERPRINT API] Found 1 fingerprint(s) for business 770
+[FINGERPRINT API] Fingerprint IDs: 433, businessIds: 770
+[FINGERPRINT API] Found fingerprint 433 for business 770 (verified match)
+[FINGERPRINT API] Returning DTO for business 770 (fingerprint 433, business: "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[FINGERPRINT API] DTO summary: visibilityScore=63, trend=neutral
+ GET /api/fingerprint/business/770 200 in 401ms
+🔍 Searching for references: "Benefit Dental Care: Providence, RI | Alpha Dental Center"
+[LOG1] NODE_ENV="development" (expected: "test" for e2e tests)
+[LOG2] USE_MOCK_GOOGLE_SEARCH="undefined", PLAYWRIGHT_TEST="undefined" (expected: "true" for e2e tests)
+[LOG3] GOOGLE_SEARCH_API_KEY="AIzaSyBs...", GOOGLE_SEARCH_ENGINE_ID="a2b7c42f..." (expected: both empty for e2e tests)
+[LOG] Test mode decision: isTestMode=false (useMockFlag: false, playwrightTest: false, nodeEnv=test: false, !hasEngineId: false, isApiKeyEmpty: false)
+[REAL] Using real Google Search API
+[LOG] Search query (Strategy 1): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Name variations generated: ["Benefit Dental Care: Providence, RI | Alpha Dental Center"] (from name="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 2): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" Providence RI" (variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[LOG] Search query (Strategy 3): ""Benefit Dental Care: Providence, RI | Alpha Dental Center" OR "Benefit Dental Care: Providence, RI | Alpha Dental Center" site:*.gov OR site:*.edu" (name="Benefit Dental Care: Providence, RI | Alpha Dental Center", variant="Benefit Dental Care: Providence, RI | Alpha Dental Center")
+❌ No references found for: "Benefit Dental Care: Providence, RI | Alpha Dental Center" (normalized from "Benefit Dental Care: Providence, RI | Alpha Dental Center")
+[DEBUG checkNotability] References array is empty - check findReferences() logic
+[ENTITY BUILDER] ⚠ P625 (coordinate location) NOT added - business.location: true, business.coords: false, crawl.location: true, crawl.coords: false
+[ENTITY BUILDER]   Crawl location data: {
+  "city": "Providence",
+  "state": "RI",
+  "address": null,
+  "country": "US",
+  "postalCode": null
+}
+[ENTITY BUILDER] ✓ Added P6375 (street address): Providence, RI...
+[ENTITY BUILDER] Location data available: Providence, RI, US (P131 QID lookup needed for full implementation)
+[OpenRouter] Cache hit for openai/gpt-4-turbo
+[ENTITY BUILDER] QID not found for: Alpha Dental (P749)
+ GET /api/wikidata/entity/770 200 in 1238ms
+ GET /api/team 200 in 225ms
+ GET /api/team 200 in 336ms
+ GET /api/team 200 in 690ms
+ ○ Compiling /dashboard/businesses/[id]/fingerprint ...
+ ✓ Compiled /dashboard/businesses/[id]/fingerprint in 21.7s
+ GET /dashboard/businesses/770/fingerprint 200 in 1848ms
+ GET /dashboard/businesses/770/fingerprint 200 in 24467ms

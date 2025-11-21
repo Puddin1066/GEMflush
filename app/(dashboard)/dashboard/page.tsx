@@ -31,6 +31,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { WikidataRubyIcon, GemClusterIcon } from '@/components/ui/gem-icon';
+import { BusinessProcessingStatus } from '@/components/business/business-processing-status';
 
 export default function DashboardPage() {
   const { user } = useUser();
@@ -274,6 +275,11 @@ export default function DashboardPage() {
           const city = locationParts[0] || '';
           const state = locationParts[1] || '';
           
+          // Check if business is processing
+          const isProcessing = business.status === 'pending' || 
+                               business.status === 'crawling' || 
+                               business.status === 'generating';
+          
           return (
             <Link key={business.id} href={`/dashboard/businesses/${business.id}`}>
               <Card className="gem-card hover:shadow-lg transition-shadow cursor-pointer">
@@ -282,6 +288,16 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <CardTitle className="mb-1">{business.name}</CardTitle>
                       <CardDescription>{business.location}</CardDescription>
+                      {/* Show processing status */}
+                      {isProcessing && (
+                        <div className="mt-2">
+                          <BusinessProcessingStatus
+                            status={business.status}
+                            automationEnabled={business.automationEnabled}
+                            size="sm"
+                          />
+                        </div>
+                      )}
                     </div>
                     {business.wikidataQid ? (
                       <div className="flex flex-col items-end gap-1">

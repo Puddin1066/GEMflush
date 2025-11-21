@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { getCrawlJob } from '@/lib/db/queries';
 import { verifyBusinessOwnership } from '@/lib/auth/middleware';
+import { jobIdParamSchema } from '@/lib/validation/common';
 
 export async function GET(
   request: NextRequest,
@@ -26,14 +27,15 @@ export async function GET(
       );
     }
 
-    const resolvedParams = await params;
-    const jobId = parseInt(resolvedParams.jobId);
-    if (isNaN(jobId)) {
+    // Validate path parameter
+    const paramResult = jobIdParamSchema.safeParse(await params);
+    if (!paramResult.success) {
       return NextResponse.json(
-        { error: 'Invalid job ID' },
+        { error: 'Invalid job ID', details: paramResult.error.errors },
         { status: 400 }
       );
     }
+    const jobId = paramResult.data.jobId;
 
     const job = await getCrawlJob(jobId);
     if (!job) {

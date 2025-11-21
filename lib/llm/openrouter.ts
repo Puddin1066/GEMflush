@@ -1,6 +1,7 @@
 // OpenRouter API client for LLM queries
 // UPGRADED: Added File-based Cache for Development
 
+import { IOpenRouterClient } from '@/lib/types/service-contracts';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -46,7 +47,7 @@ interface CacheEntry {
   timestamp: number;
 }
 
-export class OpenRouterClient {
+export class OpenRouterClient implements IOpenRouterClient {
   private apiKey: string | undefined;
   private endpoint = 'https://openrouter.ai/api/v1/chat/completions';
   private cacheDir = path.join(process.cwd(), '.cache');

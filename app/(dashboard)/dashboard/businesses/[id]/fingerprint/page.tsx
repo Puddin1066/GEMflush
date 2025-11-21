@@ -11,6 +11,8 @@ import { eq, and, desc } from 'drizzle-orm';
 import { toFingerprintDetailDTO } from '@/lib/data/fingerprint-dto';
 import { VisibilityScoreDisplay } from '@/components/fingerprint/visibility-score-display';
 import { ModelBreakdownList } from '@/components/fingerprint/model-breakdown-list';
+import { CFPProcessExplanation } from '@/components/fingerprint/cfp-process-explanation';
+import { VisibilityScoreChart } from '@/components/fingerprint/visibility-score-chart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCcw, Eye, TrendingUp } from 'lucide-react';
@@ -119,9 +121,12 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
                 Back to Business
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900">
-              LLM Fingerprint Analysis
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">
+                LLM Fingerprint Analysis
+              </h1>
+              <CFPProcessExplanation />
+            </div>
             <p className="text-gray-600 mt-1">
               {business.name}
             </p>
@@ -235,6 +240,9 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
             <ModelBreakdownList results={dto.results} />
           </CardContent>
         </Card>
+
+        {/* Visibility Score History Chart */}
+        <VisibilityScoreChart businessId={businessId} />
 
         {/* Competitive Link */}
         {dto.competitiveLeaderboard && (

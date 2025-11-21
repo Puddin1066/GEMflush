@@ -9,7 +9,7 @@ import {
   formatTrend,
   formatRank,
 } from '@/lib/utils/format';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 describe('Utils E2E Tests', () => {
   describe('Complete Formatting Workflows', () => {
