@@ -21,6 +21,7 @@ describe('toFingerprintDetailDTO', () => {
         rankPosition: 1,
         rawResponse: 'Test response',
         tokensUsed: 100,
+        prompt: 'Can you recommend the top 5 businesses in San Francisco, CA?',
       },
       {
         model: 'anthropic/claude-3-opus',
@@ -31,6 +32,7 @@ describe('toFingerprintDetailDTO', () => {
         rankPosition: 3,
         rawResponse: 'Test response',
         tokensUsed: 120,
+        prompt: 'Can you recommend the top 5 businesses in San Francisco, CA?',
       },
     ],
     generatedAt: new Date('2025-01-15'),
@@ -165,7 +167,7 @@ describe('toFingerprintDetailDTO', () => {
       confidence: 90,
       rankPosition: 1,
     });
-    expect(dto.results[0]).not.toHaveProperty('rawResponse');
+    expect(dto.results[0]).toHaveProperty('rawResponse', 'Test response');
   });
 
   it('should include competitive leaderboard when present', () => {
@@ -284,7 +286,7 @@ describe('toFingerprintDetailDTO', () => {
     expect(emergingDto.competitiveLeaderboard?.insights.recommendation).toContain('Limited');
   });
 
-  it('should calculate competitor market share', () => {
+  it('should calculate competitor query mention share', () => {
     const analysis = createMockAnalysis({
       competitiveLeaderboard: {
         targetBusiness: {

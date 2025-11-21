@@ -9,15 +9,29 @@ import type { CrawledData } from '@/lib/types/gemflush';
 
 /**
  * Social links schema
- * Validates social media URLs
+ * Validates social media URLs and handles (e.g., @username)
+ * SOLID: Enhanced validation for flexible social media formats
  */
+const socialMediaValidator = z.string().refine((value) => {
+  // Allow full URLs
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    // Allow social media handles (e.g., @username, username)
+    return /^@?[\w.-]+$/.test(value);
+  }
+}, {
+  message: "Must be a valid URL or social media handle (e.g., @username)"
+});
+
 export const socialLinksSchema = z.object({
-  facebook: z.string().url().optional(),
-  instagram: z.string().url().optional(),
-  linkedin: z.string().url().optional(),
-  twitter: z.string().url().optional(),
-  youtube: z.string().url().optional(),
-  tiktok: z.string().url().optional(),
+  facebook: socialMediaValidator.optional(),
+  instagram: socialMediaValidator.optional(),
+  linkedin: socialMediaValidator.optional(),
+  twitter: socialMediaValidator.optional(),
+  youtube: socialMediaValidator.optional(),
+  tiktok: socialMediaValidator.optional(),
 }).optional();
 
 /**

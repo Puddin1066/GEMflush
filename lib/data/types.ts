@@ -177,7 +177,7 @@ export interface CompetitorDTO {
   mentionCount: number;              // Times mentioned across all LLMs
   avgPosition: number;               // Average ranking position (1.0-5.0)
   appearsWithTarget: number;         // Co-occurrence count
-  marketShare: number;               // Estimated share of mentions (0-100)
+  marketShare: number;               // Query mention share: % of total competitor mentions across all LLM queries (0-100)
   badge?: 'top' | 'rising' | 'declining';  // Visual indicator
 }
 

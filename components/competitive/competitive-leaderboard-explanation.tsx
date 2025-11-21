@@ -63,7 +63,7 @@ export function CompetitiveLeaderboardExplanation({
                     <li><strong>Mention Count:</strong> How many times they appear in recommendation lists</li>
                     <li><strong>Average Position:</strong> Their average rank position (1-5)</li>
                     <li><strong>Appears With Target:</strong> How many times mentioned alongside your business</li>
-                    <li><strong>Market Share:</strong> Percentage of all mentions (you + competitors) that belong to them</li>
+                    <li><strong>Query Mention Share:</strong> Percentage of total competitor mentions across all queries that belong to them</li>
                     <li><strong>Mention Rate:</strong> Percentage of queries where they're mentioned</li>
                   </ul>
                 </p>
@@ -90,9 +90,9 @@ export function CompetitiveLeaderboardExplanation({
                 <strong>Average Position:</strong> Average ranking when mentioned (1-5). Lower is better - #1 is top position.
               </li>
               <li>
-                <strong>Market Share:</strong> Percentage of all mentions (you + competitors) that belong to each business. 
-                Shows relative visibility. Example: If you have 50 mentions and Competitor A has 30 out of 100 total, 
-                Competitor A has 30% market share.
+                <strong>Query Mention Share:</strong> Percentage of total competitor mentions across all LLM queries that belong to each business. 
+                Shows relative visibility in recommendations. Example: If there are 20 total competitor mentions across 3 queries, 
+                and Competitor A appears 2 times, they have 10% query mention share.
               </li>
               <li>
                 <strong>Mention Rate:</strong> Percentage of queries where business is mentioned. Shows consistency of visibility.

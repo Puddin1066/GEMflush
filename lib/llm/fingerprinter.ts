@@ -69,7 +69,7 @@ export class LLMFingerprinter implements ILLMFingerprinter {
     }
     
     // Generate prompts (now guaranteed to have crawlData)
-    const prompts = this.generatePrompts(business);
+    const prompts = await this.generatePrompts(business);
     
     // Log generated prompts for debugging
     Object.entries(prompts).forEach(([type, prompt]) => {
@@ -279,7 +279,7 @@ export class LLMFingerprinter implements ILLMFingerprinter {
         });
       }
       
-      const analysis = this.analyzeResponse(
+      const analysis = await this.analyzeResponse(
         response.content,
         businessName,
         task.promptType
@@ -307,6 +307,7 @@ export class LLMFingerprinter implements ILLMFingerprinter {
         competitorMentions: analysis.competitorMentions,
         rawResponse: response.content,
         tokensUsed: response.tokensUsed,
+        prompt: task.prompt, // Store the actual generated prompt
       };
     } catch (error) {
       const queryDuration = Date.now() - queryStartTime;
@@ -325,165 +326,125 @@ export class LLMFingerprinter implements ILLMFingerprinter {
         rankPosition: null,
         rawResponse: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         tokensUsed: 0,
+        prompt: task.prompt, // Store the actual generated prompt even for errors
       };
     }
   }
   
   /**
-   * Get industry-specific plural term for recommendations
-   * Maps industry/category to appropriate plural terms (e.g., "restaurants", "law firms", "doctors")
-   * DRY: Centralized industry term mapping
+   * Get industry-specific plural term for recommendations using LLM-assisted logic
+   * Replaces hard-coded mappings with intelligent classification
+   * DRY: Centralized industry term mapping with LLM fallback
+   * SOLID: Enhanced with LLM reasoning for edge cases and new industries
    */
-  private getIndustryPlural(industry?: string | null, category?: string | null, businessCategory?: string | null): string {
-    // Priority: industry > businessCategory > category
-    const term = (industry || businessCategory || category || '').toLowerCase().trim();
+  private async getIndustryPlural(industry?: string | null, category?: string | null, businessCategory?: string | null, services?: string[]): Promise<string> {
+    // Try fast hard-coded mappings first (performance optimization)
+    const quickResult = this.getQuickIndustryMapping(industry, category, businessCategory, services);
+    if (quickResult !== 'unknown') {
+      return quickResult;
+    }
     
-    if (!term) return 'businesses';
+    // Fall back to LLM-assisted classification for edge cases and new industries
+    return await this.getLLMIndustryClassification(industry, category, businessCategory, services);
+  }
+  
+  /**
+   * Fast hard-coded mappings for common industries (performance optimization)
+   * Returns 'unknown' if no quick match found, triggering LLM classification
+   */
+  private getQuickIndustryMapping(industry?: string | null, category?: string | null, businessCategory?: string | null, services?: string[]): string {
+    // Priority: services (for specificity) > industry > businessCategory > category
+    let term = (industry || businessCategory || category || '').toLowerCase().trim();
     
-    // Industry-specific mappings
-    const industryMap: Record<string, string> = {
-      // Food & Hospitality
+    // Enhanced: Check services for more specific subcategories (e.g., pizza places vs restaurants)
+    if (services && services.length > 0) {
+      const serviceText = services.join(' ').toLowerCase();
+      
+      // Pizza-specific detection
+      if (serviceText.includes('pizza')) {
+        term = 'pizza';
+      }
+      // Coffee-specific detection
+      else if (serviceText.includes('coffee') || serviceText.includes('espresso') || serviceText.includes('latte')) {
+        term = 'coffee';
+      }
+      // Dental-specific detection
+      else if (serviceText.includes('dental') || serviceText.includes('dentist') || serviceText.includes('teeth')) {
+        term = 'dental';
+      }
+    }
+    
+    if (!term) return 'unknown';
+    
+    // Common industry mappings (keep most frequent ones for speed)
+    const quickMap: Record<string, string> = {
+      // Food & Hospitality (most common)
       'restaurant': 'restaurants',
-      'restaurants': 'restaurants',
-      'food': 'restaurants',
-      'dining': 'restaurants',
-      'cafe': 'cafes',
-      'cafes': 'cafes',
-      'coffee': 'coffee shops',
-      'bakery': 'bakeries',
-      'bakeries': 'bakeries',
       'pizza': 'pizza places',
+      'coffee': 'coffee shops',
       'bar': 'bars',
-      'bars': 'bars',
-      'hotel': 'hotels',
-      'hotels': 'hotels',
-      'hospitality': 'hotels',
       
-      // Healthcare
-      'healthcare': 'healthcare providers',
-      'health': 'healthcare providers',
-      'medical': 'medical practices',
-      'doctor': 'doctors',
-      'doctors': 'doctors',
-      'physician': 'physicians',
-      'physicians': 'physicians',
-      'dentist': 'dentists',
-      'dentists': 'dentists',
+      // Healthcare (common)
       'dental': 'dental practices',
-      'hospital': 'hospitals',
-      'hospitals': 'hospitals',
-      'clinic': 'clinics',
-      'clinics': 'clinics',
-      'pharmacy': 'pharmacies',
-      'pharmacies': 'pharmacies',
+      'medical': 'medical practices',
+      'healthcare': 'healthcare providers',
       
-      // Legal
+      // Professional Services (common)
       'legal': 'law firms',
-      'law': 'law firms',
-      'attorney': 'law firms',
-      'lawyer': 'law firms',
-      'law firm': 'law firms',
-      'law firms': 'law firms',
-      
-      // Professional Services
-      'accounting': 'accounting firms',
-      'accountant': 'accounting firms',
-      'consulting': 'consulting firms',
-      'consultant': 'consulting firms',
-      'financial': 'financial advisors',
-      'finance': 'financial advisors',
       'real estate': 'real estate agencies',
-      'real estate agent': 'real estate agents',
-      'insurance': 'insurance agencies',
-      'marketing': 'marketing agencies',
-      'advertising': 'advertising agencies',
       
-      // Technology
-      'technology': 'tech companies',
-      'tech': 'tech companies',
-      'software': 'software companies',
-      'saas': 'SaaS companies',
-      'it': 'IT companies',
-      'computer': 'computer services',
-      
-      // Retail
+      // Retail (common)
       'retail': 'retail stores',
-      'store': 'stores',
-      'stores': 'stores',
-      'shop': 'shops',
-      'shops': 'shops',
-      'boutique': 'boutiques',
-      'boutiques': 'boutiques',
-      
-      // Education
-      'education': 'schools',
-      'school': 'schools',
-      'schools': 'schools',
-      'university': 'universities',
-      'universities': 'universities',
-      'college': 'colleges',
-      'colleges': 'colleges',
-      'tutoring': 'tutoring centers',
-      
-      // Fitness & Wellness
-      'fitness': 'gyms',
-      'gym': 'gyms',
-      'gyms': 'gyms',
-      'yoga': 'yoga studios',
-      'wellness': 'wellness centers',
-      'spa': 'spas',
-      'spas': 'spas',
-      
-      // Automotive
-      'automotive': 'auto shops',
-      'auto': 'auto shops',
-      'car': 'car dealerships',
-      'automobile': 'car dealerships',
-      
-      // Home Services
-      'plumbing': 'plumbers',
-      'plumber': 'plumbers',
-      'electrician': 'electricians',
-      'electric': 'electricians',
-      'contractor': 'contractors',
-      'construction': 'construction companies',
-      'roofing': 'roofing companies',
-      'landscaping': 'landscaping companies',
-      'cleaning': 'cleaning services',
-      
-      // Personal Care
-      'salon': 'salons',
-      'salons': 'salons',
-      'barber': 'barbershops',
-      'barbershop': 'barbershops',
-      'beauty': 'beauty salons',
     };
     
-    // Direct match
-    if (industryMap[term]) {
-      return industryMap[term];
-    }
+    return quickMap[term] || 'unknown';
+  }
+  
+  /**
+   * LLM-assisted industry classification for edge cases and new industries
+   * Provides intelligent reasoning when hard-coded mappings fail
+   */
+  private async getLLMIndustryClassification(industry?: string | null, category?: string | null, businessCategory?: string | null, services?: string[]): Promise<string> {
+    const context = {
+      industry: industry || 'unknown',
+      category: category || 'unknown', 
+      businessCategory: businessCategory || 'unknown',
+      services: services || []
+    };
     
-    // Partial match (e.g., "restaurant chain" -> "restaurants")
-    for (const [key, value] of Object.entries(industryMap)) {
-      if (term.includes(key) || key.includes(term)) {
-        return value;
+    const prompt = `Classify this business into the most specific industry plural term for local search.
+
+Business Context:
+- Industry: ${context.industry}
+- Category: ${context.category}
+- Business Category: ${context.businessCategory}
+- Services: ${context.services.join(', ') || 'none listed'}
+
+Return ONLY the most specific plural term that customers would use to search locally.
+Examples: "pizza places", "dental practices", "auto repair shops", "yoga studios"
+
+If unclear, default to "businesses".
+
+Classification:`;
+
+    try {
+      const response = await openRouterClient.query('openai/gpt-4-turbo', prompt);
+      const classification = response.content.trim().toLowerCase();
+      
+      // Validate response (must be reasonable plural term)
+      if (classification.length > 3 && classification.length < 50 && !classification.includes('\n')) {
+        log.debug('LLM industry classification', {
+          input: context,
+          classification,
+          confidence: 'high'
+        });
+        return classification;
       }
+    } catch (error) {
+      log.warn('LLM industry classification failed', { error: error instanceof Error ? error.message : 'Unknown error', context });
     }
     
-    // Fallback: pluralize the term if it's a single word
-    if (term.split(/\s+/).length === 1) {
-      // Simple pluralization rules
-      if (term.endsWith('y')) {
-        return term.slice(0, -1) + 'ies';
-      } else if (term.endsWith('s') || term.endsWith('x') || term.endsWith('z') || term.endsWith('ch') || term.endsWith('sh')) {
-        return term + 'es';
-      } else {
-        return term + 's';
-      }
-    }
-    
-    // Final fallback
+    // Fallback to generic term
     return 'businesses';
   }
   
@@ -501,7 +462,7 @@ export class LLMFingerprinter implements ILLMFingerprinter {
    * REQUIRES crawlData: Since input is only a URL, we need crawled data
    * to provide business context (industry, services, description) to LLMs.
    */
-  private generatePrompts(business: Business): Record<string, string> {
+  private async generatePrompts(business: Business): Promise<{ factual: string; opinion: string; recommendation: string }> {
     // REQUIREMENT: crawlData must exist (validated in fingerprint() method)
     if (!business.crawlData || typeof business.crawlData !== 'object') {
       throw new Error('crawlData is required for prompt generation');
@@ -519,8 +480,8 @@ export class LLMFingerprinter implements ILLMFingerprinter {
     const awards = crawlData.businessDetails?.awards || [];
     const certifications = crawlData.businessDetails?.certifications || [];
     
-    // Get industry-specific plural term
-    const industryPlural = this.getIndustryPlural(industry, business.category, businessCategory);
+    // Get industry-specific plural term (enhanced with services for specificity)
+    const industryPlural = await this.getIndustryPlural(industry, business.category, businessCategory, services);
     
     // Build service context from crawled data (more specific than category)
     const serviceContext = services.length > 0 
@@ -593,49 +554,37 @@ export class LLMFingerprinter implements ILLMFingerprinter {
       ? ` ${contextParts.join('. ')}.`
       : '';
     
-    // PROMPT 1: Direct Search Query (Factual)
-    // Emulates: "tell me about [business name]"
-    // Measures: Basic recognition and knowledge
-    // Uses crawled description and services to help LLM recognize the business
-    // CRITICAL: Always include location when available for geographic specificity
-    const factual = location
-      ? `Tell me about ${business.name}, a ${serviceContext} located ${locationQuery}.${businessContext} What do you know about this local business?`
-      : `Tell me about ${business.name}, a ${serviceContext}.${businessContext} What do you know about them?`;
+    // TEMPLATE-BASED PROMPTS: Hard-coded structure with dynamic data insertion
+    // Benefits: Consistent format, better LLM responses, easier parsing, clear instructions
     
-    // PROMPT 2: Review/Reputation Query (Opinion)
-    // Emulates: "is [business name] good?" or "[business name] reviews"
-    // Measures: Reputation and sentiment
-    // Uses crawled services to make query more specific
-    // CRITICAL: Always include location when available for geographic specificity
-    const opinion = location
-      ? `Is ${business.name}, a ${serviceContext} located ${locationQuery}, a good option?${businessContext} What are people in ${location} saying about this local business?`
-      : `Is ${business.name}, a ${serviceContext}, a good option?${businessContext} What are people saying about them?`;
+    // PROMPT 1: Factual Knowledge Query
+    // Template ensures consistent structure and comprehensive context
+    const factual = this.buildFactualPrompt({
+      businessName: business.name,
+      serviceContext,
+      location,
+      businessContext,
+      industry: industryPlural
+    });
     
-    // PROMPT 3: Local Search Query (Recommendation)
-    // Emulates: "best [service] near me" or "top [service] in [location]"
-    // Measures: Competitive ranking and local visibility
-    // CRITICAL: Must focus on LOCAL businesses in the same geographic region
-    // This ensures competitive leaderboard compares businesses within the same market
-    const industryField = industry || businessCategory || business.category;
+    // PROMPT 2: Opinion/Reputation Query  
+    // Template ensures consistent sentiment analysis opportunities
+    const opinion = this.buildOpinionPrompt({
+      businessName: business.name,
+      serviceContext,
+      location,
+      businessContext,
+      industry: industryPlural
+    });
     
-    // Build objective recommendation prompt with explicit industry/field and geographic context
-    const industryContext = industryField 
-      ? ` in the ${industryField} industry`
-      : '';
-    
-    // Location is REQUIRED for recommendation prompt to ensure local comparisons
-    let recommendation: string;
-    if (location) {
-      // With location: Focus on LOCAL businesses in the specific geographic area
-      const locationEmphasis = location.includes(',') 
-        ? `specifically in ${location}` 
-        : `in the ${location} area`;
-      
-      recommendation = `What are the top 5 LOCAL ${industryPlural}${industryContext} ${locationEmphasis}? Please only include businesses that operate in ${location} and rank them 1-5. Explain why you're recommending each one based on objective criteria such as quality of service, reputation, expertise, and customer satisfaction. Focus on businesses that serve customers in this specific geographic region, not national or international chains unless they have a significant local presence in ${location}.`;
-    } else {
-      // Without location: Still emphasize local/regional context
-      recommendation = `What are the top 5 LOCAL ${industryPlural}${industryContext} similar to ${business.name}? Please only include businesses that operate in the same geographic region and rank them 1-5. Explain why you're recommending each one based on objective criteria such as quality of service, reputation, expertise, and customer satisfaction. Focus on businesses that serve customers in the same local or regional market, not national or international businesses.`;
-    }
+    // PROMPT 3: Competitive Recommendation Query
+    // Template ensures consistent ranking format and local focus
+    const recommendation = this.buildRecommendationPrompt({
+      businessName: business.name,
+      industryPlural,
+      location,
+      industry: industry || businessCategory || business.category
+    });
     
     return {
       factual,
@@ -645,33 +594,105 @@ export class LLMFingerprinter implements ILLMFingerprinter {
   }
   
   /**
-   * Analyze LLM response for mention, sentiment, and accuracy
+   * Build objective factual prompt that emulates natural customer queries
+   * Avoids leading language while maintaining structure for parsing
    */
-  private analyzeResponse(
+  private buildFactualPrompt(params: {
+    businessName: string;
+    serviceContext: string;
+    location: string;
+    businessContext: string;
+    industry: string;
+  }): string {
+    const { businessName, serviceContext, location, businessContext } = params;
+    
+    // Natural customer query: "What do you know about [business]?"
+    if (location) {
+      return `What do you know about ${businessName}? I'm looking for information about this ${serviceContext} in ${location}.${businessContext}`;
+    } else {
+      return `What do you know about ${businessName}? I'm looking for information about this ${serviceContext}.${businessContext}`;
+    }
+  }
+  
+  /**
+   * Build objective opinion prompt that emulates natural customer queries
+   * Avoids leading language while allowing natural sentiment expression
+   */
+  private buildOpinionPrompt(params: {
+    businessName: string;
+    serviceContext: string;
+    location: string;
+    businessContext: string;
+    industry: string;
+  }): string {
+    const { businessName, serviceContext, location, businessContext } = params;
+    
+    // Natural customer query: "Is [business] any good?" or "Should I go to [business]?"
+    if (location) {
+      return `I'm thinking about going to ${businessName} in ${location}. Is this ${serviceContext} any good?${businessContext} What's your take on them?`;
+    } else {
+      return `I'm thinking about going to ${businessName}. Is this ${serviceContext} any good?${businessContext} What's your take on them?`;
+    }
+  }
+  
+  /**
+   * Build objective recommendation prompt that emulates natural customer queries
+   * Maintains local focus without leading the LLM toward specific answers
+   */
+  private buildRecommendationPrompt(params: {
+    businessName: string;
+    industryPlural: string;
+    location: string;
+    industry?: string | null;
+  }): string {
+    const { businessName, industryPlural, location } = params;
+    
+    // Natural customer query: "What are the best [businesses] in [location]?"
+    if (location) {
+      const locationEmphasis = location.includes(',') 
+        ? `in ${location}` 
+        : `in the ${location} area`;
+      
+      // Use uppercase for industry emphasis (proven effective from LBDD testing)
+      const industryEmphasis = industryPlural.toUpperCase();
+      
+      return `What are the best ${industryEmphasis} ${locationEmphasis}? I'm looking for the top 5 and would like to know why each one is good.`;
+    } else {
+      // Without location: Focus on businesses similar to the target
+      const industryEmphasis = industryPlural.toUpperCase();
+      
+      return `What are the best ${industryEmphasis} similar to ${businessName}? I'm looking for the top 5 and would like to know why each one is good.`;
+    }
+  }
+  
+  /**
+   * Analyze LLM response for mention, sentiment, and accuracy using hybrid AI approach
+   */
+  private async analyzeResponse(
     response: string,
     businessName: string,
     promptType: string
-  ): {
+  ): Promise<{
     mentioned: boolean;
     sentiment: 'positive' | 'neutral' | 'negative';
     accuracy: number;
     rankPosition: number | null;
     competitorMentions?: string[];
-  } {
+  }> {
     // Check if business is mentioned
-    const mentioned = this.detectMention(response, businessName);
+    const mentioned = await this.detectMention(response, businessName);
     
     // Analyze sentiment
-    const sentiment = this.analyzeSentiment(response);
+    const sentiment = await this.analyzeSentiment(response, businessName);
     
     // Extract ranking position (for recommendation prompts)
     const rankPosition = promptType === 'recommendation'
-      ? this.extractRankPosition(response, businessName)
+      ? await this.extractRankPosition(response, businessName)
       : null;
     
     // Extract competitor mentions (for recommendation prompts)
     const competitorMentions = promptType === 'recommendation'
-      ? this.extractCompetitorMentions(response, businessName)
+      ? await this.extractCompetitorMentions(response, businessName)
       : undefined;
     
     // Calculate accuracy (simplified for now)
@@ -687,10 +708,10 @@ export class LLMFingerprinter implements ILLMFingerprinter {
   }
   
   /**
-   * Detect if business name is mentioned in response
-   * IMPROVED: Better fuzzy matching, handles partial names, common variations
+   * Detect if business name is mentioned using hybrid approach
+   * Fast pattern matching + LLM reasoning for complex cases
    */
-  private detectMention(response: string, businessName: string): boolean {
+  private async detectMention(response: string, businessName: string): Promise<boolean> {
     const normalized = response.toLowerCase();
     
     // Generate multiple name variants for better matching
@@ -732,29 +753,86 @@ export class LLMFingerprinter implements ILLMFingerprinter {
       nameVariants.push(keyWords.join(' '));
     }
     
-    // Check if any variant appears in response
-    const found = nameVariants.some(variant => {
-      if (variant.length < 3) return false; // Skip very short variants
+    // Fast pattern matching first
+    const quickMatch = nameVariants.some(variant => {
+      if (variant.length < 3) return false;
       return normalized.includes(variant);
     });
     
-    // Log detection attempt for debugging
-    if (!found) {
-      log.debug('Business name not detected in response', {
-        businessName,
-        responsePreview: response.substring(0, 200),
-        variantsChecked: nameVariants.filter(v => v.length >= 3),
-      });
+    if (quickMatch) {
+      return true;
     }
     
-    return found;
+    // Use LLM for complex cases (similar names, abbreviations, etc.)
+    return await this.getLLMBusinessMentionDetection(response, businessName, nameVariants);
   }
   
   /**
-   * Analyze sentiment of response
+   * LLM-assisted business mention detection for complex cases
+   * Handles similar business names, abbreviations, and contextual references
    */
-  private analyzeSentiment(text: string): 'positive' | 'neutral' | 'negative' {
+  private async getLLMBusinessMentionDetection(response: string, businessName: string, variants: string[]): Promise<boolean> {
+    // Only use LLM if response is reasonably short and might contain the business
+    if (response.length > 2000 || !response.toLowerCase().includes(businessName.split(' ')[0].toLowerCase())) {
+      return false;
+    }
+    
+    const prompt = `Is "${businessName}" mentioned in this text?
+
+Text: "${response}"
+
+Consider:
+- Exact name matches
+- Abbreviations or shortened versions
+- Similar business names (but be precise - "Joe's Pizza" ≠ "Tony's Pizza")
+- Contextual references to the specific business
+
+Respond with ONLY: yes or no`;
+
+    try {
+      const llmResponse = await openRouterClient.query('openai/gpt-4-turbo', prompt);
+      const answer = llmResponse.content.trim().toLowerCase();
+      
+      const mentioned = answer === 'yes';
+      
+      log.debug('LLM business mention detection', {
+        businessName,
+        responsePreview: response.substring(0, 100),
+        variants: variants.slice(0, 3),
+        mentioned,
+        confidence: 'high'
+      });
+      
+      return mentioned;
+    } catch (error) {
+      log.warn('LLM mention detection failed', { error: error instanceof Error ? error.message : 'Unknown error', businessName });
+      return false;
+    }
+  }
+  
+  /**
+   * Analyze sentiment using hybrid approach: fast keyword detection + LLM reasoning
+   * Provides more accurate sentiment analysis than keyword-only approach
+   */
+  private async analyzeSentiment(text: string, businessName: string): Promise<'positive' | 'neutral' | 'negative'> {
+    // Fast keyword-based detection for obvious cases (performance optimization)
+    const quickSentiment = this.getQuickSentiment(text);
+    if (quickSentiment.confidence > 0.8) {
+      return quickSentiment.sentiment;
+    }
+    
+    // Use LLM for nuanced sentiment analysis when keywords are ambiguous
+    return await this.getLLMSentimentAnalysis(text, businessName);
+  }
+  
+  /**
+   * Fast keyword-based sentiment detection for obvious cases
+   */
+  private getQuickSentiment(text: string): { sentiment: 'positive' | 'neutral' | 'negative', confidence: number } {
     const lowerText = text.toLowerCase();
+    
+    const strongPositive = ['excellent', 'outstanding', 'amazing', 'fantastic', 'highly recommend'];
+    const strongNegative = ['terrible', 'awful', 'horrible', 'avoid at all costs', 'worst'];
     
     const positiveKeywords = [
       'excellent', 'great', 'best', 'recommend', 'trusted',
@@ -768,29 +846,80 @@ export class LLMFingerprinter implements ILLMFingerprinter {
       'disappointed', 'negative', 'warning',
     ];
     
-    // Helper function to count keyword matches (DRY principle)
-    const countKeywords = (keywords: string[]): number => {
-      return keywords.filter(keyword => lowerText.includes(keyword)).length;
-    };
+    // Check for strong indicators first
+    const hasStrongPositive = strongPositive.some(word => lowerText.includes(word));
+    const hasStrongNegative = strongNegative.some(word => lowerText.includes(word));
     
-    const positiveCount = countKeywords(positiveKeywords);
-    const negativeCount = countKeywords(negativeKeywords);
+    if (hasStrongPositive && !hasStrongNegative) {
+      return { sentiment: 'positive', confidence: 0.9 };
+    }
+    if (hasStrongNegative && !hasStrongPositive) {
+      return { sentiment: 'negative', confidence: 0.9 };
+    }
     
-    if (positiveCount > negativeCount + 1) return 'positive';
-    if (negativeCount > positiveCount + 1) return 'negative';
+    // Count regular keywords
+    const positiveCount = positiveKeywords.filter(keyword => lowerText.includes(keyword)).length;
+    const negativeCount = negativeKeywords.filter(keyword => lowerText.includes(keyword)).length;
+    
+    if (positiveCount > negativeCount + 2) {
+      return { sentiment: 'positive', confidence: 0.7 };
+    }
+    if (negativeCount > positiveCount + 2) {
+      return { sentiment: 'negative', confidence: 0.7 };
+    }
+    
+    // Ambiguous case - needs LLM analysis
+    return { sentiment: 'neutral', confidence: 0.3 };
+  }
+  
+  /**
+   * LLM-assisted sentiment analysis for nuanced cases
+   * Handles context, sarcasm, and complex sentiment expressions
+   */
+  private async getLLMSentimentAnalysis(text: string, businessName: string): Promise<'positive' | 'neutral' | 'negative'> {
+    const prompt = `Analyze the sentiment toward "${businessName}" in this text:
+
+"${text}"
+
+Consider:
+- Overall tone and context
+- Specific mentions of the business
+- Implied recommendations or warnings
+- Sarcasm or nuanced language
+
+Respond with ONLY one word: positive, negative, or neutral`;
+
+    try {
+      const response = await openRouterClient.query('openai/gpt-4-turbo', prompt);
+      const sentiment = response.content.trim().toLowerCase() as 'positive' | 'neutral' | 'negative';
+      
+      if (['positive', 'negative', 'neutral'].includes(sentiment)) {
+        log.debug('LLM sentiment analysis', {
+          businessName,
+          textPreview: text.substring(0, 100),
+          sentiment,
+          confidence: 'high'
+        });
+        return sentiment;
+      }
+    } catch (error) {
+      log.warn('LLM sentiment analysis failed', { error: error instanceof Error ? error.message : 'Unknown error', businessName });
+    }
+    
+    // Fallback to neutral
     return 'neutral';
   }
   
   /**
    * Extract ranking position from recommendation response
    */
-  private extractRankPosition(response: string, businessName: string): number | null {
+  private async extractRankPosition(response: string, businessName: string): Promise<number | null> {
     const lines = response.split('\n');
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       
-      if (this.detectMention(line, businessName)) {
+      if (await this.detectMention(line, businessName)) {
         // Match patterns like "1. Business Name" or "Top 1: Business Name"
         const rankMatch = line.match(/^(\d+)[.)]/);
         if (rankMatch) {
@@ -807,7 +936,7 @@ export class LLMFingerprinter implements ILLMFingerprinter {
    * Returns list of competitors mentioned alongside the target business
    * IMPROVED: Better extraction, filters out generic/placeholder names and action phrases
    */
-  private extractCompetitorMentions(response: string, businessName: string): string[] {
+  private async extractCompetitorMentions(response: string, businessName: string): Promise<string[]> {
     const competitors: string[] = [];
     const lines = response.split('\n');
     
@@ -892,7 +1021,7 @@ export class LLMFingerprinter implements ILLMFingerprinter {
         competitor = competitor.replace(/\*\*/g, '').replace(/\*/g, '').trim();
         
         // Skip if it's the target business
-        if (this.detectMention(competitor, businessName)) {
+        if (await this.detectMention(competitor, businessName)) {
           continue;
         }
         

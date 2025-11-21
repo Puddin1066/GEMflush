@@ -306,6 +306,41 @@ export class OpenRouterClient implements IOpenRouterClient {
             confidence: 0.95,
           },
         });
+      } else if (lowerPrompt.includes('cleveland') || lowerPrompt.includes('clevelandclinic')) {
+        console.log('[TEST] Detected crawler prompt for Cleveland Clinic, returning healthcare mock data');
+        content = JSON.stringify({
+          businessDetails: {
+            industry: 'Healthcare',
+            sector: 'Medical',
+            legalForm: 'Non-profit',
+            founded: '1921',
+            employeeCount: '50000+',
+            revenue: null,
+            locations: 12,
+            products: null,
+            services: ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Emergency Medicine', 'Primary Care'],
+            parentCompany: null,
+            ceo: 'Tom Mihaljevic',
+            awards: ['U.S. News #1 Hospital', 'Magnet Recognition', 'Joint Commission Accreditation'],
+            certifications: ['Joint Commission', 'Magnet Status', 'ISO 9001'],
+            stockSymbol: null,
+          },
+          location: {
+            address: '9500 Euclid Ave',
+            city: 'Cleveland',
+            state: 'OH',
+            country: 'US',
+            postalCode: '44195'
+          },
+          llmEnhanced: {
+            extractedEntities: ["Cleveland Clinic", "Tom Mihaljevic", "Ohio"],
+            businessCategory: 'Healthcare',
+            serviceOfferings: ['Cardiology', 'Neurology', 'Oncology', 'Orthopedics', 'Emergency Medicine', 'Primary Care'],
+            targetAudience: 'Patients seeking specialized medical care in Ohio and surrounding regions',
+            keyDifferentiators: ['#1 Hospital in U.S. News', 'Multi-specialty care', 'Research and innovation', 'Non-profit mission'],
+            confidence: 0.95,
+          },
+        });
       } else {
         // Generic crawler extraction prompt
         content = JSON.stringify({
@@ -343,25 +378,27 @@ export class OpenRouterClient implements IOpenRouterClient {
         });
       }
     } else if (lowerPrompt.includes('what do you know about') || lowerPrompt.includes('what information')) {
-      // Factual prompt
+      // Factual prompt - generate realistic business-specific response
       if (Math.random() > 0.3) {
         content = `Based on available information, this business is a reputable local establishment known for providing quality services. They have been serving the community and maintain a professional reputation. They offer various services and products to their customers and have positive feedback from clients.`;
       } else {
         content = `I don't have specific information about this particular business in my training data. I would recommend checking their website or recent customer reviews for the most accurate and up-to-date information about their services and reputation.`;
       }
     } else if (lowerPrompt.includes('reputable') || lowerPrompt.includes('reliable')) {
-      // Opinion prompt
+      // Opinion prompt - generate realistic reputation assessment
       if (Math.random() > 0.4) {
         content = `Based on general information, this business appears to be a legitimate operation. However, I'd recommend researching current customer reviews and ratings to make an informed decision. Look for consistent positive feedback and professional service indicators.`;
       } else {
         content = `I don't have enough specific information to assess the reputation of this particular business. I'd suggest checking recent online reviews, Better Business Bureau ratings, and asking for references.`;
       }
     } else if (lowerPrompt.includes('recommend') || lowerPrompt.includes('best') || lowerPrompt.includes('top')) {
-      // Recommendation prompt
+      // Recommendation prompt - parse dynamic prompt for location/industry specificity
+      const parsedPrompt = this.parseRecommendationPrompt(prompt);
       const shouldMention = Math.random() > 0.5;
       
       if (shouldMention) {
-        content = `Here are some recommended businesses in this category:\n\n1. Local Business Example A - Known for excellent customer service\n2. Sample Business Inc - Professional and reliable service provider\n3. Quality Services Co - Long-standing reputation in the community\n4. Professional Solutions LLC - Innovative approach and competitive pricing\n5. Trusted Provider Group - Highly rated by customers\n\nI recommend researching recent reviews for each option to find the best fit for your needs.`;
+        // Generate dynamic competitor list based on parsed prompt
+        content = this.generateDynamicCompetitorList(parsedPrompt);
       } else {
         content = `When looking for businesses in this category, I recommend:\n\n1. Checking recent online reviews on Google, Yelp, and industry-specific platforms\n2. Asking for recommendations from local community groups\n3. Verifying licenses and certifications\n4. Comparing quotes from multiple providers\n5. Looking for businesses with established track records\n\nWould you like more specific guidance on what to look for?`;
       }
@@ -374,6 +411,174 @@ export class OpenRouterClient implements IOpenRouterClient {
       tokensUsed: Math.floor(Math.random() * 200) + 100,
       model,
     };
+  }
+
+  /**
+   * Parse recommendation prompt to extract location, industry, and count
+   * Preserves the sophisticated dynamic prompt system
+   */
+  private parseRecommendationPrompt(prompt: string): {
+    location: string | null;
+    industry: string | null;
+    count: number;
+    isLocal: boolean;
+  } {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    // Extract count (default to 5)
+    const countMatch = prompt.match(/top (\d+)/i);
+    const count = countMatch ? parseInt(countMatch[1]) : 5;
+    
+    // Extract location - look for patterns like "in Cleveland, Ohio" or "specifically in New York, NY"
+    let location: string | null = null;
+    const locationPatterns = [
+      /(?:specifically in|in) ([^?]+?)(?:\?|$)/i,
+      /(?:located in|near) ([^?]+?)(?:\?|$)/i,
+    ];
+    
+    for (const pattern of locationPatterns) {
+      const match = prompt.match(pattern);
+      if (match) {
+        location = match[1].trim();
+        break;
+      }
+    }
+    
+    // Extract industry - look for uppercase industry terms (from dynamic prompt system)
+    let industry: string | null = null;
+    const industryPatterns = [
+      /top \d+ ([A-Z\s]+) (?:specifically|in)/,
+      /recommend the top \d+ ([A-Z\s]+)/,
+    ];
+    
+    for (const pattern of industryPatterns) {
+      const match = prompt.match(pattern);
+      if (match) {
+        industry = match[1].trim();
+        break;
+      }
+    }
+    
+    // Detect if this is a local-focused query
+    const isLocal = lowerPrompt.includes('local') || 
+                   lowerPrompt.includes('specifically in') || 
+                   lowerPrompt.includes('in the area') ||
+                   location !== null;
+    
+    return { location, industry, count, isLocal };
+  }
+
+  /**
+   * Generate dynamic competitor list based on parsed prompt data
+   * Respects geographic and industry specificity from dynamic prompts
+   */
+  private generateDynamicCompetitorList(parsedPrompt: {
+    location: string | null;
+    industry: string | null;
+    count: number;
+    isLocal: boolean;
+  }): string {
+    const { location, industry, count, isLocal } = parsedPrompt;
+    
+    // Get industry-specific competitor pool
+    const competitors = this.getCompetitorPool(industry, location);
+    
+    // Select random competitors from pool
+    const selectedCompetitors = this.selectRandomCompetitors(competitors, count);
+    
+    // Format response
+    const competitorList = selectedCompetitors
+      .map((competitor, index) => `${index + 1}. ${competitor.name} - ${competitor.description}`)
+      .join('\n');
+    
+    const locationContext = location ? ` in ${location}` : '';
+    const industryContext = industry ? industry.toLowerCase() : 'businesses';
+    
+    return `Here are the top ${count} ${industryContext}${locationContext} I'd recommend:\n\n${competitorList}\n\nEach offers excellent service and has a strong reputation in the local community.`;
+  }
+
+  /**
+   * Get competitor pool based on industry and location
+   * Provides realistic, location-aware competitor data
+   */
+  private getCompetitorPool(industry: string | null, location: string | null): Array<{name: string, description: string}> {
+    // Healthcare providers by location
+    if (industry?.includes('HEALTHCARE') || industry?.includes('MEDICAL')) {
+      if (location?.includes('Cleveland')) {
+        return [
+          { name: 'Cleveland Clinic', description: 'World-renowned medical center with comprehensive specialty care' },
+          { name: 'University Hospitals Cleveland Medical Center', description: 'Academic medical center with advanced treatments' },
+          { name: 'MetroHealth System', description: 'Community-focused healthcare with trauma expertise' },
+          { name: 'Cleveland Clinic Fairview Hospital', description: 'Full-service community hospital' },
+          { name: 'St. Vincent Charity Medical Center', description: 'Faith-based healthcare with specialized services' },
+          { name: 'Southwest General Health Center', description: 'Regional medical center serving southwest Cleveland' },
+        ];
+      } else if (location?.includes('New York')) {
+        return [
+          { name: 'NewYork-Presbyterian Hospital', description: 'Leading academic medical center in Manhattan' },
+          { name: 'Mount Sinai Health System', description: 'Comprehensive healthcare network across NYC' },
+          { name: 'NYU Langone Health', description: 'Academic medical center with cutting-edge research' },
+          { name: 'Memorial Sloan Kettering', description: 'World-renowned cancer treatment center' },
+          { name: 'Hospital for Special Surgery', description: 'Orthopedic and rheumatology specialty hospital' },
+        ];
+      } else {
+        return [
+          { name: 'Regional Medical Center', description: 'Full-service community hospital' },
+          { name: 'Community Health Network', description: 'Local healthcare provider with multiple locations' },
+          { name: 'Family Care Associates', description: 'Primary care and specialty medical services' },
+          { name: 'Advanced Medical Group', description: 'Multi-specialty practice with experienced physicians' },
+        ];
+      }
+    }
+    
+    // Pizza places by location
+    if (industry?.includes('PIZZA')) {
+      if (location?.includes('New York')) {
+        return [
+          { name: "Joe's Pizza", description: 'Classic NY-style pizza with multiple Manhattan locations' },
+          { name: "Prince Street Pizza", description: 'Famous for pepperoni squares in Nolita' },
+          { name: "Di Fara", description: 'Legendary Brooklyn pizzeria with handcrafted pies' },
+          { name: "Lucali", description: 'Thin-crust pizza in Carroll Gardens' },
+          { name: "Roberta's", description: 'Wood-fired pizza in Bushwick with creative toppings' },
+        ];
+      } else if (location?.includes('Chicago')) {
+        return [
+          { name: "Lou Malnati's", description: 'Deep-dish pizza institution since 1971' },
+          { name: "Giordano's", description: 'Stuffed pizza with signature flaky crust' },
+          { name: "Pequod's Pizza", description: 'Deep-dish with caramelized crust edges' },
+          { name: "Art of Pizza", description: 'Traditional Chicago-style deep dish' },
+        ];
+      }
+    }
+    
+    // Restaurants by location
+    if (industry?.includes('RESTAURANT')) {
+      if (location?.includes('San Francisco')) {
+        return [
+          { name: 'State Bird Provisions', description: 'Innovative dim sum-style dining experience' },
+          { name: 'Zuni Café', description: 'California cuisine with famous roast chicken' },
+          { name: 'Tartine Bakery', description: 'Artisanal bakery and café in the Mission' },
+          { name: 'Swan Oyster Depot', description: 'Historic seafood counter serving fresh oysters' },
+        ];
+      }
+    }
+    
+    // Generic business fallback
+    return [
+      { name: 'Local Business Example A', description: 'Established provider known for excellent customer service' },
+      { name: 'Community Services Inc', description: 'Professional service provider with strong local reputation' },
+      { name: 'Quality Solutions Group', description: 'Experienced team with competitive pricing' },
+      { name: 'Trusted Local Provider', description: 'Family-owned business serving the community for years' },
+      { name: 'Professional Excellence Co', description: 'Industry leader with certified expertise' },
+    ];
+  }
+
+  /**
+   * Select random competitors from pool
+   */
+  private selectRandomCompetitors(pool: Array<{name: string, description: string}>, count: number): Array<{name: string, description: string}> {
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, pool.length));
   }
 }
 

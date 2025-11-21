@@ -19,11 +19,11 @@ interface MetricExplanationProps {
 
 const metricExplanations = {
   marketShare: {
-    title: 'Market Share',
-    description: 'The percentage of all mentions (your business + competitors) that belong to this competitor.',
-    calculation: 'Market Share = (Competitor Mentions / Total Mentions) × 100',
-    example: 'If you have 50 mentions and Competitor A has 30 mentions out of 100 total, Competitor A has 30% market share.',
-    whyItMatters: 'Higher market share means this competitor is mentioned more often relative to the competitive set. It shows their relative visibility in LLM recommendations.',
+    title: 'Query Mention Share',
+    description: 'The percentage of total competitor mentions across all LLM recommendation queries that belong to this business.',
+    calculation: 'Query Mention Share = (Business Mentions / Total Competitor Mentions) × 100',
+    example: 'If there are 20 total competitor mentions across 3 LLM queries, and Competitor A appears 2 times, they have 10% query mention share.',
+    whyItMatters: 'Shows relative visibility compared to other businesses mentioned alongside yours in LLM recommendations. Higher share means more frequent mentions across different AI models.',
   },
   mentionCount: {
     title: 'Mention Count',

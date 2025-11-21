@@ -88,6 +88,8 @@ export interface LLMResult {
   rankPosition: number | null;
   rawResponse: string;
   tokensUsed: number;
+  // Store the actual prompt sent to the LLM (CRITICAL for debugging and UI display)
+  prompt: string;
   // LLM reasoning and context
   reasoning?: string;
   confidence?: number;

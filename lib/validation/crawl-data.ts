@@ -10,13 +10,27 @@ import { z } from 'zod';
 
 /**
  * Social Links Schema
- * Validates social media URLs
+ * Validates social media URLs and handles (e.g., @username)
+ * SOLID: Enhanced validation for flexible social media formats
  */
+const socialMediaValidator = z.string().refine((value) => {
+  // Allow full URLs
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    // Allow social media handles (e.g., @username, username)
+    return /^@?[\w.-]+$/.test(value);
+  }
+}, {
+  message: "Must be a valid URL or social media handle (e.g., @username)"
+}).optional().nullable();
+
 export const socialLinksSchema = z.object({
-  facebook: z.string().url().optional().nullable(),
-  instagram: z.string().url().optional().nullable(),
-  linkedin: z.string().url().optional().nullable(),
-  twitter: z.string().url().optional().nullable(),
+  facebook: socialMediaValidator,
+  instagram: socialMediaValidator,
+  linkedin: socialMediaValidator,
+  twitter: socialMediaValidator,
 }).optional();
 
 /**

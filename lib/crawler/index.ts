@@ -438,7 +438,21 @@ Provide additional analysis in JSON format:
     try {
       const response = await openRouterClient.query('anthropic/claude-3-haiku', prompt);
       
-      const enhanced = JSON.parse(response.content);
+      // Try to extract JSON from the response
+      let enhanced: any = {};
+      try {
+        // First, try to parse the entire response as JSON
+        enhanced = JSON.parse(response.content);
+      } catch (parseError) {
+        // If that fails, try to extract JSON from within the text
+        const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          enhanced = JSON.parse(jsonMatch[0]);
+        } else {
+          console.warn('[CRAWLER] No JSON found in LLM response, using defaults');
+          enhanced = {};
+        }
+      }
       
       return {
         llmEnhanced: {

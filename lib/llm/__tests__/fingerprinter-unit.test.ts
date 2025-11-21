@@ -81,6 +81,7 @@ describe('LLMFingerprinter Unit Tests', () => {
       expect(result).toHaveProperty('accuracy');
       expect(result).toHaveProperty('tokensUsed', 50);
       expect(result).toHaveProperty('rawResponse');
+      expect(result).toHaveProperty('prompt', 'What do you know about Test Coffee Shop?');
     });
 
     it('should handle query errors gracefully', async () => {
@@ -100,6 +101,7 @@ describe('LLMFingerprinter Unit Tests', () => {
       expect(result).toHaveProperty('accuracy', 0);
       expect(result).toHaveProperty('tokensUsed', 0);
       expect(result.rawResponse).toContain('Error');
+      expect(result).toHaveProperty('prompt', 'Test prompt');
     });
 
     it('should analyze response correctly for recommendation prompt', async () => {

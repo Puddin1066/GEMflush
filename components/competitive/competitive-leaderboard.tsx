@@ -100,7 +100,7 @@ export function CompetitiveLeaderboard({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
               <div className="flex items-center gap-2 mb-1">
-                <strong className="text-sm text-blue-900">Market Share</strong>
+                <strong className="text-sm text-blue-900">Query Mention Share</strong>
                 <MetricExplanation metric="marketShare">
                   <Info className="h-3 w-3 text-blue-600 cursor-help" />
                 </MetricExplanation>

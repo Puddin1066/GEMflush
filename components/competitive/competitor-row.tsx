@@ -70,7 +70,7 @@ export function CompetitorRow({
               </MetricExplanation>
             </span>
             <span className="flex items-center gap-1">
-              Market share: <strong className="text-gray-900">{formatPercentage(competitor.marketShare)}</strong>
+              Query mention share: <strong className="text-gray-900">{formatPercentage(competitor.marketShare)}</strong>
               <MetricExplanation metric="marketShare">
                 <Info className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
               </MetricExplanation>

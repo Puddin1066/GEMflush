@@ -159,9 +159,13 @@ function toFingerprintResultDTO(result: any, business?: { name: string; location
     };
   }
 
-  // Reconstruct prompt if business data available
+  // Use stored prompt if available, otherwise reconstruct as fallback
   let prompt: string | undefined;
-  if (business && result.promptType) {
+  if (result.prompt) {
+    // PREFERRED: Use the actual prompt that was sent to the LLM
+    prompt = result.prompt;
+  } else if (business && result.promptType) {
+    // FALLBACK: Reconstruct prompt if not stored (for backward compatibility)
     const location = business.location 
       ? `${business.location.city}, ${business.location.state}`
       : 'the area';
@@ -277,12 +281,12 @@ export function toCompetitiveLeaderboardDTO(
     }))
     .sort((a, b) => b.mentionCount - a.mentionCount);
 
-  // Calculate total mentions for market share (using deduplicated data)
+  // Calculate total mentions for query mention share (using deduplicated data)
   const totalMentions =
     targetBusiness.mentionCount +
     deduplicatedCompetitors.reduce((sum, comp) => sum + comp.mentionCount, 0);
 
-  // Transform competitors with rankings and market share
+  // Transform competitors with rankings and query mention share
   const competitorDTOs: CompetitorDTO[] = deduplicatedCompetitors.map((comp, idx) => ({
     rank: idx + 1,
     name: comp.name,
