@@ -58,13 +58,15 @@ function getStatusConfig(status: BusinessStatus, automationEnabled?: boolean) {
     pending: {
       icon: Loader2,
       message: automationEnabled 
-        ? 'Starting automatic processing...'
+        ? '🤖 Starting automated AI analysis...'
         : 'Pending',
       color: 'text-blue-600',
     },
     crawling: {
       icon: Globe,
-      message: 'Crawling website...',
+      message: automationEnabled 
+        ? '🌐 Extracting business data automatically...'
+        : 'Crawling website...',
       color: 'text-blue-600',
     },
     crawled: {
@@ -74,7 +76,9 @@ function getStatusConfig(status: BusinessStatus, automationEnabled?: boolean) {
     },
     generating: {
       icon: Sparkles,
-      message: 'Publishing to Wikidata...',
+      message: automationEnabled 
+        ? '📊 Generating competitive insights automatically...'
+        : 'Publishing to Wikidata...',
       color: 'text-purple-600',
     },
     published: {

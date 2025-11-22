@@ -132,6 +132,31 @@ export interface IFirecrawlClient {
   ): Promise<FirecrawlExtractResponse>;
 
   /**
+   * Multi-page crawl using Firecrawl Crawl API with LLM extraction
+   * @param url - Base URL to crawl
+   * @param options - Crawl configuration options
+   * @returns Crawl result with multi-page data
+   */
+  crawlWithLLMExtraction(
+    url: string,
+    options?: {
+      maxDepth?: number;
+      limit?: number;
+      extractionPrompt?: string;
+      extractionSchema?: FirecrawlExtractSchema;
+      includes?: string[];
+      excludes?: string[];
+    }
+  ): Promise<FirecrawlCrawlResponse>;
+
+  /**
+   * Check status of async crawl job
+   * @param jobId - Firecrawl job ID
+   * @returns Job status and results
+   */
+  getCrawlJobStatus(jobId: string): Promise<FirecrawlJobStatusResponse>;
+
+  /**
    * Traditional scrape using Firecrawl Scrape API
    * @param url - URL to scrape
    * @param options - Scraping options
@@ -153,6 +178,94 @@ export interface FirecrawlApiError {
   code: string;
   message: string;
   details?: any;
+}
+
+/**
+ * Firecrawl Crawl API Request Contract
+ * Used for multi-page crawling and subpage discovery
+ */
+export interface FirecrawlCrawlRequest {
+  url: string;
+  crawlerOptions?: {
+    includes?: string[];
+    excludes?: string[];
+    generateImgAltText?: boolean;
+    returnOnlyUrls?: boolean;
+    maxDepth?: number;
+    mode?: 'default' | 'fast';
+    ignoreSitemap?: boolean;
+    limit?: number;
+    allowBackwardCrawling?: boolean;
+    allowExternalContentLinks?: boolean;
+  };
+  pageOptions?: {
+    headers?: Record<string, string>;
+    includeHtml?: boolean;
+    includeRawHtml?: boolean;
+    onlyIncludeTags?: string[];
+    removeTags?: string[];
+    onlyMainContent?: boolean;
+    includeLinks?: boolean;
+    screenshot?: boolean;
+    fullPageScreenshot?: boolean;
+    waitFor?: number;
+  };
+  extractorOptions?: {
+    mode?: 'llm-extraction';
+    extractionPrompt?: string;
+    extractionSchema?: FirecrawlExtractSchema;
+  };
+}
+
+/**
+ * Firecrawl Crawl API Response Contract
+ * Response structure for multi-page crawling
+ */
+export interface FirecrawlCrawlResponse {
+  success: boolean;
+  id?: string;
+  url?: string;
+  data?: FirecrawlCrawlPageData[];
+  error?: string;
+  message?: string;
+}
+
+/**
+ * Individual page data from Firecrawl Crawl API
+ */
+export interface FirecrawlCrawlPageData {
+  url: string;
+  markdown?: string;
+  html?: string;
+  rawHtml?: string;
+  links?: string[];
+  screenshot?: string;
+  metadata?: {
+    title?: string;
+    description?: string;
+    language?: string;
+    sourceURL?: string;
+    statusCode?: number;
+    error?: string;
+    [key: string]: any;
+  };
+  llm_extraction?: BusinessExtractData;
+  extract?: BusinessExtractData;
+}
+
+/**
+ * Firecrawl Job Status Response
+ * For tracking async crawl job progress
+ */
+export interface FirecrawlJobStatusResponse {
+  success: boolean;
+  status: 'scraping' | 'completed' | 'failed' | 'cancelled';
+  completed?: number;
+  total?: number;
+  creditsUsed?: number;
+  expiresAt?: string;
+  data?: FirecrawlCrawlPageData[];
+  error?: string;
 }
 
 /**

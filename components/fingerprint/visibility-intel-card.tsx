@@ -67,11 +67,14 @@ export function VisibilityIntelCard({
               </Button>
             )}
             {showAutoProgress && (
-              <div className="text-center text-sm text-gray-600">
-                <div className="flex items-center justify-center gap-2">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
                   <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-                  <span>Automatic analysis in progress...</span>
+                  <span className="font-medium">🧠 AI analysis running automatically...</span>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  ✨ GEMflush is analyzing your visibility across ChatGPT, Claude, and more
+                </p>
               </div>
             )}
           </div>

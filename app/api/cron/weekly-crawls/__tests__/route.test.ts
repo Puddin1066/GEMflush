@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // Mock scheduler service
-vi.mock('@/lib/services/scheduler-service', () => ({
+vi.mock('@/lib/services/scheduler-service-execution', () => ({
   processScheduledAutomation: vi.fn().mockResolvedValue({
     total: 5,
     success: 4,

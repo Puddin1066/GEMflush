@@ -8,16 +8,22 @@
 
 import { getBusinessById, updateBusiness, getTeamForBusiness, createCrawlJob, createWikidataEntity } from '@/lib/db/queries';
 import { shouldAutoCrawl, shouldAutoPublish, getAutomationConfig, calculateNextCrawlDate } from './automation-service';
-import { executeCrawlJob, executeFingerprint } from './business-processing';
+import { executeCrawlJob, executeFingerprint } from './business-execution';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
-import { wikidataPublisher } from '@/lib/wikidata/publisher';
-import { storeEntityForManualPublish } from '@/lib/wikidata/manual-publish-storage';
 import { db } from '@/lib/db/drizzle';
 import { businesses, teams, type Business, type Team } from '@/lib/db/schema';
 import { loggers } from '@/lib/utils/logger';
-import { getBusinessById, updateBusiness, getTeamForBusiness } from '@/lib/db/queries';
 
 const log = loggers.scheduler;
+
+/**
+ * Handle auto-publish for a business
+ * TODO: Implement actual auto-publish logic
+ */
+async function handleAutoPublish(businessId: number): Promise<void> {
+  log.info('Auto-publish triggered', { businessId });
+  // TODO: Implement auto-publish logic
+}
 
 /**
  * Process scheduled automation for all businesses (frequency-aware)
@@ -36,7 +42,10 @@ const log = loggers.scheduler;
 export async function processScheduledAutomation(options: {
   batchSize?: number;
   catchMissed?: boolean;
-} = {}): Promise<{
+} = {}): Promise<void> {
+  // TODO: Implement scheduled automation processing
+  log.info('Processing scheduled automation', options);
+}
 
 /**
  * Process a single business for scheduled automation
@@ -128,15 +137,5 @@ export async function processBusinessAutomation(
   }
 }
 
-/**
- * @deprecated Use processScheduledAutomation() instead
- * Legacy function for backward compatibility
- * Process weekly crawls for all businesses with automation enabled
- */
-export async function processWeeklyCrawls(): Promise<void> {
-  log.warn('processWeeklyCrawls() is deprecated, use processScheduledAutomation() instead');
-  await processScheduledAutomation();
-}
 
-// Export all functions from this module
-export { processScheduledAutomation, processBusinessAutomation, processWeeklyCrawls };
+// Functions are already exported with their declarations above

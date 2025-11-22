@@ -214,6 +214,12 @@ export const crawlJobs = pgTable('crawl_jobs', {
   progress: integer('progress'),
   result: jsonb('result'),
   errorMessage: text('error_message'),
+  // Enhanced fields for Firecrawl multi-page crawling
+  firecrawlJobId: varchar('firecrawl_job_id', { length: 100 }),
+  startedAt: timestamp('started_at'),
+  pagesDiscovered: integer('pages_discovered').default(0),
+  pagesProcessed: integer('pages_processed').default(0),
+  firecrawlMetadata: jsonb('firecrawl_metadata'),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -241,7 +247,8 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
   wikidataEntities: many(wikidataEntities),
   llmFingerprints: many(llmFingerprints),
   crawlJobs: many(crawlJobs),
-  competitors: many(competitors),
+  businessCompetitors: many(competitors, { relationName: 'businessCompetitors' }),
+  competitorBusinesses: many(competitors, { relationName: 'competitorBusinesses' }),
 }));
 
 export const wikidataEntitiesRelations = relations(wikidataEntities, ({ one }) => ({
@@ -269,10 +276,12 @@ export const competitorsRelations = relations(competitors, ({ one }) => ({
   business: one(businesses, {
     fields: [competitors.businessId],
     references: [businesses.id],
+    relationName: 'businessCompetitors'
   }),
   competitorBusiness: one(businesses, {
     fields: [competitors.competitorBusinessId],
     references: [businesses.id],
+    relationName: 'competitorBusinesses'
   }),
 }));
 

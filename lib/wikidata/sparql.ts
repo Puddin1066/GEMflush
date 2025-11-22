@@ -4,13 +4,96 @@
 import { db } from '@/lib/db/drizzle';
 import { qidCache } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import {
-  US_CITY_QIDS,
-  INDUSTRY_QIDS,
-  LEGAL_FORM_QIDS,
-  US_STATE_QIDS,
-  COUNTRY_QIDS,
-} from './qid-mappings';
+// Embedded QID mappings for self-contained operation
+const US_CITY_QIDS: Record<string, string> = {
+  "san francisco, ca": "Q62",
+  "new york, ny": "Q60",
+  "los angeles, ca": "Q65",
+  "chicago, il": "Q1297",
+  "houston, tx": "Q16555",
+  "phoenix, az": "Q16556",
+  "philadelphia, pa": "Q1345",
+  "san antonio, tx": "Q975",
+  "san diego, ca": "Q16552",
+  "dallas, tx": "Q16557",
+  "san jose, ca": "Q16553",
+  "austin, tx": "Q16559",
+  "seattle, wa": "Q5083",
+  "denver, co": "Q16554",
+  "boston, ma": "Q100",
+  "detroit, mi": "Q12439",
+  "portland, or": "Q6106",
+  "miami, fl": "Q8652",
+  "atlanta, ga": "Q23556",
+  "las vegas, nv": "Q23768"
+};
+
+const INDUSTRY_QIDS: Record<string, string> = {
+  "software development": "Q7397",
+  "technology": "Q11016",
+  "healthcare": "Q31207",
+  "finance": "Q43015",
+  "retail": "Q126793",
+  "manufacturing": "Q187939",
+  "education": "Q8434",
+  "consulting": "Q1780447",
+  "real estate": "Q49773",
+  "construction": "Q385378",
+  "food service": "Q1643932",
+  "transportation": "Q7590",
+  "media": "Q11033",
+  "telecommunications": "Q418",
+  "energy": "Q11379"
+};
+
+const LEGAL_FORM_QIDS: Record<string, string> = {
+  "corporation": "Q167037",
+  "llc": "Q1191951",
+  "partnership": "Q167037",
+  "sole proprietorship": "Q2135465",
+  "nonprofit": "Q163740",
+  "cooperative": "Q4539",
+  "limited partnership": "Q1191951"
+};
+
+const US_STATE_QIDS: Record<string, string> = {
+  "ca": "Q99",
+  "ny": "Q1384",
+  "tx": "Q1439",
+  "fl": "Q812",
+  "il": "Q1204",
+  "pa": "Q1400",
+  "oh": "Q1397",
+  "ga": "Q1428",
+  "nc": "Q1454",
+  "mi": "Q1166",
+  "nj": "Q1408",
+  "va": "Q1370",
+  "wa": "Q1223",
+  "az": "Q816",
+  "ma": "Q771",
+  "tn": "Q1509",
+  "in": "Q1415",
+  "mo": "Q1581",
+  "md": "Q1391",
+  "wi": "Q1537"
+};
+
+const COUNTRY_QIDS: Record<string, string> = {
+  "us": "Q30",
+  "usa": "Q30",
+  "united states": "Q30",
+  "canada": "Q16",
+  "mexico": "Q96",
+  "uk": "Q145",
+  "germany": "Q183",
+  "france": "Q142",
+  "japan": "Q17",
+  "china": "Q148",
+  "australia": "Q408",
+  "brazil": "Q155",
+  "india": "Q668"
+};
 
 export class WikidataSPARQLService {
   private endpoint = 'https://query.wikidata.org/sparql';

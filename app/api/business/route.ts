@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
       cacheResponse(idempotencyKey, response);
       
       // Start crawl in background to update business data
-      const { autoStartProcessing } = await import('@/lib/services/business-processing');
+      const { autoStartProcessing } = await import('@/lib/services/business-execution');
       autoStartProcessing(business.id).catch(error => {
         logger.error('Auto-processing failed for business', error, {
           businessId: business.id,
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     // SOLID: Single Responsibility - auto-processing handled by service
     // DRY: Centralized processing logic
     // Fire and forget - don't block response
-    const { autoStartProcessing } = await import('@/lib/services/business-processing');
+    const { autoStartProcessing } = await import('@/lib/services/business-execution');
     logger.debug('Starting autoStartProcessing for business', {
       businessId: business.id,
     });

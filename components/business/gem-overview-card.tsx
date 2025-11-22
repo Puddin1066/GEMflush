@@ -26,6 +26,7 @@ interface GemOverviewCardProps {
   onCrawl?: () => void;
   crawling?: boolean;
   showAutoProgress?: boolean;
+  isPro?: boolean;
 }
 
 export function GemOverviewCard({ 
@@ -33,6 +34,7 @@ export function GemOverviewCard({
   onCrawl, 
   crawling = false,
   showAutoProgress = false,
+  isPro = false,
 }: GemOverviewCardProps) {
   const statusConfig = {
     pending: { label: 'Pending', color: 'bg-gray-100 text-gray-700' },
@@ -117,7 +119,7 @@ export function GemOverviewCard({
           )}
         </div>
 
-        {/* Actions */}
+        {/* Manual Actions - Only show if automation is disabled */}
         {business.status === 'pending' && !showAutoProgress && onCrawl && (
           <div className="pt-4 border-t">
             <p className="text-sm text-gray-600 mb-3">
@@ -143,18 +145,39 @@ export function GemOverviewCard({
           </div>
         )}
         
-        {/* Auto-processing status for Pro tier */}
-        {showAutoProgress && (business.status === 'pending' || business.status === 'crawling' || business.status === 'crawled' || business.status === 'generating') && (
+        {/* Completed status - Different messages for Free vs Pro */}
+        {(business.status === 'published' || business.status === 'crawled') && (
           <div className="pt-4 border-t">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-              <span>
-                {business.status === 'pending' && 'Starting automatic processing...'}
-                {business.status === 'crawling' && 'Crawling website...'}
-                {business.status === 'crawled' && 'Analyzing visibility...'}
-                {business.status === 'generating' && 'Publishing to Wikidata...'}
+            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-3 rounded-lg">
+              <div className="h-4 w-4 bg-green-500 rounded-full flex items-center justify-center">
+                <div className="h-2 w-2 bg-white rounded-full" />
+              </div>
+              <span className="font-medium">
+                {business.status === 'published' 
+                  ? '✅ Full AI analysis complete - published to Wikidata!' 
+                  : isPro 
+                    ? '✅ AI analysis complete - ready for publishing'
+                    : '✅ AI analysis complete - upgrade to publish to Wikidata'}
               </span>
             </div>
+          </div>
+        )}
+        
+        {/* Automated processing status - Show for all users with automation */}
+        {showAutoProgress && (business.status === 'pending' || business.status === 'crawling' || business.status === 'crawled' || business.status === 'generating') && (
+          <div className="pt-4 border-t">
+            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+              <span className="font-medium">
+                {business.status === 'pending' && '🤖 Starting automated AI analysis...'}
+                {business.status === 'crawling' && '🌐 Extracting business data from website...'}
+                {business.status === 'crawled' && '🧠 Analyzing AI visibility across platforms...'}
+                {business.status === 'generating' && '📊 Generating competitive insights...'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              ✨ GEMflush is working automatically - no manual steps required
+            </p>
           </div>
         )}
       </CardContent>

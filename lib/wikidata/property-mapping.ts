@@ -2,9 +2,16 @@
  * Wikidata Property Mapping
  * Maps business attributes to correct PIDs with validation rules
  * Follows Open/Closed Principle: Easy to extend with new properties
+ * 
+ * DRY: Centralized property mapping definitions - reuses PropertyManager configs
+ * SOLID: Single Responsibility - only defines property mappings
+ * 
+ * Architecture: This file provides a simplified interface for entity-builder
+ * while reusing the QID resolution logic from PropertyManager for consistency.
  */
 
-import { sparqlService } from './sparql';
+import { PropertyManager } from './property-manager';
+import type { PropertyConfig } from './types';
 
 export interface PropertyMapping {
   pid: string;
@@ -56,7 +63,11 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'industry of company or organization',
     dataType: 'item',
     required: false,
-    qidResolver: async (industry) => await resolveIndustryQID(industry),
+    qidResolver: async (industry) => {
+      // Reuse PropertyManager's QID resolver for consistency
+      const config = PropertyManager.getPropertyConfig('P452');
+      return config?.qidResolver ? await config.qidResolver(industry) : null;
+    },
     examples: ['Q11650 (software)', 'Q8148 (manufacturing)'],
   },
   
@@ -66,7 +77,11 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'legal form of an entity',
     dataType: 'item',
     required: false,
-    qidResolver: async (form) => await resolveLegalFormQID(form),
+    qidResolver: async (form) => {
+      // Use SPARQL directly for legal form (not in PropertyManager yet)
+      const { sparqlService } = await import('./sparql');
+      return await sparqlService.findLegalFormQID(form);
+    },
     examples: ['Q1269299 (LLC)', 'Q167037 (corporation)'],
   },
   
@@ -104,8 +119,35 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'city or town where headquarters are located',
     dataType: 'item',
     required: false,
-    qidResolver: async (city) => await resolveCityQID(city),
+    qidResolver: async (city: string) => {
+      // Reuse PropertyManager's QID resolver for consistency
+      // Note: PropertyManager handles "City, State" format, so pass through as-is
+      const config = PropertyManager.getPropertyConfig('P131'); // P131 and P159 use same resolver
+      return config?.qidResolver ? await config.qidResolver(city) : null;
+    },
     examples: ['Q62 (San Francisco)', 'Q60 (New York City)'],
+  },
+  
+  'P131': {
+    pid: 'P131',
+    label: 'located in',
+    description: 'administrative territorial entity',
+    dataType: 'item',
+    required: false,
+    qidResolver: async (city: string) => {
+      // Reuse PropertyManager's QID resolver for consistency
+      // Note: PropertyManager handles "City, State" format parsing
+      const config = PropertyManager.getPropertyConfig('P131');
+      return config?.qidResolver ? await config.qidResolver(city) : null;
+    },
+  },
+  
+  'P17': {
+    pid: 'P17',
+    label: 'country',
+    description: 'country where entity is located',
+    dataType: 'item',
+    required: false,
   },
   
   'P6375': {
@@ -152,7 +194,7 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'parent organization of an organization',
     dataType: 'item',
     required: false,
-    qidResolver: async (org) => await resolveOrganizationQID(org),
+    qidResolver: async () => null, // Manual entry for now
   },
   
   'P355': {
@@ -161,7 +203,7 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'subsidiary of a company or organization',
     dataType: 'item',
     required: false,
-    qidResolver: async (org) => await resolveOrganizationQID(org),
+    qidResolver: async () => null, // Manual entry for now
   },
   
   'P112': {
@@ -170,7 +212,7 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'founder or co-founder',
     dataType: 'item',
     required: false,
-    qidResolver: async (person) => await resolvePersonQID(person),
+    qidResolver: async () => null, // Manual entry for now
   },
   
   'P169': {
@@ -179,7 +221,7 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     description: 'CEO of the organization',
     dataType: 'item',
     required: false,
-    qidResolver: async (person) => await resolvePersonQID(person),
+    qidResolver: async () => null, // Manual entry for now
   },
   
   // STOCK
@@ -260,39 +302,6 @@ export const BUSINESS_PROPERTY_MAP: Record<string, PropertyMapping> = {
     required: false,
   },
 };
-
-/**
- * QID Resolution Functions
- * Use SPARQL to find existing Wikidata items
- * Follows Dependency Inversion: Depends on SPARQL service abstraction
- */
-
-async function resolveIndustryQID(industry: string): Promise<string | null> {
-  // Use existing SPARQL service
-  return await sparqlService.findIndustryQID(industry);
-}
-
-async function resolveLegalFormQID(form: string): Promise<string | null> {
-  // Use comprehensive local mapping via SPARQL service
-  return await sparqlService.findLegalFormQID(form);
-}
-
-async function resolveCityQID(city: string, state?: string): Promise<string | null> {
-  // Use hybrid SPARQL service with state context for better accuracy
-  return await sparqlService.findCityQID(city, state);
-}
-
-async function resolveOrganizationQID(org: string): Promise<string | null> {
-  // In production, query Wikidata SPARQL for organization
-  // For now, return null (will be manual entry)
-  return null;
-}
-
-async function resolvePersonQID(person: string): Promise<string | null> {
-  // In production, query Wikidata SPARQL for person
-  // For now, return null (will be manual entry)
-  return null;
-}
 
 /**
  * Get property mapping by PID

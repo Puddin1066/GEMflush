@@ -23,7 +23,7 @@ vi.mock('@/lib/crawler', () => ({
   },
 }));
 
-vi.mock('@/lib/services/business-processing', () => ({
+vi.mock('@/lib/services/business-execution', () => ({
   shouldCrawl: vi.fn(),
 }));
 
@@ -73,7 +73,7 @@ describe('Crawl API Contracts', () => {
   describe('API response format', () => {
     it('should return jobId and status in response', async () => {
       const { getUser, getTeamForUser, getBusinessById, createCrawlJob } = await import('@/lib/db/queries');
-      const { shouldCrawl } = await import('@/lib/services/business-processing');
+      const { shouldCrawl } = await import('@/lib/services/business-execution');
 
       vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
       vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
@@ -104,7 +104,7 @@ describe('Crawl API Contracts', () => {
 
     it('should return cached response when crawl not needed', async () => {
       const { getUser, getTeamForUser, getBusinessById } = await import('@/lib/db/queries');
-      const { shouldCrawl } = await import('@/lib/services/business-processing');
+      const { shouldCrawl } = await import('@/lib/services/business-execution');
 
       vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
       vi.mocked(getTeamForUser).mockResolvedValue({ id: 1 } as any);
@@ -133,7 +133,7 @@ describe('Crawl API Contracts', () => {
     it('should validate crawlData before storing', async () => {
       const { getUser, getTeamForUser, getBusinessById, updateBusiness } = await import('@/lib/db/queries');
       const { webCrawler } = await import('@/lib/crawler');
-      const { shouldCrawl } = await import('@/lib/services/business-processing');
+      const { shouldCrawl } = await import('@/lib/services/business-execution');
 
       const validCrawlData = {
         name: 'Test Business',

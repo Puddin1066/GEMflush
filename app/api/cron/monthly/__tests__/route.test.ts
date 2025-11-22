@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // Mock scheduler service (unified processing)
-vi.mock('@/lib/services/scheduler-service', () => ({
+vi.mock('@/lib/services/scheduler-service-execution', () => ({
   processScheduledAutomation: vi.fn().mockResolvedValue({
     total: 3,
     success: 2,
@@ -26,7 +26,7 @@ describe('GET /api/cron/monthly', () => {
 
   it('should call unified scheduled automation processing', async () => {
     const { GET } = await import('../route');
-    const { processScheduledAutomation } = await import('@/lib/services/scheduler-service');
+    const { processScheduledAutomation } = await import('@/lib/services/scheduler-service-execution');
 
     const request = new NextRequest('http://localhost:3000/api/cron/monthly', {
       headers: {
@@ -57,7 +57,7 @@ describe('GET /api/cron/monthly', () => {
     process.env.CRON_SECRET = 'test-secret';
 
     const { GET } = await import('../route');
-    const { processScheduledAutomation } = await import('@/lib/services/scheduler-service');
+    const { processScheduledAutomation } = await import('@/lib/services/scheduler-service-execution');
 
     const request = new NextRequest('http://localhost:3000/api/cron/monthly', {
       headers: {
@@ -87,7 +87,7 @@ describe('GET /api/cron/monthly', () => {
   });
 
   it('should handle processing errors gracefully', async () => {
-    const { processScheduledAutomation } = await import('@/lib/services/scheduler-service');
+    const { processScheduledAutomation } = await import('@/lib/services/scheduler-service-execution');
     vi.mocked(processScheduledAutomation).mockRejectedValueOnce(new Error('Processing failed'));
 
     const { GET } = await import('../route');

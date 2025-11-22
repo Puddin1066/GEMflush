@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getTeamForUser, getBusinessById } from '@/lib/db/queries';
-import { autoStartProcessing } from '@/lib/services/business-processing';
+import { autoStartProcessing } from '@/lib/services/business-execution';
 import { loggers } from '@/lib/utils/logger';
 
 const logger = loggers.api;

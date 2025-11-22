@@ -20,7 +20,7 @@ import { db } from '@/lib/db/drizzle';
 import { businesses, teams, users, wikidataEntities, llmFingerprints, crawlJobs, teamMembers } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { createBusiness, getBusinessById, getTeamForUser } from '@/lib/db/queries';
-import { executeCrawlJob, executeFingerprint } from '@/lib/services/business-processing';
+import { executeCrawlJob, executeFingerprint } from '@/lib/services/business-execution';
 import { createCrawlJob } from '@/lib/db/queries';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
 import { wikidataPublisher } from '@/lib/wikidata/publisher';

@@ -62,6 +62,12 @@ export async function GET(
       progress: job.progress,
       result: job.result,
       errorMessage: job.errorMessage,
+      // Enhanced fields for multi-page crawling
+      firecrawlJobId: job.firecrawlJobId,
+      startedAt: job.startedAt,
+      pagesDiscovered: job.pagesDiscovered,
+      pagesProcessed: job.pagesProcessed,
+      firecrawlMetadata: job.firecrawlMetadata,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
     });

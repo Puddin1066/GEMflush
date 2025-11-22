@@ -10,7 +10,7 @@ import { getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { businesses, llmFingerprints } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { llmFingerprinter } from '@/lib/llm/fingerprinter';
+import { businessFingerprinter } from '@/lib/llm';
 import type { Business } from '@/lib/db/schema';
 import {
   getIdempotencyKey,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Run fingerprint analysis (async, but we wait for results)
-    const analysis = await llmFingerprinter.fingerprint(business as Business);
+    const analysis = await businessFingerprinter.fingerprint(business as Business);
 
     // Save fingerprint to database
     const [savedFingerprint] = await db

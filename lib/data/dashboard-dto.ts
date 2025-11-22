@@ -64,7 +64,7 @@ function transformBusinessToDTO(
     wikidataQid: business.wikidataQID,
     lastFingerprint: formatTimestamp(fingerprint?.createdAt),
     status: business.status as DashboardBusinessDTO['status'],
-    automationEnabled: business.automationEnabled ?? false,
+    automationEnabled: true, // All businesses get automated crawl+fingerprint (Pro gets publishing too)
   };
 }
 

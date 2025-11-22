@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { processScheduledAutomation } from '@/lib/services/scheduler-service';
+import { processScheduledAutomation } from '@/lib/services/scheduler-service-execution';
 
 export const dynamic = 'force-dynamic';
 

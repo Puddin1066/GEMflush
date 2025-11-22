@@ -15,9 +15,10 @@ interface AutomatedCFPStatusProps {
   status: string;
   businessName: string;
   className?: string;
+  isPro?: boolean;
 }
 
-export function AutomatedCFPStatus({ status, businessName, className }: AutomatedCFPStatusProps) {
+export function AutomatedCFPStatus({ status, businessName, className, isPro = false }: AutomatedCFPStatusProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'pending':
@@ -105,7 +106,9 @@ export function AutomatedCFPStatus({ status, businessName, className }: Automate
               </div>
             ) : (
               <div className="mt-2 text-xs opacity-75">
-                🤖 <strong>Automated processing:</strong> No buttons to click - GEMflush works automatically
+                🤖 <strong>Automated processing:</strong> {isPro 
+                  ? 'Full CFP automation (crawl + fingerprint + publish)' 
+                  : 'Crawl + fingerprint automation (upgrade for publishing)'}
               </div>
             )}
           </div>

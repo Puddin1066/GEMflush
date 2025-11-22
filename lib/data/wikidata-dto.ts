@@ -2,7 +2,7 @@ import 'server-only';
 import { db } from '@/lib/db/drizzle';
 import { businesses, teams, wikidataEntities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { tieredEntityBuilder } from '@/lib/wikidata/tiered-entity-builder';
+import { entityBuilder } from '@/lib/wikidata/entity-builder';
 import { notabilityChecker, type NotabilityResult } from '@/lib/wikidata/notability-checker';
 import type { WikidataPublishDTO } from './types';
 import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
@@ -70,15 +70,16 @@ export async function getWikidataPublishDTO(
     ? notabilityResult.topReferences
     : notabilityResult.references.slice(0, 5); // Fallback to first 5 if topReferences not available
   
-  // Build Wikidata entity with tier-appropriate richness AND notability references
+  // Build Wikidata entity with notability references
   // This ensures multiple references are attached to claims before publishing
-  const fullEntity: WikidataEntityDataContract = await tieredEntityBuilder.buildEntity(
+  const fullEntity: WikidataEntityDataContract = await entityBuilder.buildEntity(
     business,
     business.crawlData as any,
-    tier,
-    enrichmentLevel,
     notabilityReferences
   );
+  
+  // Filter claims by tier-appropriate richness
+  const filteredEntity = filterEntityByTier(fullEntity, tier, enrichmentLevel);
   
   // Determine if can publish
   // SOLID: Single Responsibility - publishability logic
@@ -117,9 +118,9 @@ export async function getWikidataPublishDTO(
     businessId: business.id,
     businessName: business.name,
     entity: {
-      label: fullEntity.labels.en?.value || business.name,
-      description: fullEntity.descriptions.en?.value || '',
-      claimCount: Object.keys(fullEntity.claims).length,
+      label: filteredEntity.labels.en?.value || business.name,
+      description: filteredEntity.descriptions.en?.value || '',
+      claimCount: Object.keys(filteredEntity.claims).length,
     },
     notability: {
       isNotable: notabilityResult.isNotable,
@@ -130,7 +131,72 @@ export async function getWikidataPublishDTO(
     },
     canPublish: canPublish,
     recommendation: recommendation,
-    fullEntity: fullEntity, // For API route to use with publisher
+    fullEntity: filteredEntity, // For API route to use with publisher (tier-filtered)
+  };
+}
+
+/**
+ * Filter entity claims by tier-appropriate richness
+ * DRY: Centralized tier filtering logic (replaces tieredEntityBuilder)
+ * SOLID: Single Responsibility - only handles tier-based property filtering
+ */
+function filterEntityByTier(
+  entity: WikidataEntityDataContract,
+  tier: 'free' | 'pro' | 'agency',
+  enrichmentLevel?: number
+): WikidataEntityDataContract {
+  // Property sets by tier (same as tieredEntityBuilder logic)
+  const BASIC_PROPERTIES = ['P31', 'P856', 'P1448', 'P625', 'P1329'];
+  const ENHANCED_PROPERTIES = [
+    ...BASIC_PROPERTIES,
+    'P6375', // street address
+    'P968',  // email
+    'P2002', // Twitter
+    'P2013', // Facebook
+    'P2003', // Instagram
+    'P4264', // LinkedIn
+    'P571',  // inception
+    'P1128', // employees
+  ];
+  const COMPLETE_PROPERTIES = [
+    ...ENHANCED_PROPERTIES,
+    'P131',  // located in (city QID)
+    'P159',  // headquarters
+    'P17',   // country
+    'P452',  // industry
+    'P18',   // image
+    'P4896', // logo
+  ];
+  
+  // Get property set for tier
+  let propertySet: string[];
+  if (tier === 'agency') {
+    // Agency gets complete properties, potentially enhanced by enrichment level
+    if (enrichmentLevel && enrichmentLevel >= 3) {
+      propertySet = COMPLETE_PROPERTIES;
+    } else {
+      // Level 1-2: enhanced
+      propertySet = ENHANCED_PROPERTIES;
+    }
+  } else if (tier === 'pro') {
+    propertySet = ENHANCED_PROPERTIES;
+  } else {
+    // Free tier: basic only
+    propertySet = BASIC_PROPERTIES;
+  }
+  
+  // Filter claims to only include tier-appropriate properties
+  // Note: References are preserved when filtering claims
+  const filteredClaims: WikidataEntityDataContract['claims'] = {};
+  for (const pid of propertySet) {
+    if (entity.claims[pid]) {
+      filteredClaims[pid] = entity.claims[pid];
+    }
+  }
+  
+  return {
+    ...entity,
+    claims: filteredClaims,
   };
 }
 

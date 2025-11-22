@@ -13,7 +13,7 @@ import { getUser, getTeamForUser, getBusinessById } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { llmFingerprints, competitors } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { autoStartProcessing } from '@/lib/services/business-processing';
+import { autoStartProcessing } from '@/lib/services/business-execution';
 import { loggers } from '@/lib/utils/logger';
 
 const logger = loggers.api;

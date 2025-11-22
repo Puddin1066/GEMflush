@@ -8,7 +8,7 @@
 
 import { getBusinessById, updateBusiness, getTeamForBusiness, createCrawlJob, createWikidataEntity } from '@/lib/db/queries';
 import { shouldAutoCrawl, shouldAutoPublish, getAutomationConfig, calculateNextCrawlDate } from './automation-service';
-import { executeCrawlJob, executeFingerprint } from './business-processing';
+import { executeCrawlJob, executeFingerprint } from './business-execution';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
 import { wikidataPublisher } from '@/lib/wikidata/publisher';
 import { storeEntityForManualPublish } from '@/lib/wikidata/manual-publish-storage';

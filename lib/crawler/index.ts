@@ -1,43 +1,59 @@
-// Web crawler service for extracting business data from websites
-// Architecture: Firecrawl Extract API Only - Streamlined and Efficient
-// SOLID Principle: Single Responsibility - focused on structured data extraction
+// Enhanced Web Crawler Service - Multi-page Firecrawl with LLM Extraction
+// Architecture: Firecrawl Crawl API with built-in LLM processing - Efficient and Comprehensive
+// SOLID Principle: Single Responsibility - focused on multi-page structured data extraction
 
 import 'server-only'; // Ensure this module is never bundled client-side
 
 import { CrawledData, CrawlResult } from '@/lib/types/gemflush';
-import { openRouterClient } from '@/lib/llm/openrouter';
 import { IWebCrawler } from '@/lib/types/service-contracts';
 import { 
-  FirecrawlExtractResponse, 
-  FirecrawlExtractRequest, 
+  FirecrawlCrawlResponse,
+  FirecrawlJobStatusResponse,
+  FirecrawlCrawlPageData,
   BusinessExtractData,
-  FirecrawlExtractSchema 
 } from '@/lib/types/firecrawl-contract';
+import { firecrawlClient } from './firecrawl-client';
 import { generateMockCrawlData, shouldUseMockCrawlData } from '@/lib/utils/mock-crawl-data';
+import { updateCrawlJob } from '@/lib/db/queries';
 
-// Using contract-based types instead of inline interfaces
+// Enhanced crawler with multi-page capabilities and Firecrawl LLM integration
 
 interface CrawlCacheEntry {
   result: CrawlResult;
   timestamp: number;
 }
 
-class WebCrawler implements IWebCrawler {
-  // Standard browser UA to avoid basic blocking
-  private userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
-  
-  // Rate Limiting State
-  private lastRequestTime = 0;
-  // Free plan limit: 10 req/min = 1 req every 6 seconds
-  // We'll be conservative and use 7 seconds to be safe
-  private readonly MIN_REQUEST_INTERVAL = 7000; 
+interface MultiPageCrawlResult {
+  mainPageData: BusinessExtractData;
+  subPageData: BusinessExtractData[];
+  aggregatedData: CrawledData;
+  pagesProcessed: number;
+  firecrawlJobId?: string;
+}
 
-  // Caching State
+class EnhancedWebCrawler implements IWebCrawler {
+  // Caching State - Rate limiting handled by FirecrawlClient
   private cache: Map<string, CrawlCacheEntry> = new Map();
   private readonly CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours cache
   private readonly MAX_CACHE_SIZE = 100;
 
-  async crawl(url: string): Promise<CrawlResult> {
+  // Multi-page crawling configuration
+  private readonly DEFAULT_MAX_DEPTH = 2;
+  private readonly DEFAULT_PAGE_LIMIT = 8;
+  private readonly RELEVANT_PAGE_PATTERNS = [
+    '**/about*', '**/services*', '**/contact*', '**/team*', 
+    '**/products*', '**/solutions*', '**/company*'
+  ];
+  private readonly EXCLUDED_PAGE_PATTERNS = [
+    '**/blog*', '**/news*', '**/events*', '**/careers*', 
+    '**/privacy*', '**/terms*', '**/cookie*', '**/legal*'
+  ];
+
+  /**
+   * Enhanced multi-page crawl with Firecrawl LLM extraction
+   * Primary method for comprehensive business data extraction
+   */
+  async crawl(url: string, jobId?: number): Promise<CrawlResult> {
     // Check Cache First
     const cached = this.getFromCache(url);
     if (cached) {
@@ -55,34 +71,30 @@ class WebCrawler implements IWebCrawler {
         throw new Error('Only HTTP and HTTPS URLs are supported');
       }
 
-      console.log(`[CRAWLER] Starting crawl for: ${url}`);
+      console.log(`[CRAWLER] 🚀 Starting enhanced multi-page crawl for: ${url}`);
       
-      // STREAMLINED STRATEGY: Firecrawl Extract Only
-      // OPTIMIZED: Direct structured extraction with LLM processing
-      // Returns business data in our exact schema format, eliminating validation issues
-      let extractedData: any = null;
-      
-      if (!process.env.FIRECRAWL_API_KEY) {
-        throw new Error('FIRECRAWL_API_KEY is required for business data extraction');
+      // Check if we should use mocks - Firecrawl client handles mocks automatically
+      // Don't require API key here - let Firecrawl client check and use mocks if needed
+      const { shouldUseMockFirecrawl } = await import('@/lib/utils/firecrawl-mock');
+      if (shouldUseMockFirecrawl()) {
+        console.log(`[CRAWLER] 🎭 Firecrawl API key not configured - will use mocks`);
       }
 
-         try {
-           await this.enforceRateLimit();
-        console.log(`[CRAWLER] 🔥 Using Firecrawl Extract API for structured data extraction...`);
-        const extractResult = await this.fetchWithFirecrawlExtract(url, { useCache: true });
+      let crawlResult: MultiPageCrawlResult;
+
+      try {
+        // Execute multi-page crawl with Firecrawl LLM extraction
+        crawlResult = await this.executeMultiPageCrawl(url, jobId);
+        method = 'firecrawl-multipage-llm';
         
-        if (extractResult.success && extractResult.data) {
-          extractedData = extractResult.data as BusinessExtractData;
-          method = 'firecrawl-extract';
-          console.log(`[CRAWLER] ✅ Firecrawl Extract success - structured data extracted`);
-          console.log(`[CRAWLER] 📋 Business name: "${extractedData.businessName || 'Not found'}"`);
-          console.log(`[CRAWLER] 📍 Location: ${extractedData.city || 'Unknown'}, ${extractedData.state || 'Unknown'}`);
-        } else {
-          throw new Error(`Firecrawl Extract failed: ${extractResult.error || 'Unknown error'}`);
-           }
+        console.log(`[CRAWLER] ✅ Multi-page crawl success`);
+        console.log(`[CRAWLER] 📊 Pages processed: ${crawlResult.pagesProcessed}`);
+        console.log(`[CRAWLER] 📋 Business: "${crawlResult.aggregatedData.name || 'Not found'}"`);
+        console.log(`[CRAWLER] 📍 Location: ${crawlResult.aggregatedData.location?.city || 'Unknown'}, ${crawlResult.aggregatedData.location?.state || 'Unknown'}`);
+        
          } catch (fcError) {
            const errorMsg = fcError instanceof Error ? fcError.message : String(fcError);
-        console.error(`[CRAWLER] ❌ Firecrawl Extract failed: ${errorMsg}`);
+        console.error(`[CRAWLER] ❌ Multi-page crawl failed: ${errorMsg}`);
         
         // FALLBACK: Use mock data if available for this URL
         if (shouldUseMockCrawlData(url)) {
@@ -90,52 +102,28 @@ class WebCrawler implements IWebCrawler {
           const mockData = generateMockCrawlData(url);
           method = 'mock-data';
           
-          // Transform mock data to match expected structure
-          extractedData = {
-            businessName: mockData.name,
-            description: mockData.description,
-            address: mockData.address,
-            city: mockData.location?.city,
-            state: mockData.location?.state,
-            country: mockData.location?.country,
-            phone: mockData.phone,
-            email: mockData.email,
-            services: mockData.services,
-            industry: mockData.llmEnhanced?.businessCategory
-          };
+          const crawledData = this.transformMockData(mockData, url);
           
-          console.log(`[CRAWLER] ✅ Mock data success - using realistic test data`);
-          console.log(`[CRAWLER] 📋 Business name: "${extractedData.businessName}"`);
-          console.log(`[CRAWLER] 📍 Location: ${extractedData.city}, ${extractedData.state}`);
+          const duration = Date.now() - startTime;
+          const result: CrawlResult = {
+            success: true,
+            data: crawledData,
+            url,
+            crawledAt: new Date()
+          };
+
+          this.saveToCache(url, result);
+          console.log(`[CRAWLER] ✅ Mock crawl completed in ${duration}ms`);
+          return result;
         } else {
           throw new Error(`Failed to extract business data: ${errorMsg}`);
-        }
-      }
-
-      if (!extractedData) {
-        throw new Error('No structured data extracted from website');
-      }
-
-      // Extract Data - Use structured data from Firecrawl Extract
-      console.log(`[CRAWLER] ✅ Transforming structured data from Firecrawl Extract`);
-      const crawledData = this.transformExtractedData(extractedData, url);
-
-      // LLM Enhancement (Optional)
-      if (process.env.OPENROUTER_API_KEY && crawledData) {
-        try {
-          console.log(`[CRAWLER] 🤖 Enhancing data with LLM analysis...`);
-          const enhancedData = await this.enhanceWithLLM(crawledData, url);
-          Object.assign(crawledData, enhancedData);
-          console.log(`[CRAWLER] ✅ LLM enhancement completed`);
-        } catch (llmError) {
-          console.warn(`[CRAWLER] ⚠️ LLM enhancement failed, using base data:`, llmError);
         }
       }
       
       const duration = Date.now() - startTime;
       const result: CrawlResult = {
         success: true,
-        data: crawledData,
+        data: crawlResult.aggregatedData,
         url,
         crawledAt: new Date()
       };
@@ -143,14 +131,14 @@ class WebCrawler implements IWebCrawler {
       // Cache the result
       this.saveToCache(url, result);
 
-      console.log(`[CRAWLER] ✅ Crawl completed successfully in ${duration}ms using ${method}`);
+      console.log(`[CRAWLER] ✅ Enhanced crawl completed successfully in ${duration}ms using ${method}`);
       return result;
 
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      console.error(`[CRAWLER] ❌ Crawl failed for ${url}: ${errorMessage}`);
+      console.error(`[CRAWLER] ❌ Enhanced crawl failed for ${url}: ${errorMessage}`);
       
       const result: CrawlResult = {
         success: false,
@@ -164,176 +152,101 @@ class WebCrawler implements IWebCrawler {
   }
 
   /**
-   * Firecrawl Extract API call - Enhanced for Structured Data Extraction
-   * 
-   * OPTIMIZED FOR DATA QUALITY:
-   * - Uses /v2/extract endpoint with structured schema
-   * - Extracts business data directly with LLM processing
-   * - Returns consistent JSON structure matching our validation schema
-   * - Eliminates manual HTML parsing and validation errors
-   * - Handles complex websites with dynamic content
-   * 
-   * Performance Benefits:
-   * - Direct structured extraction (no post-processing needed)
-   * - Consistent data format (eliminates validation failures)
-   * - Better business intelligence extraction
-   * - Handles anti-bot protection automatically
+   * Execute multi-page crawl using Firecrawl with LLM extraction
+   * Leverages Firecrawl's built-in LLM features for comprehensive data extraction
    */
-  private async fetchWithFirecrawlExtract(url: string, options?: { useCache?: boolean }): Promise<{ success: boolean; data?: BusinessExtractData; error?: string }> {
-    const apiKey = process.env.FIRECRAWL_API_KEY;
-    if (!apiKey) {
-      throw new Error('FIRECRAWL_API_KEY is not configured');
+  private async executeMultiPageCrawl(url: string, jobId?: number): Promise<MultiPageCrawlResult> {
+    console.log(`[CRAWLER] 🔥 Executing multi-page crawl with Firecrawl LLM extraction`);
+    
+    // Update job progress if provided
+    if (jobId) {
+      await this.updateJobProgress(jobId, 10, 'Starting multi-page crawl...');
     }
 
-    try {
-      // Define comprehensive business data extraction schema using contract
-      const extractionSchema: FirecrawlExtractSchema = {
-        type: 'object',
-        properties: {
-          businessName: { type: 'string', description: 'The actual business name (not page title)' },
-          description: { type: 'string', description: 'Business description or mission statement' },
-          phone: { type: 'string', description: 'Phone number with area code' },
-          email: { type: 'string', description: 'Contact email address' },
-          address: { type: 'string', description: 'Full street address' },
-          city: { type: 'string', description: 'City name' },
-          state: { type: 'string', description: 'State or province' },
-          country: { type: 'string', description: 'Country (use US for United States)' },
-          postalCode: { type: 'string', description: 'ZIP or postal code' },
-          industry: { type: 'string', description: 'Industry type (restaurant, healthcare, legal, etc.)' },
-          founded: { type: 'string', description: 'Year founded (YYYY format)' },
-          services: { type: 'array', items: { type: 'string' }, description: 'List of services offered' },
-          socialMedia: {
-            type: 'object',
-            properties: {
-              facebook: { type: 'string' },
-              instagram: { type: 'string' },
-              twitter: { type: 'string' },
-              linkedin: { type: 'string' }
-            }
-          },
-          hours: { type: 'string', description: 'Business hours if available' },
-          website: { type: 'string', description: 'Official website URL' }
-        },
-        required: ['businessName']
-      };
+    // Start Firecrawl crawl with LLM extraction
+    const crawlResponse = await firecrawlClient.crawlWithLLMExtraction(url, {
+      maxDepth: this.DEFAULT_MAX_DEPTH,
+      limit: this.DEFAULT_PAGE_LIMIT,
+      includes: this.RELEVANT_PAGE_PATTERNS,
+      excludes: this.EXCLUDED_PAGE_PATTERNS,
+    });
 
-      const extractPrompt = `
-Extract comprehensive business information from this website. Focus on:
-1. The actual business name (clean up page titles like "Home | Business Name")
-2. Complete contact information including address, phone, email
-3. Location details (city, state, country, ZIP code)
-4. Business type/industry and services offered
-5. Social media links and founding information
-6. Operating hours if available
+    if (!crawlResponse.success) {
+      throw new Error(crawlResponse.error || 'Firecrawl crawl failed');
+    }
 
-Be precise and only extract information that is explicitly stated on the website.
-`;
+    // Handle async job if no immediate data
+    let finalData: FirecrawlCrawlPageData[] = [];
+    let firecrawlJobId: string | undefined;
 
-      const requestBody: FirecrawlExtractRequest = {
-        urls: [url],
-        prompt: extractPrompt,
-        schema: extractionSchema,
-        scrapeOptions: {
-          formats: ['markdown', 'html']
-        }
-      };
-
-      console.log(`[CRAWLER] 🔥 Using Firecrawl Extract API for structured data extraction...`);
+    if (crawlResponse.data && crawlResponse.data.length > 0) {
+      // Immediate data available
+      finalData = crawlResponse.data;
+      console.log(`[CRAWLER] ✅ Immediate crawl data received: ${finalData.length} pages`);
+    } else if (crawlResponse.id) {
+      // Async job - poll for completion
+      firecrawlJobId = crawlResponse.id;
+      console.log(`[CRAWLER] ⏳ Polling async crawl job: ${firecrawlJobId}`);
       
-      const response = await fetch('https://api.firecrawl.dev/v2/extract', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 429) {
-             throw new Error('Firecrawl Rate Limit Exceeded (429)');
-        }
-        throw new Error(`Firecrawl Extract API Error ${response.status}: ${errorText}`);
+      if (jobId) {
+        await this.updateJobProgress(jobId, 30, 'Crawling pages...', firecrawlJobId);
       }
 
-      const data: FirecrawlExtractResponse = await response.json();
-      console.log(`[CRAWLER] ✅ Firecrawl Extract job submitted successfully`);
-      console.log(`[CRAWLER] 🔍 Extract response:`, JSON.stringify(data, null, 2));
-      
-      // Handle Firecrawl Extract API response format based on contract
-      if (!data.success) {
-        return { success: false, error: data.error || data.message || 'Unknown error' };
-      }
-      
-      // Check if we have immediate data (synchronous response)
-      if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
-        console.log(`[CRAWLER] ✅ Immediate extraction data received`);
-        return { success: true, data: data.data as BusinessExtractData };
-      }
-      
-      // If we have a job ID, poll for completion (asynchronous response)
-      if (data.id) {
-        console.log(`[CRAWLER] ⏳ Polling for job completion: ${data.id}`);
-        const pollResult = await this.pollFirecrawlJob(data.id, apiKey);
-        return pollResult;
-      }
-      
-      // Fallback: no data and no job ID
-      console.log(`[CRAWLER] ⚠️ No data or job ID in Firecrawl response`);
+      finalData = await this.pollFirecrawlJob(firecrawlJobId, jobId);
+    } else {
+      throw new Error('No data or job ID returned from Firecrawl');
+    }
+
+    if (jobId) {
+      await this.updateJobProgress(jobId, 80, 'Aggregating results...');
+    }
+
+    // Aggregate multi-page results
+    const aggregatedData = this.aggregateMultiPageResults(finalData, url);
+    
+    if (jobId) {
+      await this.updateJobProgress(jobId, 100, 'Crawl completed');
+    }
+
       return { 
-        success: false, 
-        error: 'No data or job ID returned from Firecrawl Extract API' 
-      };
-    } catch (error) {
-      console.error(`[CRAWLER] ❌ Firecrawl Extract failed:`, error);
-      throw error;
-    }
+      mainPageData: finalData[0]?.llm_extraction || finalData[0]?.extract || {},
+      subPageData: finalData.slice(1).map(page => page.llm_extraction || page.extract || {}),
+      aggregatedData,
+      pagesProcessed: finalData.length,
+      firecrawlJobId,
+    };
   }
 
   /**
-   * Poll Firecrawl Extract job for completion
-   * SOLID: Single Responsibility - job polling only
-   * DRY: Reusable polling logic with configurable timeouts
+   * Poll Firecrawl async job for completion
    */
-  private async pollFirecrawlJob(jobId: string, apiKey: string, maxAttempts: number = 20, intervalMs: number = 3000): Promise<{ success: boolean; data?: BusinessExtractData; error?: string }> {
+  private async pollFirecrawlJob(jobId: string, crawlJobId?: number): Promise<FirecrawlCrawlPageData[]> {
+    const maxAttempts = 20;
+    const intervalMs = 3000;
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         console.log(`[CRAWLER] 🔄 Polling attempt ${attempt}/${maxAttempts} for job: ${jobId}`);
         
-        const response = await fetch(`https://api.firecrawl.dev/v2/extract/${jobId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`
-          }
-        });
+        const jobStatus = await firecrawlClient.getCrawlJobStatus(jobId);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Firecrawl Job Status API Error ${response.status}: ${errorText}`);
+        // Update crawl job progress if provided
+        if (crawlJobId && jobStatus.completed && jobStatus.total) {
+          const progress = Math.round((jobStatus.completed / jobStatus.total) * 70) + 30; // 30-100% range
+          await this.updateJobProgress(crawlJobId, progress, `Processing pages: ${jobStatus.completed}/${jobStatus.total}`);
         }
 
-        const jobData = await response.json();
-        console.log(`[CRAWLER] 📊 Job status:`, jobData.status || 'unknown');
-
         // Check if job is completed
-        if (jobData.success && jobData.status === 'completed' && jobData.data) {
+        if (jobStatus.success && jobStatus.status === 'completed' && jobStatus.data) {
           console.log(`[CRAWLER] ✅ Job completed successfully after ${attempt} attempts`);
-          return { success: true, data: jobData.data as BusinessExtractData };
+          console.log(`[CRAWLER] 📊 Final results: ${jobStatus.data.length} pages processed`);
+          return jobStatus.data;
         }
 
         // Check if job failed
-        if (jobData.status === 'failed' || jobData.status === 'error') {
-          console.log(`[CRAWLER] ❌ Job failed with status: ${jobData.status}`);
-          const errorMsg = jobData.error || `Job failed with status: ${jobData.status}`;
-          console.log(`[CRAWLER] 🔍 Job error details:`, errorMsg);
-          return { success: false, error: errorMsg };
-        }
-
-        // Check for error in successful response (e.g., invalid URLs)
-        if (jobData.success && jobData.error) {
-          console.log(`[CRAWLER] ⚠️ Job completed with error: ${jobData.error}`);
-          return { success: false, error: jobData.error };
+        if (jobStatus.status === 'failed' || jobStatus.status === 'cancelled') {
+          console.log(`[CRAWLER] ❌ Job failed with status: ${jobStatus.status}`);
+          throw new Error(jobStatus.error || `Job failed with status: ${jobStatus.status}`);
         }
 
         // Job still processing, wait before next attempt
@@ -341,10 +254,10 @@ Be precise and only extract information that is explicitly stated on the website
           console.log(`[CRAWLER] ⏳ Job still processing, waiting ${intervalMs}ms...`);
           await new Promise(resolve => setTimeout(resolve, intervalMs));
         }
-      } catch (error) {
+    } catch (error) {
         console.error(`[CRAWLER] ❌ Polling attempt ${attempt} failed:`, error);
         if (attempt === maxAttempts) {
-          throw error;
+      throw error;
         }
         // Wait before retry on error
         await new Promise(resolve => setTimeout(resolve, intervalMs));
@@ -352,164 +265,182 @@ Be precise and only extract information that is explicitly stated on the website
     }
 
     // Max attempts reached
-    return { 
-      success: false, 
-      error: `Job polling timeout after ${maxAttempts} attempts (${(maxAttempts * intervalMs) / 1000}s)` 
-    };
+    throw new Error(`Job polling timeout after ${maxAttempts} attempts (${(maxAttempts * intervalMs) / 1000}s)`);
   }
 
   /**
-   * Transform structured data from Firecrawl Extract into CrawledData format
-   * SOLID: Single Responsibility - data transformation only
-   * DRY: Reusable transformation logic
+   * Aggregate multi-page crawl results into comprehensive business data
+   * Combines data from main page and relevant subpages
    */
-  private transformExtractedData(extractedData: BusinessExtractData | any, url: string): CrawledData {
-    const data: CrawledData = {};
-    
-    // Basic business information
-    if (extractedData.businessName) {
-      data.name = String(extractedData.businessName).trim();
-    }
-    if (extractedData.description) {
-      data.description = String(extractedData.description).trim();
-    }
-    if (extractedData.phone) {
-      data.phone = String(extractedData.phone).trim();
-    }
-    if (extractedData.email) {
-      data.email = String(extractedData.email).trim();
-    }
-    if (extractedData.website) {
-      data.imageUrl = String(extractedData.website).trim();
+  private aggregateMultiPageResults(pages: FirecrawlCrawlPageData[], baseUrl: string): CrawledData {
+    console.log(`[CRAWLER] 🔄 Aggregating data from ${pages.length} pages`);
+
+    // Initialize aggregated data structure
+    const aggregated: CrawledData = {};
+    const allServices: string[] = [];
+    const allSocialLinks: any = {};
+    let bestDescription = '';
+    let mostCompleteContactInfo: any = {};
+
+    // Process each page's extracted data
+    pages.forEach((page, index) => {
+      const extractedData = page.llm_extraction || page.extract;
+      if (!extractedData) return;
+
+      console.log(`[CRAWLER] 📄 Processing page ${index + 1}: ${page.url}`);
+
+      // Business name - prefer main page, fallback to first found
+      if (extractedData.businessName && (!aggregated.name || index === 0)) {
+        aggregated.name = String(extractedData.businessName).trim();
+      }
+
+      // Description - prefer longer, more detailed descriptions
+      if (extractedData.description && extractedData.description.length > bestDescription.length) {
+        bestDescription = String(extractedData.description).trim();
+      }
+
+      // Contact information - prefer most complete
+      if (extractedData.phone || extractedData.email || extractedData.address) {
+        const contactScore = (extractedData.phone ? 1 : 0) + (extractedData.email ? 1 : 0) + (extractedData.address ? 1 : 0);
+        const currentScore = (mostCompleteContactInfo.phone ? 1 : 0) + (mostCompleteContactInfo.email ? 1 : 0) + (mostCompleteContactInfo.address ? 1 : 0);
+        
+        if (contactScore > currentScore) {
+          mostCompleteContactInfo = {
+            phone: extractedData.phone,
+            email: extractedData.email,
+            address: extractedData.address,
+          };
+        }
+      }
+
+      // Location - prefer most complete location data
+      if (extractedData.city || extractedData.state || extractedData.country) {
+        if (!aggregated.location || !aggregated.location.city) {
+          aggregated.location = {
+            address: extractedData.address || mostCompleteContactInfo.address,
+            city: extractedData.city,
+            state: extractedData.state,
+            country: extractedData.country || 'US',
+            postalCode: extractedData.postalCode,
+          };
+        }
+      }
+
+      // Services - collect from all pages
+      if (Array.isArray(extractedData.services)) {
+        allServices.push(...extractedData.services.map(s => String(s).trim()));
+      }
+
+      // Social media - merge from all pages
+      if (extractedData.socialMedia) {
+        Object.assign(allSocialLinks, extractedData.socialMedia);
+      }
+
+      // Business details - prefer most complete
+      if (extractedData.industry || extractedData.founded) {
+        if (!aggregated.businessDetails) {
+          aggregated.businessDetails = {};
+        }
+        
+        if (extractedData.industry && !aggregated.businessDetails.industry) {
+          aggregated.businessDetails.industry = String(extractedData.industry).trim();
+        }
+        
+        if (extractedData.founded && !aggregated.businessDetails.founded) {
+          aggregated.businessDetails.founded = String(extractedData.founded).trim();
+        }
+      }
+    });
+
+    // Finalize aggregated data
+    if (bestDescription) {
+      aggregated.description = bestDescription;
     }
 
-    // Location data
-    if (extractedData.address || extractedData.city || extractedData.state || extractedData.country) {
-          data.location = {
-        address: extractedData.address ? String(extractedData.address).trim() : undefined,
-        city: extractedData.city ? String(extractedData.city).trim() : undefined,
-        state: extractedData.state ? String(extractedData.state).trim() : undefined,
-        country: extractedData.country ? String(extractedData.country).trim() : 'US',
-        postalCode: extractedData.postalCode ? String(extractedData.postalCode).trim() : undefined,
-      };
+    if (mostCompleteContactInfo.phone) {
+      aggregated.phone = String(mostCompleteContactInfo.phone).trim();
     }
 
-    // Business details
-    if (extractedData.industry || extractedData.founded || extractedData.services) {
-      data.businessDetails = {
-        industry: extractedData.industry ? String(extractedData.industry).trim() : undefined,
-        founded: extractedData.founded ? String(extractedData.founded).trim() : undefined,
-        services: Array.isArray(extractedData.services) ? extractedData.services.map((s: any) => String(s).trim()) : undefined,
-      };
+    if (mostCompleteContactInfo.email) {
+      aggregated.email = String(mostCompleteContactInfo.email).trim();
     }
 
-    // Social media links
-    if (extractedData.socialMedia) {
-      data.socialLinks = {
-        facebook: extractedData.socialMedia.facebook ? String(extractedData.socialMedia.facebook) : undefined,
-        instagram: extractedData.socialMedia.instagram ? String(extractedData.socialMedia.instagram) : undefined,
-        twitter: extractedData.socialMedia.twitter ? String(extractedData.socialMedia.twitter) : undefined,
-        linkedin: extractedData.socialMedia.linkedin ? String(extractedData.socialMedia.linkedin) : undefined,
-      };
+    // Deduplicate and clean services
+    if (allServices.length > 0) {
+      aggregated.services = [...new Set(allServices)].slice(0, 10); // Limit to 10 services
     }
 
-    // Services array
-    if (Array.isArray(extractedData.services)) {
-      data.services = extractedData.services.map((s: any) => String(s).trim()).slice(0, 10);
+    // Social links
+    if (Object.keys(allSocialLinks).length > 0) {
+      aggregated.socialLinks = allSocialLinks;
     }
 
-    // LLM Enhanced data (mark as processed by Firecrawl Extract)
-    data.llmEnhanced = {
-      extractedEntities: [data.name || 'Unknown Business'],
-      businessCategory: extractedData.industry || 'business',
-      serviceOfferings: data.services || [],
-      targetAudience: 'general public', // Default to avoid validation error
+    // Enhanced LLM data - mark as processed by Firecrawl LLM
+    aggregated.llmEnhanced = {
+      extractedEntities: [aggregated.name || 'Unknown Business'],
+      businessCategory: aggregated.businessDetails?.industry || 'business',
+      serviceOfferings: aggregated.services || [],
+      targetAudience: 'general public',
       keyDifferentiators: [],
-      confidence: 0.9, // High confidence for structured extraction
-      model: 'firecrawl-extract',
+      confidence: 0.95, // High confidence for Firecrawl LLM extraction
+      model: 'firecrawl-llm-multipage',
       processedAt: new Date(),
     };
 
-    console.log(`[CRAWLER] 📊 Transformed structured data: name="${data.name}", location="${data.location?.city}, ${data.location?.state}"`);
-    console.log(`[CRAWLER] 🔍 Full transformed data:`, JSON.stringify(data, null, 2));
-    
-    return data;
+    console.log(`[CRAWLER] ✅ Aggregation complete:`, {
+      name: aggregated.name,
+      location: `${aggregated.location?.city}, ${aggregated.location?.state}`,
+      services: aggregated.services?.length || 0,
+      hasContact: !!(aggregated.phone || aggregated.email),
+    });
+
+    return aggregated;
   }
 
   /**
-   * Enhanced LLM analysis for additional business insights
-   * SOLID: Single Responsibility - LLM enhancement only
+   * Transform mock data to CrawledData format
    */
-  private async enhanceWithLLM(crawledData: CrawledData, url: string): Promise<Partial<CrawledData>> {
-    if (!crawledData.name) {
-      return {};
-    }
+  private transformMockData(mockData: any, url: string): CrawledData {
+    return {
+      name: mockData.name,
+      description: mockData.description,
+      phone: mockData.phone,
+      email: mockData.email,
+      location: mockData.location,
+      services: mockData.services,
+      businessDetails: {
+        industry: mockData.llmEnhanced?.businessCategory,
+      },
+      llmEnhanced: {
+        ...mockData.llmEnhanced,
+        model: 'mock-data',
+        processedAt: new Date(),
+      },
+    };
+  }
 
-    const prompt = `
-Analyze this business data and provide additional insights:
-
-Business: ${crawledData.name}
-Location: ${crawledData.location?.city}, ${crawledData.location?.state}
-Industry: ${crawledData.businessDetails?.industry || 'Unknown'}
-Description: ${crawledData.description || 'None'}
-Services: ${crawledData.services?.join(', ') || 'None'}
-
-Provide additional analysis in JSON format:
-{
-  "targetAudience": "string - primary customer demographic",
-  "keyDifferentiators": ["array of unique selling points"],
-  "businessCategory": "refined business category"
-}
-`;
-
+  /**
+   * Update crawl job progress in database
+   */
+  private async updateJobProgress(jobId: number, progress: number, status?: string, firecrawlJobId?: string): Promise<void> {
     try {
-      const response = await openRouterClient.query('anthropic/claude-3-haiku', prompt);
+      const updates: any = { progress };
       
-      // Try to extract JSON from the response
-      let enhanced: any = {};
-      try {
-        // First, try to parse the entire response as JSON
-        enhanced = JSON.parse(response.content);
-      } catch (parseError) {
-        // If that fails, try to extract JSON from within the text
-        const jsonMatch = response.content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          enhanced = JSON.parse(jsonMatch[0]);
-        } else {
-          console.warn('[CRAWLER] No JSON found in LLM response, using defaults');
-          enhanced = {};
-        }
+      if (status) {
+        updates.errorMessage = status; // Using errorMessage field for status updates
       }
       
-      return {
-        llmEnhanced: {
-          ...crawledData.llmEnhanced,
-          targetAudience: enhanced.targetAudience || crawledData.llmEnhanced?.targetAudience || 'general public',
-          keyDifferentiators: enhanced.keyDifferentiators || [],
-          businessCategory: enhanced.businessCategory || crawledData.llmEnhanced?.businessCategory || 'business',
-          model: 'claude-3-haiku',
-          processedAt: new Date(),
-        }
-      };
+      if (firecrawlJobId) {
+        updates.firecrawlJobId = firecrawlJobId;
+      }
+
+      await updateCrawlJob(jobId, updates);
+      console.log(`[CRAWLER] 📊 Job ${jobId} progress: ${progress}% - ${status || 'Processing...'}`);
     } catch (error) {
-      console.warn(`[CRAWLER] LLM enhancement failed:`, error);
-      return {};
+      console.warn(`[CRAWLER] ⚠️ Failed to update job progress:`, error);
     }
   }
 
-  // Rate limiting for Firecrawl API
-  private async enforceRateLimit(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    
-    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-      console.log(`[CRAWLER] ⏳ Firecrawl Rate Limit: Waiting ${waitTime}ms...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    
-    this.lastRequestTime = Date.now();
-  }
 
   // Cache management
   private getFromCache(url: string): CrawlResult | null {
@@ -541,8 +472,15 @@ Provide additional analysis in JSON format:
   }
 }
 
-// Export singleton instance for compatibility
-export const webCrawler = new WebCrawler();
+// ============================================================================
+// EXPORTS
+// ============================================================================
 
-// Also export the class for direct instantiation
-export { WebCrawler };
+// Primary singleton instance (most common usage)
+export const webCrawler = new EnhancedWebCrawler();
+
+// Class export for direct instantiation when needed
+export { EnhancedWebCrawler };
+
+// Legacy compatibility (can be removed in future versions)
+export { EnhancedWebCrawler as WebCrawler };

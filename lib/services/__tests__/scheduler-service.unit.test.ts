@@ -10,7 +10,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { handleAutoPublish, processScheduledAutomation } from '../scheduler-service';
+import { handleAutoPublish } from '../scheduler-service-decision';
+import { processScheduledAutomation } from '../scheduler-service-execution';
 import { MockBusinessFactory, MockTeamFactory, MockPublishDataFactory } from './scheduler-test-helpers';
 import type { Business, Team } from '@/lib/db/schema';
 
