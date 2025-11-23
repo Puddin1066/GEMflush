@@ -7,6 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   testMatch: /.*\.spec\.ts$/, // Only load Playwright spec files, exclude Vitest .test.ts files
+  testIgnore: ['**/_archive/**', '**/node_modules/**'], // Ignore archived tests
   fullyParallel: false, // Run tests sequentially to avoid DB conflicts
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -42,11 +43,11 @@ export default defineConfig({
     // },
   ],
 
-  webServer: {
+  webServer: process.env.SKIP_WEBSERVER === 'true' ? undefined : {
     command: 'pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: 180 * 1000, // Increased to 3 minutes for slower startup
     env: {
       // Force OpenRouter to use mock responses during E2E tests
       // Setting to empty string ensures OpenRouter client checks `if (!apiKey)` which is true

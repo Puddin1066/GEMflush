@@ -263,19 +263,34 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
   
   /**
    * Analyze competitors mentioned in the response
+   * 
+   * SOLID: Single Responsibility - extracts and validates competitor names
+   * DRY: Reusable validation logic for business name extraction
    */
   analyzeCompetitors(response: string, businessName: string): CompetitorAnalysis {
     const competitors: string[] = [];
     let targetRank: number | null = null;
     
-    // Extract potential business names (capitalized words/phrases)
-    const businessNamePattern = /\b[A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?\b/g;
-    const potentialBusinesses = response.match(businessNamePattern) || [];
+    // Extract potential business names from numbered lists (most reliable)
+    // Pattern: "1. Business Name" or "1) Business Name"
+    const numberedListPattern = /^\s*\d+[\.\)]\s+([A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)/gm;
+    const numberedMatches = Array.from(response.matchAll(numberedListPattern));
+    const numberedBusinesses = numberedMatches.map(match => match[1].trim());
     
-    // Filter out the target business and common false positives
-    const filteredBusinesses = potentialBusinesses
+    // Also extract from bullet lists
+    const bulletListPattern = /^[\-\*•]\s+([A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)/gm;
+    const bulletMatches = Array.from(response.matchAll(bulletListPattern));
+    const bulletBusinesses = bulletMatches.map(match => match[1].trim());
+    
+    // Combine and deduplicate
+    const allPotentialBusinesses = [...new Set([...numberedBusinesses, ...bulletBusinesses])];
+    
+    // Filter out invalid business names (LLM response text, not actual business names)
+    const filteredBusinesses = allPotentialBusinesses
+      .filter(name => this.isValidBusinessName(name)) // NEW: Validate it's actually a business name
       .filter(name => !this.isSameBusinessName(name, businessName))
       .filter(name => !this.isCommonFalsePositive(name))
+      .filter(name => !this.isLLMResponseText(name)) // NEW: Filter out LLM response text
       .filter((name, index, array) => array.indexOf(name) === index); // Remove duplicates
     
     competitors.push(...filteredBusinesses);
@@ -292,6 +307,114 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
       confidence,
       reasoning: `Found ${competitors.length} potential competitors${targetRank ? `, target ranked at position ${targetRank}` : ''}`
     };
+  }
+  
+  /**
+   * Validate that a name is actually a business name (not LLM response text)
+   * 
+   * DRY: Reusable validation logic
+   */
+  private isValidBusinessName(name: string): boolean {
+    const trimmed = name.trim();
+    
+    // Too short or too long
+    if (trimmed.length < 2 || trimmed.length > 80) {
+      return false;
+    }
+    
+    // Must start with capital letter
+    if (!/^[A-Z]/.test(trimmed)) {
+      return false;
+    }
+    
+    // Check for invalid patterns (LLM response text indicators)
+    const invalidPatterns = [
+      /^(here are|i'd recommend|i recommend|to give you|that's a|i need|quality recommendations)/i,
+      /^(each of these|these businesses|professional standards|local community)/i,
+      /^(demonstrated|serves the|effectively|strong community presence)/i,
+      /^(with strong|community presence|demonstrated professional)/i,
+      /^(quality recommendations for)/i,
+      /^(some top|top recommendations|recommendations for)/i,
+      /^(a great|great question|little more|more information)/i,
+      /^(what you're|you're looking|looking for)/i,
+      /^(and|or|but|if|when|where|why|how)\s+/i, // Starts with conjunction
+      /^(is|are|was|were|be|been|being)\s+/i, // Starts with verb
+      /^(can|could|should|would|will|may|might)\s+/i, // Starts with modal
+      /^(this|that|these|those)\s+/i, // Starts with demonstrative
+      /^(it|they|we|you|he|she)\s+/i, // Starts with pronoun
+    ];
+    
+    if (invalidPatterns.some(pattern => pattern.test(trimmed))) {
+      return false;
+    }
+    
+    // Check for common phrases that indicate it's not a business name
+    const commonPhrases = [
+      'quality professional services',
+      'professional services providers',
+      'strong community presence',
+      'demonstrated professional standards',
+      'serves the local community',
+      'professional service with',
+      'established local reputation',
+    ];
+    
+    if (commonPhrases.some(phrase => trimmed.toLowerCase().includes(phrase))) {
+      return false;
+    }
+    
+    // Check for generic words that aren't business names
+    const genericWords = ['quality', 'professional', 'local', 'community', 'excellence', 'choice', 'group', 'services', 'solutions'];
+    if (genericWords.includes(trimmed.toLowerCase())) {
+      return false;
+    }
+    
+    // Must contain at least one letter (not just numbers/symbols)
+    if (!/[a-zA-Z]/.test(trimmed)) {
+      return false;
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Check if text is LLM response text (not a business name)
+   * 
+   * DRY: Reusable validation logic
+   */
+  private isLLMResponseText(text: string): boolean {
+    const trimmed = text.trim();
+    
+    // Very long text is likely a sentence fragment
+    if (trimmed.length > 100) {
+      return true;
+    }
+    
+    // Contains newlines (likely multi-line response text)
+    if (trimmed.includes('\n')) {
+      return true;
+    }
+    
+    // Contains multiple sentences (indicated by periods in middle)
+    const sentenceCount = (trimmed.match(/\.\s+[A-Z]/g) || []).length;
+    if (sentenceCount > 0) {
+      return true;
+    }
+    
+    // Contains common LLM response patterns
+    const llmPatterns = [
+      /quality recommendations for/i,
+      /with strong community presence/i,
+      /demonstrated professional standards/i,
+      /serves the local community/i,
+      /each of these businesses/i,
+    ];
+    
+    if (llmPatterns.some(pattern => pattern.test(trimmed))) {
+      return true;
+    }
+    
+    return false;
   }
   
   /**

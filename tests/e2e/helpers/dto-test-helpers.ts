@@ -347,3 +347,59 @@ export function verifyTrendValue(
   };
 }
 
+/**
+ * Alias for fetchLatestCrawlJob (for consistency with test naming)
+ */
+export const fetchDatabaseCrawlJob = fetchLatestCrawlJob;
+
+/**
+ * Wait for business status to reach target status
+ * 
+ * Returns: Final business status
+ */
+export async function waitForBusinessStatus(
+  page: Page,
+  baseURL: string,
+  businessId: number,
+  targetStatus: string,
+  timeout: number = 120_000
+): Promise<string> {
+  const startTime = Date.now();
+  const maxAttempts = Math.floor(timeout / 5000); // Poll every 5 seconds
+  let status = 'pending';
+  let attempts = 0;
+
+  while (status !== targetStatus && attempts < maxAttempts) {
+    const elapsed = Date.now() - startTime;
+    if (elapsed >= timeout) {
+      throw new Error(`Timeout waiting for status '${targetStatus}'. Current status: ${status}`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+    try {
+      const businessResponse = await page.request.get(`${baseURL}/api/business/${businessId}`, {
+        timeout: 15000,
+      });
+      
+      if (businessResponse.ok()) {
+        const businessData = await businessResponse.json();
+        const business = businessData.business || businessData;
+        status = business.status || status;
+        console.log(`[DTO HELPER] Status: ${status} (attempt ${attempts + 1}/${maxAttempts}, target: ${targetStatus})`);
+      }
+    } catch (error) {
+      console.log(`[DTO HELPER] ⚠️  Status check error: ${error instanceof Error ? error.message : 'Unknown'}, retrying...`);
+    }
+
+    attempts++;
+  }
+
+  if (status !== targetStatus) {
+    throw new Error(`Status did not reach '${targetStatus}' within ${timeout}ms. Final status: ${status}`);
+  }
+
+  console.log(`[DTO HELPER] ✓ Status reached: ${status}`);
+  return status;
+}
+

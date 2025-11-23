@@ -1,5 +1,5 @@
 import 'server-only';
-import { getBusinessesByTeam, getLatestFingerprint } from '@/lib/db/queries';
+import { getBusinessesByTeam, getLatestFingerprint, getFingerprintHistory } from '@/lib/db/queries';
 import type { DashboardDTO, DashboardBusinessDTO } from './types';
 import { dtoLogger } from '@/lib/utils/dto-logger';
 
@@ -31,8 +31,10 @@ export async function getDashboardDTO(teamId: number): Promise<DashboardDTO> {
   const enrichedBusinesses = await Promise.all(
     businesses.map(async (business) => {
       const fingerprint = await getLatestFingerprint(business.id);
+      // Fetch fingerprint history for trend calculation
+      const fingerprintHistory = await getFingerprintHistory(business.id, 10);
       
-      return transformBusinessToDTO(business, fingerprint);
+      return transformBusinessToDTO(business, fingerprint, fingerprintHistory);
     })
   );
   
@@ -53,15 +55,19 @@ export async function getDashboardDTO(teamId: number): Promise<DashboardDTO> {
  */
 function transformBusinessToDTO(
   business: any,
-  fingerprint: any
+  fingerprint: any,
+  fingerprintHistory: any[] = []
 ): DashboardBusinessDTO {
+  // Calculate trend from fingerprint history
+  const { trendValue, trend } = calculateTrendFromHistory(fingerprintHistory, fingerprint);
+  
   const dto: DashboardBusinessDTO = {
     id: business.id.toString(),
     name: business.name,
     location: formatLocation(business.location),
     visibilityScore: fingerprint?.visibilityScore ?? null,
-    trend: calculateTrend(fingerprint),
-    trendValue: 0,  // TODO: Calculate actual trend from historical data
+    trend,
+    trendValue,
     wikidataQid: business.wikidataQID,
     lastFingerprint: formatTimestamp(fingerprint?.createdAt),
     status: business.status as DashboardBusinessDTO['status'],
@@ -72,7 +78,6 @@ function transformBusinessToDTO(
   dtoLogger.logTransformation('DashboardBusinessDTO', business, dto, {
     businessId: business.id,
     issues: ['automationEnabled'], // Watch for hardcoded values
-    warnings: ['trendValue is hardcoded to 0 - should calculate from historical fingerprints'],
   });
 
   return dto;
@@ -92,13 +97,44 @@ function formatLocation(location: any): string {
 }
 
 /**
- * Calculate trend direction
- * TODO: Enhance with historical comparison
+ * Calculate trend from fingerprint history
+ * 
+ * Returns: trendValue (difference in score) and trend direction
  */
-function calculateTrend(fingerprint: any): 'up' | 'down' | 'neutral' {
-  // Currently: just check if fingerprint exists
-  // Future: Compare with previous fingerprint
-  return fingerprint ? 'up' : 'neutral';
+function calculateTrendFromHistory(
+  fingerprintHistory: any[],
+  currentFingerprint: any
+): { trendValue: number; trend: 'up' | 'down' | 'neutral' } {
+  // If no history or no current fingerprint, return neutral
+  if (!fingerprintHistory || fingerprintHistory.length === 0 || !currentFingerprint) {
+    return { trendValue: 0, trend: 'neutral' };
+  }
+
+  // Sort history by date (oldest first)
+  const sorted = [...fingerprintHistory].sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateA - dateB;
+  });
+
+  // Get first (oldest) and last (newest) fingerprints
+  const firstFingerprint = sorted[0];
+  const lastFingerprint = sorted[sorted.length - 1];
+
+  // Use current fingerprint as the latest if available
+  const latestScore = currentFingerprint?.visibilityScore ?? lastFingerprint?.visibilityScore ?? null;
+  const firstScore = firstFingerprint?.visibilityScore ?? null;
+
+  // Calculate trend
+  if (latestScore === null || firstScore === null) {
+    return { trendValue: 0, trend: 'neutral' };
+  }
+
+  const trendValue = latestScore - firstScore;
+  const trend: 'up' | 'down' | 'neutral' = 
+    trendValue > 0 ? 'up' : trendValue < 0 ? 'down' : 'neutral';
+
+  return { trendValue, trend };
 }
 
 /**

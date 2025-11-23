@@ -9,7 +9,7 @@ import {
 } from '@/lib/db/queries';
 import { canPublishToWikidata } from '@/lib/gemflush/permissions';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
-import { wikidataPublisher } from '@/lib/wikidata/publisher';
+import { WikidataClient } from '@/lib/wikidata/client';
 import { storeEntityForManualPublish } from '@/lib/wikidata/manual-publish-storage';
 import { wikidataPublishRequestSchema } from '@/lib/validation/business';
 import { z } from 'zod';
@@ -127,17 +127,18 @@ export async function POST(request: NextRequest) {
     // SOLID: Single Responsibility - check if entity already exists
     // DRY: Reuse existing QID if business was already published
     const existingQid = business.wikidataQID;
-    let publishResult: { success: boolean; qid?: string; error?: string };
+    let publishResult: import('@/lib/wikidata/types').PublishResult;
     let finalQid: string;
 
     if (existingQid) {
       // Entity already exists - update it instead of creating new one
       // This is the core update/republish functionality
       console.log(`[UPDATE] Business ${businessId} already has QID ${existingQid}, updating existing entity`);
-      const updateResult = await wikidataPublisher.updateEntity(
+      const client = new WikidataClient();
+      const updateResult = await client.updateEntity(
         existingQid,
         entity,
-        publishToProduction
+        { target: publishToProduction ? 'production' : 'test' }
       );
 
       if (!updateResult.success) {
@@ -161,9 +162,10 @@ export async function POST(request: NextRequest) {
     } else {
       // No existing entity - create new one
       console.log(`[PUBLISH] Business ${businessId} has no QID, creating new entity`);
-      publishResult = await wikidataPublisher.publishEntity(
+      const client = new WikidataClient();
+      publishResult = await client.publishEntity(
         entity,
-        publishToProduction
+        { target: publishToProduction ? 'production' : 'test' }
       );
 
       if (!publishResult.success) {

@@ -217,9 +217,12 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
       };
     }
     
-    // Calculate mention rate
+    // Calculate mention rate (as percentage 0-100, not decimal 0-1)
+    // DRY: Store as percentage to match DTO expectations
     const mentionedResults = validResults.filter(r => r.mentioned);
-    const mentionRate = mentionedResults.length / successfulQueries;
+    const mentionRate = successfulQueries > 0 
+      ? (mentionedResults.length / successfulQueries) * 100 
+      : 0;
     
     // Calculate sentiment score (0-1 scale)
     const sentimentScores = mentionedResults.map(r => {
@@ -245,8 +248,9 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
       : null;
     
     // Calculate overall visibility score (0-100)
+    // Note: mentionRate is now a percentage (0-100), but calculateVisibilityScore expects decimal (0-1)
     const visibilityScore = this.calculateVisibilityScore({
-      mentionRate,
+      mentionRate: mentionRate / 100, // Convert percentage to decimal for score calculation
       sentimentScore: avgSentimentScore,
       confidenceLevel: avgConfidence,
       avgRankPosition,
@@ -486,7 +490,7 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     log.info('Fingerprint analysis summary', {
       businessName: analysis.businessName,
       visibilityScore: analysis.visibilityScore,
-      mentionRate: Math.round(analysis.mentionRate * 100),
+      mentionRate: Math.round(analysis.mentionRate), // mentionRate is already a percentage (0-100)
       sentimentScore: Math.round(analysis.sentimentScore * 100),
       confidenceLevel: Math.round(analysis.metrics.confidenceLevel * 100),
       avgRankPosition: analysis.avgRankPosition,

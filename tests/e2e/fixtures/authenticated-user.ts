@@ -30,12 +30,32 @@ export const test = base.extend<AuthenticatedUserFixtures>({
 
   authenticatedPage: async ({ page, testUser }: { page: Page; testUser: { email: string; password: string } }, use) => {
     // Sign up the test user via UI
-    await page.goto('/sign-up');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/sign-up', { waitUntil: 'networkidle' });
     
-    // Fill form
-    await page.getByLabel(/email/i).fill(testUser.email);
-    await page.getByLabel(/password/i).fill(testUser.password);
+    // Wait for React to hydrate - look for form or input elements
+    // Try multiple strategies to find the form
+    try {
+      // First, wait for any form element
+      await page.waitForSelector('form', { timeout: 20000, state: 'visible' });
+      
+      // Then wait for email input specifically
+      await page.waitForSelector('input[name="email"], #email, input[type="email"]', { 
+        timeout: 10000, 
+        state: 'visible' 
+      });
+    } catch (error) {
+      // If form doesn't load, check if page has an error
+      const pageText = await page.textContent('body');
+      const hasError = pageText?.includes('error') || pageText?.includes('Error');
+      if (hasError) {
+        console.error('Page has error:', pageText?.substring(0, 500));
+      }
+      throw new Error(`Sign-up form did not load: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+    
+    // Fill form - use name attribute first (most reliable)
+    await page.locator('input[name="email"]').fill(testUser.email, { timeout: 10000 });
+    await page.locator('input[name="password"]').fill(testUser.password, { timeout: 10000 });
     
     // Submit form and wait for navigation
     await Promise.all([
