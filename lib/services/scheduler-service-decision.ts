@@ -10,12 +10,11 @@ import { getBusinessById, updateBusiness, getTeamForBusiness, createCrawlJob, cr
 import { shouldAutoCrawl, shouldAutoPublish, getAutomationConfig, calculateNextCrawlDate } from './automation-service';
 import { executeCrawlJob, executeFingerprint } from './business-execution';
 import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
-import { wikidataPublisher } from '@/lib/wikidata/publisher';
+import { wikidataService } from '@/lib/wikidata/service';
 import { storeEntityForManualPublish } from '@/lib/wikidata/manual-publish-storage';
 import { db } from '@/lib/db/drizzle';
 import { businesses, teams, type Business, type Team } from '@/lib/db/schema';
 import { loggers } from '@/lib/utils/logger';
-import { getBusinessById, updateBusiness, getTeamForBusiness } from '@/lib/db/queries';
 
 const log = loggers.scheduler;
 
@@ -73,16 +72,11 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
     
     // Store entity for manual publication (unbeknownst to user)
     // This happens regardless of canPublish status
+    // Convert WikidataEntityDataContract to WikidataEntity for storage
     await storeEntityForManualPublish(
       businessId,
-      business.name,
-      publishData.fullEntity,
-      publishData.canPublish,
-      {
-        isNotable: publishData.notability.isNotable,
-        confidence: publishData.notability.confidence,
-        recommendation: publishData.recommendation,
-      }
+      publishData.fullEntity as any, // Type conversion: both are compatible structures
+      {}
     );
     
     if (!publishData.canPublish) {
@@ -111,34 +105,57 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
       hasExistingQID: !!business.wikidataQID,
       existingQID: business.wikidataQID || null,
     });
-    console.log(`[DEBUG] handleAutoPublish: Calling ${business.wikidataQID ? 'updateEntity' : 'publishEntity'}, WIKIDATA_PUBLISH_MODE=${process.env.WIKIDATA_PUBLISH_MODE}`);
+    console.log(`[DEBUG] handleAutoPublish: Calling ${business.wikidataQID ? 'updateEntity' : 'createAndPublishEntity'}, WIKIDATA_PUBLISH_MODE=${process.env.WIKIDATA_PUBLISH_MODE}`);
     const publishStartTime = Date.now();
+    
+    // Get crawl data from business (already crawled at this point)
+    const crawledData = business.crawlData as any;
     
     if (business.wikidataQID) {
       // Business already has QID - update existing entity
-      // Remove labels/descriptions as they already exist
-      const entityForUpdate = { ...publishData.fullEntity };
-      delete entityForUpdate.labels;
-      delete entityForUpdate.descriptions;
-      
-      const updateResult = await wikidataPublisher.updateEntity(
+      // Use wikidataService.updateEntity which handles entity building internally
+      const updateResult = await wikidataService.updateEntity(
         business.wikidataQID,
-        entityForUpdate,
-        false // production: false for now
+        business,
+        crawledData,
+        {
+          target: 'test', // Always use test.wikidata.org for now
+          includeReferences: true,
+        }
       );
       
       publishResult = {
         success: updateResult.success,
-        qid: business.wikidataQID, // Use existing QID
+        qid: updateResult.qid || business.wikidataQID, // Use existing QID or new one
         error: updateResult.error,
       };
     } else {
       // No existing QID - create new entity
-      publishResult = await wikidataPublisher.publishEntity(
-        publishData.fullEntity,
-        false // publishToProduction: false for now
+      // Use wikidataService.createAndPublishEntity which handles entity building internally
+      const createResult = await wikidataService.createAndPublishEntity(
+        business,
+        crawledData,
+        {
+          target: 'test', // Always use test.wikidata.org for now
+          includeReferences: true,
+          maxProperties: 10,
+          maxQIDs: 10,
+          qualityThreshold: 0.7,
+          enhanceData: true,
+        }
       );
+      
+      publishResult = {
+        success: createResult.result.success,
+        qid: createResult.result.qid || null,
+        error: createResult.result.error,
+      };
     }
+    
+    if (!publishResult) {
+      throw new Error('Publish result is null');
+    }
+    
     console.log(`[DEBUG] handleAutoPublish: publishResult.success=${publishResult.success}, qid=${publishResult.qid || 'none'}`);
 
     const publishDuration = Date.now() - publishStartTime;
@@ -160,10 +177,9 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
         duration: publishDuration,
       });
       
-      // Update status to error with simplified message
+      // Update status to error (errorMessage is stored separately if needed)
       await updateBusiness(businessId, {
         status: 'error',
-        errorMessage: simplifiedError,
       });
       log.statusChange('generating', 'error', { businessId });
       
@@ -219,7 +235,6 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
       
       await updateBusiness(businessId, {
         status: 'error',
-        errorMessage: simplifiedError,
       }).catch(err => {
         log.error('Failed to update business status to error', err, { businessId });
       });
@@ -234,6 +249,3 @@ export async function handleAutoPublish(businessId: number): Promise<void> {
     throw error;
   }
 }
-
-// Export all functions from this module
-export { handleAutoPublish };

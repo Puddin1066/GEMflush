@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getTeamForUser, getBusinessById } from '@/lib/db/queries';
 import { idParamSchema } from '@/lib/validation/common';
 import { loggers } from '@/lib/utils/logger';
+import { getBusinessDetailDTO } from '@/lib/data/business-dto';
 
 const logger = loggers.api;
 
@@ -61,37 +62,23 @@ export async function GET(
       );
     }
 
-    // Return single business (SOLID: returns exactly what's requested)
-    // Ensure dates are serialized properly
-    const serializableBusiness = {
-      ...business,
-      createdAt: business.createdAt instanceof Date 
-        ? business.createdAt.toISOString() 
-        : business.createdAt,
-      updatedAt: business.updatedAt instanceof Date 
-        ? business.updatedAt.toISOString() 
-        : business.updatedAt,
-      lastCrawledAt: business.lastCrawledAt instanceof Date 
-        ? business.lastCrawledAt.toISOString() 
-        : business.lastCrawledAt,
-      wikidataPublishedAt: business.wikidataPublishedAt instanceof Date 
-        ? business.wikidataPublishedAt.toISOString() 
-        : business.wikidataPublishedAt,
-      nextCrawlAt: business.nextCrawlAt instanceof Date 
-        ? business.nextCrawlAt.toISOString() 
-        : business.nextCrawlAt,
-      lastAutoPublishedAt: business.lastAutoPublishedAt instanceof Date 
-        ? business.lastAutoPublishedAt.toISOString() 
-        : business.lastAutoPublishedAt,
-    };
+    // Transform to DTO (SOLID: uses DTO layer for data transformation)
+    // getBusinessDetailDTO fetches latest crawl job for errorMessage
+    const dto = await getBusinessDetailDTO(businessId);
+    if (!dto) {
+      return NextResponse.json(
+        { error: 'Business not found' },
+        { status: 404 }
+      );
+    }
 
-    logger.debug('Returning business', {
+    logger.debug('Returning business DTO', {
       businessId,
       businessName: business.name,
     });
     
     return NextResponse.json({
-      business: serializableBusiness,
+      business: dto,
     });
   } catch (error) {
     logger.error('Error fetching business', error, {

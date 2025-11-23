@@ -19,13 +19,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeCFPFlow } from '@/lib/services/cfp-orchestrator';
 import type { CFPInput } from '@/lib/services/cfp-orchestrator';
+import { loggers } from '@/lib/utils/logger';
+
+const log = loggers.api;
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const operationId = log.start('CFP API request', {});
+  
   try {
     const body = await request.json() as CFPInput;
     
     // Validate required fields
     if (!body.url) {
+      log.warn('CFP API request missing URL', { operationId });
       return NextResponse.json(
         { error: 'URL is required' },
         { status: 400 }
@@ -36,6 +43,10 @@ export async function POST(request: NextRequest) {
     try {
       new URL(body.url);
     } catch {
+      log.warn('CFP API request with invalid URL format', { 
+        operationId, 
+        url: body.url 
+      });
       return NextResponse.json(
         { error: 'Invalid URL format' },
         { status: 400 }
@@ -51,7 +62,8 @@ export async function POST(request: NextRequest) {
       allowMockData: body.options?.allowMockData !== false,
     };
     
-    console.log('[CFP API] Starting CFP flow', {
+    log.info('Starting CFP flow via API', {
+      operationId,
       url: body.url,
       options,
       timestamp: new Date().toISOString()
@@ -60,21 +72,42 @@ export async function POST(request: NextRequest) {
     // Execute CFP flow
     const result = await executeCFPFlow(body.url, options);
     
-    console.log('[CFP API] CFP flow completed', {
+    const processingTime = Date.now() - startTime;
+    
+    log.info('CFP flow completed via API', {
+      operationId,
       url: body.url,
       success: result.success,
       processingTime: result.processingTime,
+      apiProcessingTime: processingTime,
       hasEntity: !!result.entity,
-      hasPublishResult: !!result.publishResult
+      hasPublishResult: !!result.publishResult,
+      partialResults: result.partialResults,
+      entityQID: result.publishResult?.qid
+    });
+    
+    log.complete(operationId, 'CFP API request', {
+      success: result.success,
+      processingTime
     });
     
     // Return result
     return NextResponse.json(result);
     
   } catch (error) {
-    console.error('[CFP API] CFP flow failed:', error);
+    const processingTime = Date.now() - startTime;
+    log.error('CFP API request failed', error, { 
+      operationId,
+      processingTime 
+    });
     
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    log.complete(operationId, 'CFP API request', {
+      success: false,
+      error: errorMessage,
+      processingTime
+    });
     
     return NextResponse.json(
       { 

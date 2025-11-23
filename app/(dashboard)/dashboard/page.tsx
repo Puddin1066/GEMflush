@@ -83,7 +83,7 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 mb-1">Add Your First Business</h3>
                     <p className="text-sm text-gray-600 mb-3">Tell us about your business - it takes just 2 minutes</p>
-                    <Link href="/dashboard/businesses/new">
+                    <Link href="/dashboard/businesses">
                       <Button className="gem-gradient text-white">
                         <Plus className="mr-2 h-4 w-4" />
                         Add Business
@@ -259,7 +259,7 @@ export default function DashboardPage() {
         <h2 className="text-xl font-bold text-gray-900">Your Businesses</h2>
         <div className="flex items-center gap-3">
           <TierBadge tier={planTier} />
-          <Link href="/dashboard/businesses/new">
+          <Link href="/dashboard/businesses">
             <Button className="gem-gradient text-white">
               <Plus className="mr-2 h-4 w-4" />
               Add Business

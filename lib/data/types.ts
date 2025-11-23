@@ -298,6 +298,24 @@ export interface WikidataPropertySuggestionDTO {
 }
 
 // ============================================================================
+// Fingerprint History DTOs
+// ============================================================================
+
+/**
+ * Fingerprint history item for chart display
+ * Used by: app/api/business/[id]/fingerprint/history/route.ts
+ */
+export interface FingerprintHistoryDTO {
+  id: number;
+  date: string; // ISO string
+  visibilityScore: number | null;
+  mentionRate: number | null; // Percentage (0-100)
+  sentimentScore: number | null; // Percentage (0-100)
+  accuracyScore: number | null; // Percentage (0-100)
+  avgRankPosition: number | null;
+}
+
+// ============================================================================
 // Crawler DTOs
 // ============================================================================
 

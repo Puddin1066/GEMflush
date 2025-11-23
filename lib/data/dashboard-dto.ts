@@ -1,6 +1,7 @@
 import 'server-only';
 import { getBusinessesByTeam, getLatestFingerprint } from '@/lib/db/queries';
 import type { DashboardDTO, DashboardBusinessDTO } from './types';
+import { dtoLogger } from '@/lib/utils/dto-logger';
 
 /**
  * Dashboard Data Access Layer
@@ -54,7 +55,7 @@ function transformBusinessToDTO(
   business: any,
   fingerprint: any
 ): DashboardBusinessDTO {
-  return {
+  const dto: DashboardBusinessDTO = {
     id: business.id.toString(),
     name: business.name,
     location: formatLocation(business.location),
@@ -64,8 +65,17 @@ function transformBusinessToDTO(
     wikidataQid: business.wikidataQID,
     lastFingerprint: formatTimestamp(fingerprint?.createdAt),
     status: business.status as DashboardBusinessDTO['status'],
-    automationEnabled: true, // All businesses get automated crawl+fingerprint (Pro gets publishing too)
+    automationEnabled: business.automationEnabled ?? true, // Use database value, not hardcoded
   };
+
+  // Log transformation with bug detection
+  dtoLogger.logTransformation('DashboardBusinessDTO', business, dto, {
+    businessId: business.id,
+    issues: ['automationEnabled'], // Watch for hardcoded values
+    warnings: ['trendValue is hardcoded to 0 - should calculate from historical fingerprints'],
+  });
+
+  return dto;
 }
 
 // ============================================================================

@@ -5,6 +5,7 @@ import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { getCrawlJob } from '@/lib/db/queries';
 import { verifyBusinessOwnership } from '@/lib/auth/middleware';
 import { jobIdParamSchema } from '@/lib/validation/common';
+import { toCrawlJobDTO } from '@/lib/data/crawl-dto';
 
 export async function GET(
   request: NextRequest,
@@ -54,23 +55,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      id: job.id,
-      businessId: job.businessId,
-      jobType: job.jobType,
-      status: job.status,
-      progress: job.progress,
-      result: job.result,
-      errorMessage: job.errorMessage,
-      // Enhanced fields for multi-page crawling
-      firecrawlJobId: job.firecrawlJobId,
-      startedAt: job.startedAt,
-      pagesDiscovered: job.pagesDiscovered,
-      pagesProcessed: job.pagesProcessed,
-      firecrawlMetadata: job.firecrawlMetadata,
-      createdAt: job.createdAt,
-      completedAt: job.completedAt,
-    });
+    // Transform to DTO (SOLID: uses DTO layer for data transformation)
+    const dto = toCrawlJobDTO(job);
+
+    return NextResponse.json(dto);
   } catch (error) {
     console.error('Error fetching job status:', error);
     return NextResponse.json(

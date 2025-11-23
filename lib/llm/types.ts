@@ -220,7 +220,7 @@ export interface IParallelProcessor {
 export const DEFAULT_MODELS = [
   'openai/gpt-4-turbo',      // Best for factual analysis and accuracy
   'anthropic/claude-3-opus', // Best for nuanced sentiment analysis
-  'google/gemini-pro',       // Best for competitive analysis and rankings
+  'google/gemini-2.5-flash', // Best for competitive analysis and rankings (updated: valid OpenRouter model ID)
 ] as const;
 
 export const DEFAULT_CONFIG: LLMConfig = {

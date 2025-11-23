@@ -12,6 +12,7 @@ import {
   FingerprintResultDTO,
   CompetitiveLeaderboardDTO,
   CompetitorDTO,
+  FingerprintHistoryDTO,
 } from './types';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -438,5 +439,32 @@ function formatModelName(model: string): string {
   }
 
   return formatted;
+}
+
+/**
+ * Transform fingerprint history array to DTOs
+ */
+export function toFingerprintHistoryDTOs(
+  fingerprints: Array<{
+    id: number;
+    visibilityScore: number | null;
+    mentionRate: number | null;
+    sentimentScore: number | null;
+    accuracyScore: number | null;
+    avgRankPosition: number | null;
+    createdAt: Date | string;
+  }>
+): FingerprintHistoryDTO[] {
+  return fingerprints.map((fp) => ({
+    id: fp.id,
+    date: fp.createdAt instanceof Date 
+      ? fp.createdAt.toISOString() 
+      : new Date(fp.createdAt as string).toISOString(),
+    visibilityScore: fp.visibilityScore,
+    mentionRate: fp.mentionRate ? Math.round(fp.mentionRate) : null,
+    sentimentScore: fp.sentimentScore ? Math.round(fp.sentimentScore * 100) : null,
+    accuracyScore: fp.accuracyScore ? Math.round(fp.accuracyScore * 100) : null,
+    avgRankPosition: fp.avgRankPosition ? Math.round(fp.avgRankPosition * 10) / 10 : null,
+  }));
 }
 

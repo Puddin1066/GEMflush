@@ -173,12 +173,16 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
         setFingerprint(null);
       }
 
-      // Entity (non-fatal, only when crawled/published/generating)
+      // Entity (non-fatal, fetch when crawled/published/generating/fingerprinted)
+      // Include 'fingerprinted' because auto-publish may have occurred
       // Include 'generating' because publish step sets status to 'generating' before 'published'
-      if (businessData.status === 'crawled' || businessData.status === 'published' || businessData.status === 'generating') {
+      // SOLID: Single Responsibility - entity fetching with improved error handling
+      // DRY: Centralized timeout and error handling logic
+      if (businessData.status === 'crawled' || businessData.status === 'published' || businessData.status === 'generating' || businessData.wikidataQID) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          // Increased timeout to 30s for Wikidata API latency (was 15s)
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
 
           try {
             const entityResponse = await fetch(`/api/wikidata/entity/${businessId}`, {
@@ -209,14 +213,16 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
           } catch (fetchError) {
             clearTimeout(timeoutId);
             if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-              console.warn('Entity API request timed out after 15s');
+              // Improved error message for timeout
+              console.warn(`[useBusinessDetail] Entity API request timed out after 30s for business ${businessId}. This may indicate Wikidata API latency or entity generation in progress.`);
               setEntity(null);
             } else {
               throw fetchError;
             }
           }
         } catch (err) {
-          console.error('Error loading entity:', err);
+          // Improved error handling with context
+          console.error(`[useBusinessDetail] Error loading entity for business ${businessId}:`, err);
           setEntity(null);
         }
       } else {
@@ -243,7 +249,8 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
     // Determine if we should poll:
     // 1. Business is actively processing (crawling, generating)
     // 2. Business is pending with automation enabled (processing might have started)
-    // 3. Business is crawled with fingerprint but not published AND automation is enabled (publish might be running)
+    // 3. Business is in error state with automation enabled (processing might be retrying)
+    // 4. Business is crawled with fingerprint but not published AND automation is enabled (publish might be running)
     // NOTE: Don't poll indefinitely if publish failed or was skipped - only poll if automation is active
     const isActivelyProcessing = 
       business.status === 'crawling' || 
@@ -259,7 +266,11 @@ export function useBusinessDetail(businessId: number): UseBusinessDetailReturn {
       business.status === 'pending' &&
       business.automationEnabled; // Only poll if automation is enabled
     
-    const shouldPoll = isActivelyProcessing || isWaitingForPublish || isPendingWithAutomation;
+    const isErrorWithAutomation = 
+      business.status === 'error' &&
+      business.automationEnabled; // Poll for error state if automation enabled (retry might be triggered)
+    
+    const shouldPoll = isActivelyProcessing || isWaitingForPublish || isPendingWithAutomation || isErrorWithAutomation;
     
     if (shouldPoll) {
       let pollCount = 0;

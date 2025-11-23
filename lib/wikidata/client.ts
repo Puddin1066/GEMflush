@@ -169,6 +169,8 @@ export class WikidataClient {
 
   /**
    * Login to Wikidata
+   * SOLID: Single Responsibility - handles authentication flow
+   * DRY: Reuses makeRequest for token and login requests
    */
   private async login(apiUrl: string): Promise<string> {
     const username = process.env.WIKIDATA_BOT_USERNAME;
@@ -181,56 +183,64 @@ export class WikidataClient {
       );
     }
 
-    // Get login token
-    const tokenResponse = await this.makeRequest(apiUrl, {
+    // Step 1: Get login token (MediaWiki requires cookies from this request for login)
+    const tokenResult = await this.makeRequest(apiUrl, {
       action: 'query',
       meta: 'tokens',
       type: 'login',
       format: 'json'
     });
 
-    const loginToken = tokenResponse.query?.tokens?.logintoken;
+    const loginToken = tokenResult.data.query?.tokens?.logintoken;
     if (!loginToken) {
       throw new WikidataError('Failed to get login token', 'AUTH_ERROR');
     }
 
-    // Perform login
-    const loginResponse = await this.makeRequest(apiUrl, {
+    // Step 2: Perform login with token cookies (critical for MediaWiki authentication)
+    // Include cookies from token request to maintain session continuity
+    const tokenCookies = tokenResult.cookies || '';
+    const loginResult = await this.makeRequest(apiUrl, {
       action: 'login',
       lgname: username,
       lgpassword: password,
       lgtoken: loginToken,
       format: 'json'
-    }, 'POST');
+    }, 'POST', tokenCookies);
 
-    if (loginResponse.login?.result !== 'Success') {
+    if (loginResult.data.login?.result !== 'Success') {
+      const errorCode = loginResult.data.login?.result || 'Unknown error';
+      const errorMessage = loginResult.data.login?.message || '';
       throw new WikidataError(
-        `Login failed: ${loginResponse.login?.result || 'Unknown error'}`,
+        `Login failed: ${errorCode}${errorMessage ? ` - ${errorMessage}` : ''}`,
         'AUTH_ERROR'
       );
     }
 
-    // Extract cookies from response
-    const cookies = this.extractCookies(loginResponse);
-    if (!cookies) {
-      throw new WikidataError('No session cookies received', 'AUTH_ERROR');
+    // Step 3: Extract cookies from login response
+    // Combine token cookies with login cookies for full session
+    const loginCookies = loginResult.cookies || '';
+    if (!loginCookies && !tokenCookies) {
+      throw new WikidataError('No session cookies received from login', 'AUTH_ERROR');
     }
 
-    return cookies;
+    // Combine cookies: prefer login cookies, fallback to token cookies
+    const sessionCookies = loginCookies || tokenCookies;
+    return sessionCookies;
   }
 
   /**
    * Get CSRF token
+   * SOLID: Single Responsibility - retrieves CSRF token for authenticated requests
    */
   private async getCSRFToken(apiUrl: string, cookies: string): Promise<string> {
-    const response = await this.makeRequest(apiUrl, {
+    const result = await this.makeRequest(apiUrl, {
       action: 'query',
       meta: 'tokens',
       type: 'csrf',
       format: 'json'
     }, 'GET', cookies);
 
-    const token = response.query?.tokens?.csrftoken;
+    const token = result.data.query?.tokens?.csrftoken;
     if (!token) {
       throw new WikidataError('Failed to get CSRF token', 'AUTH_ERROR');
     }
@@ -240,13 +250,15 @@ export class WikidataClient {
 
   /**
    * Make HTTP request with retry logic
+   * SOLID: Single Responsibility - handles HTTP requests with cookie management
+   * DRY: Centralized request logic with retry and cookie extraction
    */
   private async makeRequest(
     url: string,
     params: Record<string, string>,
     method: 'GET' | 'POST' = 'GET',
     cookies?: string
-  ): Promise<any> {
+  ): Promise<{ data: any; cookies?: string }> {
     const headers: Record<string, string> = {
       'User-Agent': this.config.userAgent
     };
@@ -288,10 +300,27 @@ export class WikidataClient {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorText = await response.text().catch(() => 'Unknown error');
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
-        return await response.json();
+        // Extract cookies from response headers (critical for MediaWiki authentication)
+        const setCookieHeader = response.headers.get('set-cookie');
+        let extractedCookies: string | undefined;
+        if (setCookieHeader) {
+          // Parse cookies: split by comma, take first part before semicolon, join with semicolon
+          extractedCookies = setCookieHeader
+            .split(',')
+            .map(cookie => cookie.split(';')[0].trim())
+            .join('; ');
+        }
+
+        const data = await response.json();
+
+        return {
+          data,
+          cookies: extractedCookies
+        };
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
@@ -313,13 +342,15 @@ export class WikidataClient {
 
   /**
    * Call Wikidata API
+   * SOLID: Single Responsibility - wrapper for API calls with authentication
    */
   private async callWikidataAPI(
     apiUrl: string,
     params: Record<string, string>,
     cookies: string
   ): Promise<any> {
-    return await this.makeRequest(apiUrl, params, 'POST', cookies);
+    const result = await this.makeRequest(apiUrl, params, 'POST', cookies);
+    return result.data;
   }
 
   /**
@@ -495,12 +526,4 @@ export class WikidataClient {
       .reduce((count: number, claim: any) => count + (claim.references?.length || 0), 0);
   }
 
-  /**
-   * Extract cookies from response (simplified)
-   */
-  private extractCookies(response: any): string | null {
-    // In a real implementation, this would extract cookies from response headers
-    // For now, return a placeholder that indicates successful login
-    return 'session=authenticated';
-  }
 }

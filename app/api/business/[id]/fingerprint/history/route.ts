@@ -8,6 +8,7 @@ import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { businesses, llmFingerprints } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { toFingerprintHistoryDTOs } from '@/lib/data/fingerprint-dto';
 
 export async function GET(
   request: NextRequest,
@@ -75,18 +76,8 @@ export async function GET(
       .where(eq(llmFingerprints.businessId, businessId))
       .orderBy(desc(llmFingerprints.createdAt));
 
-    // Transform to chart-friendly format
-    const history = fingerprints.map((fp) => ({
-      id: fp.id,
-      date: fp.createdAt instanceof Date 
-        ? fp.createdAt.toISOString() 
-        : new Date(fp.createdAt as string).toISOString(),
-      visibilityScore: fp.visibilityScore,
-      mentionRate: fp.mentionRate ? Math.round(fp.mentionRate) : null,
-      sentimentScore: fp.sentimentScore ? Math.round(fp.sentimentScore * 100) : null,
-      accuracyScore: fp.accuracyScore ? Math.round(fp.accuracyScore * 100) : null,
-      avgRankPosition: fp.avgRankPosition ? Math.round(fp.avgRankPosition * 10) / 10 : null,
-    }));
+    // Transform to DTO (SOLID: uses DTO layer for data transformation)
+    const history = toFingerprintHistoryDTOs(fingerprints);
 
     return NextResponse.json({
       businessId,

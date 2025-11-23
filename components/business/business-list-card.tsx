@@ -19,17 +19,18 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface BusinessListCardProps {
   business: {
-    id: number;
+    id: number | string;
     name: string;
-    url: string;
+    url?: string;
     status: string;
-    location?: {
+    location?: string | {
       city: string;
       state: string;
       country: string;
     } | null;
     wikidataQID?: string | null;
-    createdAt: Date | string;
+    wikidataQid?: string | null; // DTO format
+    createdAt?: Date | string;
     automationEnabled?: boolean;
   };
   className?: string;
@@ -51,15 +52,19 @@ export function BusinessListCard({ business, className }: BusinessListCardProps)
                   {business.location && (
                     <p className="text-sm text-gray-600 flex items-center gap-1 mb-2">
                       <MapPin className="h-3 w-3" />
-                      {business.location.city}, {business.location.state}
+                      {typeof business.location === 'string' 
+                        ? business.location 
+                        : `${business.location.city}, ${business.location.state}`}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Globe className="h-3 w-3" />
-                    <span className="truncate">
-                      {business.url.replace(/^https?:\/\//, '')}
-                    </span>
-                  </div>
+                  {business.url && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Globe className="h-3 w-3" />
+                      <span className="truncate">
+                        {business.url.replace(/^https?:\/\//, '')}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 flex-wrap">
@@ -75,19 +80,21 @@ export function BusinessListCard({ business, className }: BusinessListCardProps)
                 ) : (
                   <StatusBadge status={business.status as any} />
                 )}
-                {business.wikidataQID && (
+                {(business.wikidataQID || business.wikidataQid) && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <WikidataRubyIcon size={12} />
-                    {business.wikidataQID}
+                    {business.wikidataQID || business.wikidataQid}
                   </Badge>
                 )}
               </div>
             </div>
             <ArrowRight className="h-5 w-5 text-gray-400 flex-shrink-0" />
           </div>
-          <div className="mt-4 pt-4 border-t text-xs text-gray-500">
-            Added {formatDistanceToNow(new Date(business.createdAt), { addSuffix: true })}
-          </div>
+          {business.createdAt && (
+            <div className="mt-4 pt-4 border-t text-xs text-gray-500">
+              Added {formatDistanceToNow(new Date(business.createdAt), { addSuffix: true })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>

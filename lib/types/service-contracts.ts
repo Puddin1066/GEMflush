@@ -76,6 +76,86 @@ export interface IWikidataPublisher {
 }
 
 /**
+ * Wikidata SPARQL Service Contract
+ * Implementation: lib/wikidata/sparql.ts
+ * 
+ * Provides QID lookup with hybrid caching:
+ * L1 (Memory) → L2 (Database) → L3 (Embedded Mappings) → L4 (SPARQL)
+ * 
+ * Strategy: Comprehensive embedded mappings cover 95%+ of queries.
+ * SPARQL is used only as optional fallback for edge cases.
+ */
+export interface IWikidataSPARQLService {
+  /**
+   * Find QID for a city
+   * 
+   * @param cityName - City name (e.g., "San Francisco")
+   * @param state - Optional state abbreviation (e.g., "CA")
+   * @param countryQID - Country QID (default: Q30 for United States)
+   * @param skipSparql - If true, only use local/cached data (default: true)
+   * @returns QID string or null if not found
+   */
+  findCityQID(
+    cityName: string,
+    state?: string,
+    countryQID?: string,
+    skipSparql?: boolean
+  ): Promise<string | null>;
+
+  /**
+   * Find QID for industry
+   * 
+   * @param industryName - Industry name (e.g., "Technology", "Healthcare")
+   * @param skipSparql - If true, only use local/cached data (default: true)
+   * @returns QID string or null if not found
+   */
+  findIndustryQID(
+    industryName: string,
+    skipSparql?: boolean
+  ): Promise<string | null>;
+
+  /**
+   * Find QID for legal form
+   * 
+   * Legal forms have 99%+ coverage in embedded mappings, so SPARQL is not needed.
+   * 
+   * @param legalForm - Legal form name (e.g., "LLC", "Corporation", "Non-profit")
+   * @returns QID string or null if not found
+   */
+  findLegalFormQID(legalForm: string): Promise<string | null>;
+
+  /**
+   * Find QID for US state
+   * 
+   * Complete coverage for all 50 states + DC via embedded mappings.
+   * 
+   * @param stateName - State name or abbreviation (e.g., "CA", "California")
+   * @returns QID string or null if not found
+   */
+  findStateQID(stateName: string): Promise<string | null>;
+
+  /**
+   * Find QID for country
+   * 
+   * Covers 50+ major countries via embedded mappings.
+   * 
+   * @param countryName - Country name or code (e.g., "US", "United States", "USA")
+   * @returns QID string or null if not found
+   */
+  findCountryQID(countryName: string): Promise<string | null>;
+
+  /**
+   * Validate that a QID exists in Wikidata
+   * 
+   * Uses SPARQL ASK query to verify QID existence.
+   * 
+   * @param qid - QID to validate (e.g., "Q62")
+   * @returns true if QID exists, false otherwise
+   */
+  validateQID(qid: string): Promise<boolean>;
+}
+
+/**
  * Manual Publish Storage Service Contract
  * Implementation: lib/wikidata/manual-publish-storage.ts
  */

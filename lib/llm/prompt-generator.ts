@@ -200,9 +200,12 @@ export class PromptGenerator implements IPromptGenerator {
     const industry = this.extractIndustry(context);
     const industryMapping = INDUSTRY_MAPPINGS[industry as keyof typeof INDUSTRY_MAPPINGS] || INDUSTRY_MAPPINGS.default;
     
+    // Get location from context.location or crawlData.location (fallback)
+    const location = context.location || context.crawlData?.location;
+    
     return {
       businessName: context.name,
-      locationContext: this.buildLocationContext(context.location),
+      locationContext: this.buildLocationContext(location),
       industry: industry,
       industryPlural: industryMapping.plural,
       businessType: industryMapping.type,
@@ -213,16 +216,21 @@ export class PromptGenerator implements IPromptGenerator {
   
   /**
    * Build location context string
+   * Only includes location if city and state are valid (not "Unknown")
    */
-  private buildLocationContext(location?: BusinessContext['location']): string {
+  private buildLocationContext(location?: BusinessContext['location'] | { city?: string; state?: string; country?: string }): string {
     if (!location) return '';
     
-    const parts = [];
-    if (location.city) parts.push(location.city);
-    if (location.state) parts.push(location.state);
+    // Skip if city or state is "Unknown"
+    const city = location.city?.trim();
+    const state = location.state?.trim();
     
-    if (parts.length === 0) return '';
+    if (!city || city.toLowerCase() === 'unknown' || 
+        !state || state.toLowerCase() === 'unknown') {
+      return '';
+    }
     
+    const parts = [city, state];
     return ` in ${parts.join(', ')}`;
   }
   

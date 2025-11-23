@@ -58,7 +58,7 @@ export function WelcomeMessage({
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 ) : (
-                  <Link href="/dashboard/businesses/new">
+                  <Link href="/dashboard/businesses">
                     <Button className="gem-gradient text-white" size="lg">
                       <Sparkles className="mr-2 h-4 w-4" />
                       Get Started

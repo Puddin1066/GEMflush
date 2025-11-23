@@ -293,6 +293,17 @@ export async function getCrawlJob(jobId: number) {
   return result.length > 0 ? result[0] : null;
 }
 
+export async function getLatestCrawlJob(businessId: number) {
+  const result = await db
+    .select()
+    .from(crawlJobs)
+    .where(eq(crawlJobs.businessId, businessId))
+    .orderBy(desc(crawlJobs.createdAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : null;
+}
+
 export async function getActiveCrawlJobs() {
   return await db
     .select()

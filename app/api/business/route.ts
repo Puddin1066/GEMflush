@@ -7,6 +7,7 @@ import {
   createBusiness,
   getBusinessCountByTeam,
 } from '@/lib/db/queries';
+import { getDashboardDTO } from '@/lib/data/dashboard-dto';
 import { canAddBusiness, getMaxBusinesses } from '@/lib/gemflush/permissions';
 import { createBusinessSchema, createBusinessFromUrlSchema } from '@/lib/validation/business';
 import { z } from 'zod';
@@ -42,10 +43,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const businesses = await getBusinessesByTeam(team.id);
+    // Use DTO layer (SOLID: uses DTO for data transformation)
+    const dashboardDTO = await getDashboardDTO(team.id);
 
     return NextResponse.json({
-      businesses,
+      businesses: dashboardDTO.businesses,
       maxBusinesses: getMaxBusinesses(team),
     });
   } catch (error) {
@@ -154,6 +156,26 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existingBusiness) {
+      // If existing business is in error or pending state, trigger auto-processing
+      // This allows users to retry failed businesses by re-submitting the URL
+      const shouldRetryProcessing = existingBusiness.status === 'error' || existingBusiness.status === 'pending';
+      
+      if (shouldRetryProcessing) {
+        logger.info('Duplicate URL found with processable status - triggering auto-processing', {
+          businessId: existingBusiness.id,
+          status: existingBusiness.status,
+          url: validatedData.url,
+        });
+        
+        // Fire and forget - trigger processing in background
+        const { autoStartProcessing } = await import('@/lib/services/business-execution');
+        autoStartProcessing(existingBusiness.id).catch(error => {
+          logger.error('Auto-processing failed for existing business', error, {
+            businessId: existingBusiness.id,
+          });
+        });
+      }
+      
       const response = {
         business: {
           id: existingBusiness.id,
@@ -163,8 +185,11 @@ export async function POST(request: NextRequest) {
           status: existingBusiness.status,
           teamId: existingBusiness.teamId,
         },
-        message: 'Business already exists',
+        message: shouldRetryProcessing 
+          ? 'Business already exists. Restarting processing...' 
+          : 'Business already exists',
         duplicate: true,
+        processingTriggered: shouldRetryProcessing,
       };
       // Cache the response for idempotency
       cacheResponse(idempotencyKey, response);
