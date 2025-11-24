@@ -1,6 +1,7 @@
 import 'server-only';
 import { getBusinessesByTeam, getLatestFingerprint, getFingerprintHistory } from '@/lib/db/queries';
 import type { DashboardDTO, DashboardBusinessDTO } from './types';
+import type { Business, LLMFingerprint } from '@/lib/db/schema';
 import { dtoLogger } from '@/lib/utils/dto-logger';
 
 /**
@@ -39,11 +40,15 @@ export async function getDashboardDTO(teamId: number): Promise<DashboardDTO> {
   );
   
   // Calculate aggregated stats
+  const statusAggregation = aggregateBusinessStatuses(businesses);
+
   return {
     totalBusinesses: businesses.length,
     wikidataEntities: businesses.filter(b => b.wikidataQID).length,
     avgVisibilityScore: calculateAvgScore(enrichedBusinesses),
     businesses: enrichedBusinesses,
+    totalCrawled: statusAggregation.totalCrawled,
+    totalPublished: statusAggregation.totalPublished,
   };
 }
 
@@ -54,9 +59,9 @@ export async function getDashboardDTO(teamId: number): Promise<DashboardDTO> {
  * When domain types change, update this function (not UI)
  */
 function transformBusinessToDTO(
-  business: any,
-  fingerprint: any,
-  fingerprintHistory: any[] = []
+  business: Business,
+  fingerprint: LLMFingerprint | null,
+  fingerprintHistory: LLMFingerprint[] = []
 ): DashboardBusinessDTO {
   // Calculate trend from fingerprint history
   const { trendValue, trend } = calculateTrendFromHistory(fingerprintHistory, fingerprint);
@@ -71,7 +76,7 @@ function transformBusinessToDTO(
     wikidataQid: business.wikidataQID,
     lastFingerprint: formatTimestamp(fingerprint?.createdAt),
     status: business.status as DashboardBusinessDTO['status'],
-    automationEnabled: business.automationEnabled ?? true, // Use database value, not hardcoded
+    automationEnabled: business.automationEnabled ?? false, // Use database value, default to false
   };
 
   // Log transformation with bug detection
@@ -88,9 +93,32 @@ function transformBusinessToDTO(
 // ============================================================================
 
 /**
+ * Aggregate business statuses into counts
+ * DRY: Reusable function for status aggregation
+ */
+function aggregateBusinessStatuses(businesses: Business[]): {
+  totalCrawled: number;
+  totalPublished: number;
+} {
+  // Single pass through businesses for better performance
+  return businesses.reduce(
+    (acc, business) => {
+      if (business.status === 'crawled' || business.status === 'published') {
+        acc.totalCrawled++;
+      }
+      if (business.status === 'published') {
+        acc.totalPublished++;
+      }
+      return acc;
+    },
+    { totalCrawled: 0, totalPublished: 0 }
+  );
+}
+
+/**
  * Format location for display
  */
-function formatLocation(location: any): string {
+function formatLocation(location: Business['location']): string {
   if (!location) return 'Location not set';
   
   return `${location.city}, ${location.state}`;
@@ -102,8 +130,8 @@ function formatLocation(location: any): string {
  * Returns: trendValue (difference in score) and trend direction
  */
 function calculateTrendFromHistory(
-  fingerprintHistory: any[],
-  currentFingerprint: any
+  fingerprintHistory: LLMFingerprint[],
+  currentFingerprint: LLMFingerprint | null
 ): { trendValue: number; trend: 'up' | 'down' | 'neutral' } {
   // If no history or no current fingerprint, return neutral
   if (!fingerprintHistory || fingerprintHistory.length === 0 || !currentFingerprint) {

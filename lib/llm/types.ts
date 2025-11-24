@@ -94,6 +94,7 @@ export interface FingerprintAnalysis {
 // ============================================================================
 
 export interface BusinessContext {
+  businessId?: number; // Optional business ID for analysis
   name: string;
   url: string;
   category?: string;

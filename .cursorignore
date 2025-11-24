@@ -1,0 +1,24 @@
+# Exclude archived documentation from agent context
+# This improves agent navigation efficiency by focusing on current code and docs
+
+# Historical documentation archive
+_archive/docs/historical/
+
+# Archive directory (optional - uncomment if you want to exclude entire archive)
+# _archive/
+
+# Log files
+*.log
+
+# Test output files
+test-output*.log
+test-run*.log
+build-output*.log
+
+# Coverage reports
+coverage/
+
+# Test results
+test-results/
+playwright-report/
+

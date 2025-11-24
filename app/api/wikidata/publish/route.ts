@@ -231,6 +231,8 @@ export async function POST(request: NextRequest) {
     const wikidataEntity = await getEntity(businessId);
     
     // Return success response with entity details
+    // SOLID: Return appropriate HTTP status code (201 for creation, 200 for update)
+    const statusCode = existingQid ? 200 : 201;
     return NextResponse.json({
       success: true,
       qid: finalQid,
@@ -242,7 +244,7 @@ export async function POST(request: NextRequest) {
       notability: publishData.notability,
       entity: entity, // Include entity JSON for debugging
       updated: !!existingQid, // Indicate if this was an update vs new publish
-    });
+    }, { status: statusCode });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

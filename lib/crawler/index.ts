@@ -67,7 +67,14 @@ class EnhancedWebCrawler implements IWebCrawler {
 
     try {
       // Validate URL
-      const parsedUrl = new URL(url);
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        // If URL parsing fails, it's invalid
+        throw new Error('Invalid URL format');
+      }
+      
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
         throw new Error('Only HTTP and HTTPS URLs are supported');
       }
@@ -98,6 +105,7 @@ class EnhancedWebCrawler implements IWebCrawler {
         console.error(`[CRAWLER] ❌ Multi-page crawl failed: ${errorMsg}`);
         
         // FALLBACK: Use mock data if available for this URL
+        const { shouldUseMockCrawlData, generateMockCrawlData } = await import('@/lib/utils/mock-crawl-data');
         if (shouldUseMockCrawlData(url)) {
           console.log(`[CRAWLER] 🎭 Using mock crawl data for: ${url}`);
           const mockData = generateMockCrawlData(url);
@@ -379,6 +387,11 @@ class EnhancedWebCrawler implements IWebCrawler {
       aggregated.email = String(mostCompleteContactInfo.email).trim();
     }
 
+    // Store address from most complete contact info
+    if (mostCompleteContactInfo.address) {
+      aggregated.address = String(mostCompleteContactInfo.address).trim();
+    }
+
     // Deduplicate and clean services
     if (allServices.length > 0) {
       aggregated.services = [...new Set(allServices)].slice(0, 10); // Limit to 10 services
@@ -483,6 +496,13 @@ class EnhancedWebCrawler implements IWebCrawler {
       result,
       timestamp: Date.now()
     });
+  }
+
+  /**
+   * Clear cache - useful for testing
+   */
+  clearCache(): void {
+    this.cache.clear();
   }
 }
 

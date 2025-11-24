@@ -175,7 +175,7 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     
     // Create comprehensive analysis
     const analysis: FingerprintAnalysis = {
-      businessId: 0, // Will be set by caller
+      businessId: businessContext.businessId || 0, // Use businessId from context if available
       businessName: businessContext.name,
       metrics,
       competitiveLeaderboard,
@@ -426,6 +426,7 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
    */
   private businessToContext(business: Business): BusinessContext {
     return {
+      businessId: business.id,
       name: business.name,
       url: business.url,
       category: business.category || undefined,
@@ -464,7 +465,7 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     };
     
     return {
-      businessId: 0,
+      businessId: context.businessId || 0,
       businessName: context.name,
       metrics: fallbackMetrics,
       competitiveLeaderboard: fallbackLeaderboard,

@@ -125,16 +125,77 @@ export async function onFingerprintComplete(
   }
 }
 
-// Helper functions (TODO: Implement these based on your schema)
+// Helper functions - Implemented via TDD
 
-function generateSecureToken(): string {
-  // TODO: Implement secure random token generation
+/**
+ * Generate a secure random token for password reset
+ * Uses crypto.randomUUID() which generates a UUID v4 (36 characters)
+ * 
+ * @returns Secure random token string
+ */
+export function generateSecureToken(): string {
+  // Use crypto.randomUUID() for secure token generation
+  // UUID v4 is 36 characters (32 hex + 4 hyphens)
   return crypto.randomUUID();
 }
 
-async function storeResetToken(email: string, token: string, expiry: string): Promise<void> {
-  // TODO: Store in database with expiry timestamp
-  console.log(`TODO: Store reset token for ${email}`);
+/**
+ * Store password reset token in database with expiry
+ * 
+ * @param email - User email address
+ * @param token - Reset token to store
+ * @param expiry - Duration string (e.g., "1 hour", "30 minutes", "1 day")
+ */
+export async function storeResetToken(email: string, token: string, expiry: string): Promise<void> {
+  const { db } = await import('@/lib/db/drizzle');
+  const { users } = await import('@/lib/db/schema');
+  const { eq } = await import('drizzle-orm');
+  
+  // Parse duration string and calculate expiry timestamp
+  const expiryDate = parseDuration(expiry);
+  
+  // Update user record with reset token and expiry
+  // Note: Type assertion needed until TypeScript picks up schema changes
+  await db
+    .update(users)
+    .set({
+      resetToken: token,
+      resetTokenExpiry: expiryDate,
+    } as any)
+    .where(eq(users.email, email));
+}
+
+/**
+ * Parse duration string and return expiry timestamp
+ * 
+ * @param duration - Duration string (e.g., "1 hour", "30 minutes", "1 day")
+ * @returns Date object representing expiry time
+ */
+function parseDuration(duration: string): Date {
+  const now = new Date();
+  const match = duration.match(/^(\d+)\s*(hour|hours|minute|minutes|day|days)$/i);
+  
+  if (!match) {
+    // Default to 1 hour if parsing fails
+    return new Date(now.getTime() + 60 * 60 * 1000);
+  }
+  
+  const amount = parseInt(match[1], 10);
+  const unit = match[2].toLowerCase();
+  
+  let milliseconds: number;
+  if (unit.startsWith('hour')) {
+    milliseconds = amount * 60 * 60 * 1000;
+  } else if (unit.startsWith('minute')) {
+    milliseconds = amount * 60 * 1000;
+  } else if (unit.startsWith('day')) {
+    milliseconds = amount * 24 * 60 * 60 * 1000;
+  } else {
+    // Default to 1 hour
+    milliseconds = 60 * 60 * 1000;
+  }
+  
+  return new Date(now.getTime() + milliseconds);
 }
 
 function getPlanFeatures(planName: string): string[] {

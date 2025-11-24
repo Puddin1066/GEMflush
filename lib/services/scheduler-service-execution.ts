@@ -6,11 +6,13 @@
  * @module scheduler-service/execution
  */
 
-import { updateBusiness } from '@/lib/db/queries';
+import { updateBusiness, getBusinessesByTeam } from '@/lib/db/queries';
 import { getAutomationConfig, calculateNextCrawlDate, shouldAutoCrawl } from './automation-service';
 import { shouldRunCFPAutomation, executeCFPAutomation } from './cfp-automation-service';
 import type { Business, Team } from '@/lib/db/schema';
 import { loggers } from '@/lib/utils/logger';
+import { db } from '@/lib/db/drizzle';
+import { teams } from '@/lib/db/schema';
 
 const log = loggers.scheduler;
 
@@ -32,8 +34,55 @@ export async function processScheduledAutomation(options: {
   batchSize?: number;
   catchMissed?: boolean;
 } = {}): Promise<void> {
-  // TODO: Implement scheduled automation processing
-  log.info('Processing scheduled automation', options);
+  const batchSize = options.batchSize || 10;
+  const catchMissed = options.catchMissed !== false; // Default true
+  
+  log.info('Processing scheduled automation', { batchSize, catchMissed });
+
+  // Get all teams
+  const allTeams = await db.select().from(teams);
+  
+  const now = new Date();
+  const dueBusinesses: Array<{ business: Business; team: Team }> = [];
+
+  // Collect businesses due for processing from all teams
+  for (const team of allTeams) {
+    const businesses = await getBusinessesByTeam(team.id);
+    
+    for (const business of businesses) {
+      // Only process businesses with automation enabled
+      if (!business.automationEnabled) {
+        continue;
+      }
+
+      // Check if business is due for processing
+      const isDue = !business.nextCrawlAt || business.nextCrawlAt <= now;
+      
+      // Check if business missed schedule (for catchMissed option)
+      const missedSchedule = business.nextCrawlAt && 
+        (now.getTime() - business.nextCrawlAt.getTime()) > (7 * 24 * 60 * 60 * 1000); // 7 days
+
+      if (isDue || (catchMissed && missedSchedule)) {
+        dueBusinesses.push({ business, team });
+      }
+    }
+  }
+
+  // Limit to batchSize
+  const businessesToProcess = dueBusinesses.slice(0, batchSize);
+
+  log.info(`Found ${dueBusinesses.length} businesses due for processing, processing ${businessesToProcess.length}`);
+
+  // Process each business
+  for (const { business, team } of businessesToProcess) {
+    try {
+      await processBusinessAutomation(business, team);
+    } catch (error) {
+      log.error('Error processing business in scheduled automation', error, {
+        businessId: business.id,
+      });
+    }
+  }
 }
 
 /**

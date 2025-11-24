@@ -19,6 +19,9 @@ export interface DashboardDTO {
   wikidataEntities: number;
   avgVisibilityScore: number;
   businesses: DashboardBusinessDTO[];
+  totalCrawled?: number;      // Count of businesses with status 'crawled' or 'published'
+  totalPublished?: number;    // Count of businesses with status 'published'
+  recentActivity?: ActivityDTO[]; // Recent activity feed items
 }
 
 /**

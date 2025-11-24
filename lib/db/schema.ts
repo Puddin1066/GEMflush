@@ -21,6 +21,8 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'),
+  resetToken: text('reset_token'), // Password reset token
+  resetTokenExpiry: timestamp('reset_token_expiry'), // Token expiry timestamp
 });
 
 export const teams = pgTable('teams', {
@@ -76,11 +78,13 @@ export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
   activityLogs: many(activityLogs),
   invitations: many(invitations),
+  emailLogs: many(emailLogs),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
   teamMembers: many(teamMembers),
   invitationsSent: many(invitations),
+  emailLogs: many(emailLogs),
 }));
 
 export const invitationsRelations = relations(invitations, ({ one }) => ({
@@ -249,6 +253,7 @@ export const businessesRelations = relations(businesses, ({ one, many }) => ({
   crawlJobs: many(crawlJobs),
   businessCompetitors: many(competitors, { relationName: 'businessCompetitors' }),
   competitorBusinesses: many(competitors, { relationName: 'competitorBusinesses' }),
+  emailLogs: many(emailLogs),
 }));
 
 export const wikidataEntitiesRelations = relations(wikidataEntities, ({ one }) => ({
@@ -327,3 +332,43 @@ export const qidCache = pgTable(
 
 export type QidCache = typeof qidCache.$inferSelect;
 export type NewQidCache = typeof qidCache.$inferInsert;
+
+// ========== EMAIL LOGS TABLE ==========
+
+/**
+ * Email logs table for tracking email notifications and audit
+ * SOLID: Single Responsibility - stores email delivery tracking
+ * DRY: Centralized email logging for all email types
+ */
+export const emailLogs = pgTable('email_logs', {
+  id: serial('id').primaryKey(),
+  teamId: integer('team_id').references(() => teams.id),
+  userId: integer('user_id').references(() => users.id),
+  businessId: integer('business_id').references(() => businesses.id),
+  to: varchar('to', { length: 255 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // 'welcome', 'password_reset', 'business_published', 'visibility_report', etc.
+  subject: varchar('subject', { length: 255 }),
+  status: varchar('status', { length: 20 }).notNull().default('pending'), // 'pending', 'sent', 'failed', 'bounced'
+  sentAt: timestamp('sent_at'),
+  errorMessage: text('error_message'),
+  metadata: jsonb('metadata'), // Additional email metadata (template data, etc.)
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const emailLogsRelations = relations(emailLogs, ({ one }) => ({
+  team: one(teams, {
+    fields: [emailLogs.teamId],
+    references: [teams.id],
+  }),
+  user: one(users, {
+    fields: [emailLogs.userId],
+    references: [users.id],
+  }),
+  business: one(businesses, {
+    fields: [emailLogs.businessId],
+    references: [businesses.id],
+  }),
+}));
+
+export type EmailLog = typeof emailLogs.$inferSelect;
+export type NewEmailLog = typeof emailLogs.$inferInsert;

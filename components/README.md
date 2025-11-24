@@ -1,8 +1,27 @@
-# Component Library
+# Component Library (`components/`)
 
-This directory contains reusable, compelling components that enable the UX flows detailed in `docs/features/USER_EXPERIENCE_FLOWS.md`.
+**Purpose**: Reusable React components for the SaaS platform UI  
+**TDD Philosophy**: Tests ARE specifications - write tests first, then implement components to satisfy them  
+**Status**: 🟢 Active Development
 
-## Component Organization
+---
+
+## 📚 Overview
+
+The `components/` directory contains reusable React components that enable the UX flows detailed in `docs/features/USER_EXPERIENCE_FLOWS.md`. All components integrate with `lib/` modules through hooks, DTOs, and services, following **Test-Driven Development (TDD)** principles.
+
+### Architecture Principles
+
+1. **Tests ARE Specifications**: Write component tests first to define behavior
+2. **Integration with lib/**: Components use hooks, DTOs, and services from `lib/`
+3. **Single Responsibility**: Each component has one clear purpose
+4. **Type Safety**: Full TypeScript coverage with DTO types
+5. **DRY**: Reusable patterns across the application
+6. **SOLID**: Clear separation of concerns
+
+---
+
+## 🏗️ Component Organization
 
 Components are organized by functional area:
 
@@ -13,6 +32,11 @@ Components are organized by functional area:
 - **`business/`** - Business management components
 - **`subscription/`** - Subscription and tier management components
 - **`feedback/`** - Success messages and user feedback
+- **`fingerprint/`** - Visibility analysis and fingerprinting components
+- **`competitive/`** - Competitive analysis components
+- **`wikidata/`** - Wikidata publishing components
+- **`activity/`** - Activity feed components
+- **`ui/`** - Base UI components (shadcn/ui)
 
 ## Component Catalog
 
@@ -418,13 +442,401 @@ All components are fully typed with TypeScript:
 - Type-safe status enums
 - Proper event handlers
 
-## Testing
+## 🔄 Integration with `lib/` Modules
 
-Components are designed to be testable:
-- Clear prop interfaces
-- No hidden dependencies
-- Predictable behavior
-- Accessible selectors
+### Using Hooks (`lib/hooks/`)
+
+Components fetch data using custom hooks:
+
+```typescript
+// components/business/business-list-card.tsx
+import { useBusinesses } from '@/lib/hooks/use-businesses';
+import { useDashboard } from '@/lib/hooks/use-dashboard';
+
+function BusinessList() {
+  const { businesses, loading, error } = useBusinesses();
+  const { stats } = useDashboard();
+  
+  // Use data from hooks
+}
+```
+
+**Available Hooks:**
+- `useDashboard()` - Dashboard statistics (`lib/hooks/use-dashboard.ts`)
+- `useBusinesses()` - Business list (`lib/hooks/use-businesses.ts`)
+- `useBusinessDetail(id)` - Single business (`lib/hooks/use-business-detail.ts`)
+- `useTeam()` - Team data (`lib/hooks/use-team.ts`)
+- `useUser()` - User data (`lib/hooks/use-user.ts`)
+- `useCompetitiveData(id)` - Competitive analysis (`lib/hooks/use-competitive-data.ts`)
+
+### Using DTOs (`lib/data/`)
+
+Components receive data in DTO format:
+
+```typescript
+// components/fingerprint/visibility-intel-card.tsx
+import type { FingerprintDetailDTO } from '@/lib/data/types';
+
+interface VisibilityIntelCardProps {
+  fingerprint: FingerprintDetailDTO | null;
+}
+```
+
+**Common DTOs:**
+- `DashboardDTO` - Dashboard data (`lib/data/dashboard-dto.ts`)
+- `BusinessDTO` - Business data (`lib/data/business-dto.ts`)
+- `FingerprintDetailDTO` - Fingerprint analysis (`lib/data/fingerprint-dto.ts`)
+- `ActivityDTO` - Activity feed items (`lib/data/activity-dto.ts`)
+- `WikidataEntityDetailDTO` - Wikidata entity data (`lib/data/wikidata-dto.ts`)
+
+### Using Services (`lib/services/`)
+
+Components trigger business logic through API routes (which use services):
+
+```typescript
+// components/business/business-processing-status.tsx
+async function handleProcess() {
+  const response = await fetch(`/api/business/${businessId}/process`, {
+    method: 'POST',
+  });
+  // API route uses lib/services/business-execution.ts
+}
+```
+
+### Using Validation (`lib/validation/`)
+
+Form components use validation schemas:
+
+```typescript
+// components/onboarding/url-only-form.tsx
+import { createBusinessFromUrlSchema } from '@/lib/validation/business';
+
+// Validation happens in server action or API route
+```
+
+---
+
+## 🧪 TDD Development for Components
+
+### Step 1: Write Specification (Test FIRST)
+
+**Before writing any component**, write a test that defines the component's behavior:
+
+```typescript
+/**
+ * SPECIFICATION: Business List Card Component
+ * 
+ * As a user
+ * I want to see business information in a card
+ * So that I can quickly identify and navigate to businesses
+ * 
+ * Acceptance Criteria:
+ * - Displays business name
+ * - Displays business status
+ * - Displays location if available
+ * - Links to business detail page
+ * - Shows Wikidata QID if published
+ */
+describe('BusinessListCard - Specification', () => {
+  it('displays business information correctly', () => {
+    // SPECIFICATION: Given a business with data
+    const business = {
+      id: 1,
+      name: 'Test Business',
+      status: 'published',
+      location: 'Seattle, WA',
+      wikidataQid: 'Q123456',
+    };
+    
+    // SPECIFICATION: When component is rendered
+    render(<BusinessListCard business={business} />);
+    
+    // SPECIFICATION: Then should display business name
+    expect(screen.getByText('Test Business')).toBeInTheDocument();
+    
+    // SPECIFICATION: And should display status
+    expect(screen.getByText('published')).toBeInTheDocument();
+    
+    // SPECIFICATION: And should link to detail page
+    const link = screen.getByRole('link');
+    expect(link).toHaveAttribute('href', '/dashboard/businesses/1');
+  });
+});
+```
+
+### Step 2: Implement Component (GREEN)
+
+Write minimal component to satisfy the test:
+
+```typescript
+// components/business/business-list-card.tsx
+export function BusinessListCard({ business }: BusinessListCardProps) {
+  return (
+    <Link href={`/dashboard/businesses/${business.id}`}>
+      <Card>
+        <CardContent>
+          <h3>{business.name}</h3>
+          <StatusBadge status={business.status} />
+          {business.location && <p>{business.location}</p>}
+          {business.wikidataQid && <span>QID: {business.wikidataQid}</span>}
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+```
+
+### Step 3: Refactor (Keep Tests Passing)
+
+Improve component while keeping tests green:
+
+```typescript
+// Refactored with better structure
+export function BusinessListCard({ business }: BusinessListCardProps) {
+  return (
+    <Link href={`/dashboard/businesses/${business.id}`}>
+      <Card className="gem-card hover:shadow-lg">
+        <CardContent className="p-6">
+          <BusinessHeader business={business} />
+          <BusinessStatus business={business} />
+          <BusinessMetadata business={business} />
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+```
+
+### Running Component Tests
+
+```bash
+# Watch mode (recommended for TDD)
+pnpm tdd
+
+# Run specific test file
+pnpm test components/__tests__/business-list-card.test.tsx
+
+# With coverage
+pnpm test:coverage components/
+```
+
+---
+
+## 📋 Component Integration Patterns
+
+### Pattern 1: Hook-Based Data Fetching
+
+**Components use hooks to fetch data:**
+
+```typescript
+'use client';
+
+import { useDashboard } from '@/lib/hooks/use-dashboard';
+import { BusinessListSkeleton } from '@/components/loading';
+
+export function DashboardContent() {
+  const { stats, loading, error } = useDashboard();
+  
+  if (loading) return <BusinessListSkeleton />;
+  if (error) return <ErrorCard error={error} />;
+  
+  return <div>{/* Render stats */}</div>;
+}
+```
+
+### Pattern 2: DTO Props
+
+**Components receive DTOs as props:**
+
+```typescript
+import type { FingerprintDetailDTO } from '@/lib/data/types';
+
+interface VisibilityIntelCardProps {
+  fingerprint: FingerprintDetailDTO | null;
+}
+
+export function VisibilityIntelCard({ fingerprint }: VisibilityIntelCardProps) {
+  if (!fingerprint) return <EmptyState />;
+  
+  return (
+    <Card>
+      <VisibilityScoreDisplay score={fingerprint.visibilityScore} />
+      {/* ... */}
+    </Card>
+  );
+}
+```
+
+### Pattern 3: Server Actions
+
+**Form components use server actions:**
+
+```typescript
+'use client';
+
+import { createBusiness } from '@/app/actions/business';
+import { useFormState } from 'react-dom';
+
+export function BusinessForm() {
+  const [state, formAction] = useFormState(createBusiness, null);
+  
+  return (
+    <form action={formAction}>
+      {/* Form fields */}
+    </form>
+  );
+}
+```
+
+### Pattern 4: API Route Integration
+
+**Components trigger API calls:**
+
+```typescript
+'use client';
+
+export function ProcessButton({ businessId }: { businessId: number }) {
+  const [loading, setLoading] = useState(false);
+  
+  const handleProcess = async () => {
+    setLoading(true);
+    try {
+      await fetch(`/api/business/${businessId}/process`, {
+        method: 'POST',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <ActionButton loading={loading} onClick={handleProcess}>
+      Process Business
+    </ActionButton>
+  );
+}
+```
+
+---
+
+## 🎯 Component Testing Best Practices
+
+### 1. Test Behavior, Not Implementation
+
+**✅ GOOD:**
+```typescript
+it('displays business name', () => {
+  render(<BusinessListCard business={business} />);
+  expect(screen.getByText('Test Business')).toBeInTheDocument();
+});
+```
+
+**❌ BAD:**
+```typescript
+it('renders h3 element', () => {
+  const { container } = render(<BusinessListCard business={business} />);
+  expect(container.querySelector('h3')).toBeDefined();
+});
+```
+
+### 2. Mock Hooks
+
+**✅ GOOD:**
+```typescript
+vi.mock('@/lib/hooks/use-dashboard', () => ({
+  useDashboard: () => ({
+    stats: mockDashboardData,
+    loading: false,
+    error: null,
+  }),
+}));
+```
+
+### 3. Test User Interactions
+
+**✅ GOOD:**
+```typescript
+it('navigates to business detail on click', async () => {
+  render(<BusinessListCard business={business} />);
+  const link = screen.getByRole('link');
+  await userEvent.click(link);
+  expect(mockRouter.push).toHaveBeenCalledWith('/dashboard/businesses/1');
+});
+```
+
+### 4. Test Loading States
+
+**✅ GOOD:**
+```typescript
+it('shows loading skeleton when data is loading', () => {
+  vi.mock('@/lib/hooks/use-dashboard', () => ({
+    useDashboard: () => ({ loading: true }),
+  }));
+  
+  render(<DashboardContent />);
+  expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
+});
+```
+
+---
+
+## 🔗 Related Documentation
+
+- **Main Library README**: `lib/README.md`
+- **Hooks Module**: `lib/hooks/README.md`
+- **Data DTOs**: `lib/data/README.md`
+- **API Routes**: `app/api/README.md`
+- **TDD Strategy**: `docs/development/TDD_STRATEGY.md`
+- **UX Flows**: `docs/features/USER_EXPERIENCE_FLOWS.md`
+
+---
+
+## 🎓 Key Principles
+
+1. **Tests ARE Specifications**: Write component tests first
+2. **Integration with lib/**: Use hooks, DTOs, and services
+3. **Single Responsibility**: Each component has one clear purpose
+4. **Type Safety**: Full TypeScript coverage with DTO types
+5. **DRY**: Reusable patterns across the application
+6. **SOLID**: Clear separation of concerns
+7. **Accessible**: Proper ARIA labels and keyboard navigation
+8. **Responsive**: Works on mobile and desktop
+
+---
+
+## ⚠️ Important Notes
+
+### Client vs Server Components
+
+- **Client Components** (`'use client'`): Use hooks, handle interactions
+- **Server Components**: Fetch data directly, pass to client components
+
+### Data Flow
+
+```
+Server Component
+  ↓ (fetches data)
+lib/data/*-dto.ts
+  ↓ (passes DTOs)
+Client Component
+  ↓ (uses hooks)
+lib/hooks/use-*.ts
+  ↓ (calls API)
+app/api/**/route.ts
+  ↓ (uses services)
+lib/services/*.ts
+```
+
+### Testing
+
+- Test components in isolation
+- Mock hooks and API calls
+- Test user interactions
+- Test loading and error states
+
+---
+
+**Remember**: Components are the UI layer. Write tests first, integrate with lib/ modules, and keep components focused and reusable.
 
 ---
 

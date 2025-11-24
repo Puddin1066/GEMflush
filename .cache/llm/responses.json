@@ -1,1 +1,61 @@
-{}
+{
+  "847c884aacc93cf5d9b4c3d4046bfa35": {
+    "prompt": "What is a test business?",
+    "model": "openai/gpt-4-turbo",
+    "response": {
+      "content": "A test business is a business used for testing.",
+      "tokensUsed": 25,
+      "model": "openai/gpt-4-turbo",
+      "requestId": "test-id",
+      "cached": false
+    },
+    "timestamp": 1763944412846
+  },
+  "fc50914d630158a903b8094a78f56f43": {
+    "prompt": "Test 1",
+    "model": "openai/gpt-4-turbo",
+    "response": {
+      "content": "Response 1",
+      "tokensUsed": 10,
+      "model": "openai/gpt-4-turbo",
+      "requestId": "id1",
+      "cached": false,
+      "processingTime": 0
+    },
+    "timestamp": 1763944412847
+  },
+  "b6a0e962d2de197237d6c714560ae13d": {
+    "prompt": "Test 2",
+    "model": "anthropic/claude-3-opus",
+    "response": {
+      "content": "Response 2",
+      "tokensUsed": 15,
+      "model": "anthropic/claude-3-opus",
+      "requestId": "id2",
+      "cached": false
+    },
+    "timestamp": 1763944412847
+  },
+  "d3cccfb3f73d35fe0a868cbb909b7cf7": {
+    "prompt": "Test prompt",
+    "model": "openai/gpt-4-turbo",
+    "response": {
+      "content": "Test response",
+      "tokensUsed": 15,
+      "model": "openai/gpt-4-turbo",
+      "processingTime": 100
+    },
+    "timestamp": 1763950918799
+  },
+  "e67bcece3c4ab9c2eacf652ccaac2e46": {
+    "prompt": "Test",
+    "model": "openai/gpt-4-turbo",
+    "response": {
+      "content": "Test",
+      "tokensUsed": 10,
+      "model": "openai/gpt-4-turbo",
+      "processingTime": 100
+    },
+    "timestamp": 1763950918801
+  }
+}
