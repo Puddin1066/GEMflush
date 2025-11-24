@@ -96,3 +96,4 @@ export function getBusinessNameWithFallback(url: string, fallbackName?: string):
 
   return 'Business'; // Final fallback
 }
+

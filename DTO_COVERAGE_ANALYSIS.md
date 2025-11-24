@@ -234,3 +234,4 @@ return NextResponse.json(dto);
 
 **Status**: ⚠️ **PARTIAL COVERAGE** - Some routes bypass DTOs
 
+

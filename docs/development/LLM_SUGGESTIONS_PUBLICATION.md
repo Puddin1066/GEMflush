@@ -374,3 +374,4 @@ this.validateEntity(entity);  // Validates Wikibase JSON structure
 - **Property Mapping**: `lib/wikidata/property-mapping.ts`
 
 
+

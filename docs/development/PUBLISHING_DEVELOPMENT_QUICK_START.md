@@ -10,6 +10,8 @@ This guide provides a quick start for the systematic, programmatic development a
 
 **Automate the complete CFP flow (Crawl → Fingerprint → Publish) with 100% reliability for Pro tier users.**
 
+**⚠️ IMPORTANT:** All publishing defaults to **test.wikidata.org** to prevent account blocking. Production publishing is disabled by default for safety.
+
 ---
 
 ## 🚀 Quick Start

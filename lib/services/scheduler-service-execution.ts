@@ -6,24 +6,13 @@
  * @module scheduler-service/execution
  */
 
-import { getBusinessById, updateBusiness, getTeamForBusiness, createCrawlJob, createWikidataEntity } from '@/lib/db/queries';
-import { shouldAutoCrawl, shouldAutoPublish, getAutomationConfig, calculateNextCrawlDate } from './automation-service';
-import { executeCrawlJob, executeFingerprint } from './business-execution';
-import { getWikidataPublishDTO } from '@/lib/data/wikidata-dto';
-import { db } from '@/lib/db/drizzle';
-import { businesses, teams, type Business, type Team } from '@/lib/db/schema';
+import { updateBusiness } from '@/lib/db/queries';
+import { getAutomationConfig, calculateNextCrawlDate, shouldAutoCrawl } from './automation-service';
+import { shouldRunCFPAutomation, executeCFPAutomation } from './cfp-automation-service';
+import type { Business, Team } from '@/lib/db/schema';
 import { loggers } from '@/lib/utils/logger';
 
 const log = loggers.scheduler;
-
-/**
- * Handle auto-publish for a business
- * TODO: Implement actual auto-publish logic
- */
-async function handleAutoPublish(businessId: number): Promise<void> {
-  log.info('Auto-publish triggered', { businessId });
-  // TODO: Implement auto-publish logic
-}
 
 /**
  * Process scheduled automation for all businesses (frequency-aware)
@@ -49,7 +38,9 @@ export async function processScheduledAutomation(options: {
 
 /**
  * Process a single business for scheduled automation
- * Runs full CFP pipeline: crawl + fingerprint (parallel) → publish
+ * 
+ * Delegates to executeCFPAutomation() - the single source of truth for CFP automation.
+ * This function handles scheduling logic and calls the consolidated CFP service.
  * 
  * @param business - Business to process
  * @param team - Team for automation config
@@ -60,27 +51,18 @@ export async function processBusinessAutomation(
   team: Team
 ): Promise<'success' | 'skipped' | 'failed'> {
   try {
-    const config = getAutomationConfig(team);
-    
-    // Skip if automation not configured
-    if (config.crawlFrequency === 'manual') {
-      log.debug('Skipping business - manual frequency', {
+    // Check if should run CFP automation
+    if (!shouldRunCFPAutomation(business, team)) {
+      log.debug('Skipping business - shouldRunCFPAutomation returned false', {
         businessId: business.id,
+        automationEnabled: business.automationEnabled,
+        nextCrawlAt: business.nextCrawlAt?.toISOString(),
         planName: team.planName,
       });
       return 'skipped';
     }
 
-    // Double-check shouldAutoCrawl (respects automation config)
-    if (!shouldAutoCrawl(business, team)) {
-      log.debug('Skipping business - shouldAutoCrawl returned false', {
-        businessId: business.id,
-        automationEnabled: business.automationEnabled,
-        nextCrawlAt: business.nextCrawlAt?.toISOString(),
-      });
-      return 'skipped';
-    }
-
+    const config = getAutomationConfig(team);
     log.info('Processing business for scheduled automation', {
       businessId: business.id,
       businessName: business.name,
@@ -88,49 +70,32 @@ export async function processBusinessAutomation(
       crawlFrequency: config.crawlFrequency,
     });
 
-    // STEP 1: Run crawl + fingerprint in parallel (they're independent!)
-    const [crawlResult, fingerprintResult] = await Promise.allSettled([
-      executeCrawlJob(null, business.id, business),
-      executeFingerprint(business, true),
-    ]);
-
-    // Log results
-    if (crawlResult.status === 'fulfilled') {
-      log.info('Crawl completed for business', { businessId: business.id });
-    } else {
-      log.error('Crawl failed for business', crawlResult.reason, { businessId: business.id });
-    }
-
-    if (fingerprintResult.status === 'fulfilled') {
-      log.info('Fingerprint completed for business', { businessId: business.id });
-    } else {
-      log.error('Fingerprint failed for business', fingerprintResult.reason, { businessId: business.id });
-    }
-
-    // STEP 2: Publish depends on crawl, so run after crawl completes
-    if (crawlResult.status === 'fulfilled' && config.autoPublish) {
-      try {
-        await handleAutoPublish(business.id);
-        log.info('Publication completed for business', { businessId: business.id });
-      } catch (error) {
-        log.error('Publication failed for business', error, { businessId: business.id });
-        // Don't fail entire process if publish fails
-      }
-    }
-
-    // STEP 3: Schedule next processing based on frequency
-    const nextDate = calculateNextCrawlDate(config.crawlFrequency);
-    await updateBusiness(business.id, {
-      nextCrawlAt: nextDate,
+    // Execute CFP automation with scheduling enabled
+    // DRY: Use consolidated CFP automation service (single source of truth)
+    const result = await executeCFPAutomation(business.id, {
+      autoPublish: undefined, // Use team config (default behavior)
+      scheduleNext: true, // Scheduled runs schedule next processing
+      updateStatus: true,
     });
 
-    log.info('Business scheduled for next processing', {
-      businessId: business.id,
-      nextCrawlAt: nextDate.toISOString(),
-      frequency: config.crawlFrequency,
-    });
-
-    return 'success';
+    if (result.success) {
+      log.info('Business automation completed successfully', {
+        businessId: business.id,
+        crawlSuccess: result.crawlSuccess,
+        fingerprintSuccess: result.fingerprintSuccess,
+        publishSuccess: result.publishSuccess,
+        duration: result.duration,
+      });
+      return 'success';
+    } else {
+      log.error('Business automation failed', {
+        businessId: business.id,
+        error: result.error,
+        crawlSuccess: result.crawlSuccess,
+        fingerprintSuccess: result.fingerprintSuccess,
+      });
+      return 'failed';
+    }
   } catch (error) {
     log.error('Error processing business for automation', error, { businessId: business.id });
     return 'failed';

@@ -226,9 +226,14 @@ export function generateMockFirecrawlCrawlResponse(url: string): FirecrawlCrawlR
     businessData.additionalInfo.website = url;
   }
 
+  // Enhanced mock response matching FireCrawl API v1 structure
+  // Based on: https://docs.firecrawl.dev/api-reference/crawl
+  const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const timestamp = new Date().toISOString();
+  
   const mockPageData: FirecrawlCrawlPageData = {
     markdown: `# ${businessData.businessName}\n\n${businessData.businessDescription}\n\n## Services\n${businessData.services.map(s => `- ${s}`).join('\n')}\n\n## Contact\nEmail: ${businessData.contactInfo.email}\nPhone: ${businessData.contactInfo.phone}\nAddress: ${businessData.contactInfo.address}`,
-    html: `<html><head><title>${businessData.businessName}</title></head><body><h1>${businessData.businessName}</h1><p>${businessData.businessDescription}</p></body></html>`,
+    html: `<html><head><title>${businessData.businessName}</title><meta name="description" content="${businessData.businessDescription}"></head><body><h1>${businessData.businessName}</h1><p>${businessData.businessDescription}</p><nav><a href="${url}/about">About</a><a href="${url}/services">Services</a><a href="${url}/contact">Contact</a></nav></body></html>`,
     rawHtml: `<html><head><title>${businessData.businessName}</title></head><body><h1>${businessData.businessName}</h1><p>${businessData.businessDescription}</p></body></html>`,
     linksOnPage: [
       `${url}/about`,
@@ -249,9 +254,11 @@ export function generateMockFirecrawlCrawlResponse(url: string): FirecrawlCrawlR
     llm_extraction: businessData
   };
 
+  // Match FireCrawl API v1 response structure exactly
+  // Reference: https://docs.firecrawl.dev/api-reference/crawl#response
   return {
     success: true,
-    id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: jobId,
     url: url,
     data: [mockPageData],
     partial_data: [],
@@ -268,15 +275,20 @@ export function generateMockFirecrawlJobStatus(
   url: string,
   status: 'scraping' | 'completed' | 'failed' = 'completed'
 ): FirecrawlJobStatusResponse {
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  
+  // Match FireCrawl API v1 job status response structure
+  // Reference: https://docs.firecrawl.dev/api-reference/crawl#get-job-status
   if (status === 'completed') {
+    const crawlResponse = generateMockFirecrawlCrawlResponse(url);
     return {
       success: true,
       status: 'completed',
       total: 1,
       completed: 1,
       creditsUsed: 1,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      data: generateMockFirecrawlCrawlResponse(url).data || [],
+      expiresAt: expiresAt,
+      data: crawlResponse.data || [],
       partial_data: []
     };
   }
@@ -288,29 +300,44 @@ export function generateMockFirecrawlJobStatus(
       total: 1,
       completed: 0,
       creditsUsed: 0,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: expiresAt,
       data: [],
       partial_data: []
     };
   }
 
+  // Failed status - match API error response structure
   return {
     success: false,
     status: 'failed',
     total: 1,
     completed: 0,
     creditsUsed: 1,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    expiresAt: expiresAt,
     data: [],
-    partial_data: []
+    partial_data: [],
+    error: 'Crawl job failed - unable to access target URL'
   };
 }
 
 /**
  * Check if we should use mock Firecrawl data
+ * P0 Fix: Handle paused subscription - always use mocks if subscription is paused
+ * DRY: Centralized mock detection logic
+ * 
+ * Note: If Firecrawl subscription is paused, API key may exist but API calls will fail.
+ * Set USE_MOCK_FIRECRAWL=true to force mocks.
  */
 export function shouldUseMockFirecrawl(): boolean {
-  return !process.env.FIRECRAWL_API_KEY || process.env.NODE_ENV === 'development';
+  // Use mocks if:
+  // 1. API key not configured
+  // 2. In development mode
+  // 3. Explicitly disabled via environment variable (for paused subscriptions)
+  // 4. In test mode (Playwright tests)
+  return !process.env.FIRECRAWL_API_KEY 
+    || process.env.NODE_ENV === 'development'
+    || process.env.USE_MOCK_FIRECRAWL === 'true'
+    || process.env.PLAYWRIGHT_TEST === 'true';
 }
 
 /**

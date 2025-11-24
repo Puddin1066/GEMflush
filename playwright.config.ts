@@ -65,6 +65,9 @@ export default defineConfig({
       USE_MOCK_GOOGLE_SEARCH: 'true',
       // Playwright test indicator (most reliable - unlikely to be in .env)
       PLAYWRIGHT_TEST: 'true',
+      // Force Firecrawl to use mock responses during E2E tests
+      // This prevents external API calls and speeds up tests
+      USE_MOCK_FIRECRAWL: 'true',
       // IDEAL: Use mock mode for E2E tests - we're testing the flow, not actual Wikidata publishing
       // Mock mode returns a mock QID immediately, allowing tests to verify the complete flow
       // Set WIKIDATA_PUBLISH_MODE=real in .env if you want to test real API integration

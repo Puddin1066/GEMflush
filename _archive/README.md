@@ -72,3 +72,4 @@ This directory contains files that have been archived to improve codebase effici
 ## Restoration
 
 If any archived file is needed, it can be restored by moving it back to its original location.
+

@@ -432,3 +432,4 @@ if (require.main === module) {
 }
 
 export { ModuleRefactorer, RefactoringOptions, RefactoringResult };
+

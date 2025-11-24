@@ -52,7 +52,12 @@ test.describe('Publishing Flow - Critical Path', () => {
     // Step 2: Create business and trigger CFP
     await test.step('Create business and trigger CFP', async () => {
       console.log('[PUBLISHING TEST] Creating business...');
-      const uniqueUrl = `https://publishing-test-${Date.now()}.example.com`;
+      
+      // Use a URL that will work with mock crawler
+      // DRY: Use example.com which has mock data, or use a known mock domain
+      // The mock system will handle this URL even if Firecrawl is not configured
+      const uniqueUrl = `https://example.com/publishing-test-${Date.now()}`;
+      
       businessId = await executeCFPFlow(authenticatedPage, baseURL, uniqueUrl);
       
       expect(businessId).toBeGreaterThan(0);
@@ -62,21 +67,59 @@ test.describe('Publishing Flow - Critical Path', () => {
     // Step 3: Wait for crawl completion
     await test.step('Wait for crawl completion', async () => {
       console.log('[PUBLISHING TEST] Waiting for crawl...');
-      const status = await waitForBusinessStatus(
-        authenticatedPage,
-        baseURL,
-        businessId,
-        'crawled',
-        120_000 // 2 minutes
-      );
       
-      expect(['crawled', 'generating']).toContain(status);
-      console.log(`[PUBLISHING TEST] ✓ Crawl completed: status=${status}`);
-      
-      // Verify crawl data exists
-      const business = await fetchDatabaseBusiness(authenticatedPage, baseURL, businessId);
-      expect(business.crawlData).toBeDefined();
-      expect(business.lastCrawledAt).toBeDefined();
+      try {
+        const status = await waitForBusinessStatus(
+          authenticatedPage,
+          baseURL,
+          businessId,
+          'crawled',
+          120_000 // 2 minutes
+        );
+        
+        expect(['crawled', 'generating']).toContain(status);
+        console.log(`[PUBLISHING TEST] ✓ Crawl completed: status=${status}`);
+        
+        // Verify crawl data exists
+        const business = await fetchDatabaseBusiness(authenticatedPage, baseURL, businessId);
+        expect(business.crawlData).toBeDefined();
+        expect(business.lastCrawledAt).toBeDefined();
+      } catch (error) {
+        // If status is error, fetch and display error details
+        const business = await fetchDatabaseBusiness(authenticatedPage, baseURL, businessId);
+        
+        // Fetch status endpoint for crawl job details
+        const statusResponse = await authenticatedPage.request.get(
+          `${baseURL}/api/business/${businessId}/status`,
+          { timeout: 15000 }
+        );
+        
+        // Also fetch latest crawl job directly
+        const { fetchLatestCrawlJob } = await import('./helpers/dto-test-helpers');
+        const crawlJob = await fetchLatestCrawlJob(authenticatedPage, baseURL, businessId);
+        
+        console.error('[PUBLISHING TEST] ❌ Crawl failed with error:');
+        console.error(`  Business Status: ${business.status}`);
+        console.error(`  Business Error Message: ${business.errorMessage || 'None'}`);
+        
+        if (statusResponse.ok()) {
+          const statusData = await statusResponse.json();
+          console.error(`  Status DTO Crawl Job: ${JSON.stringify(statusData.crawlJob || {}, null, 2)}`);
+        }
+        
+        if (crawlJob) {
+          console.error(`  Crawl Job Details:`);
+          console.error(`    ID: ${crawlJob.id}`);
+          console.error(`    Status: ${crawlJob.status}`);
+          console.error(`    Error Message: ${crawlJob.errorMessage || 'None'}`);
+          console.error(`    Progress: ${crawlJob.progress || 'N/A'}`);
+          console.error(`    Result: ${crawlJob.result ? JSON.stringify(crawlJob.result).substring(0, 200) : 'None'}`);
+        } else {
+          console.error(`  No crawl job found for business ${businessId}`);
+        }
+        
+        throw error; // Re-throw to fail the test
+      }
     });
 
     // Step 4: Wait for fingerprint completion
@@ -163,10 +206,12 @@ test.describe('Publishing Flow - Critical Path', () => {
         throw new Error('QID not assigned');
       }
       
-      // Check if using test mode (mock QIDs)
-      const isTestMode = process.env.USE_MOCK_GOOGLE_SEARCH === 'true' ||
-                         process.env.PLAYWRIGHT_TEST === 'true' ||
-                         qid.startsWith('Q999'); // Mock QID range
+        // Check if using test mode (mock QIDs)
+        // DRY: Use utility function for mock QID detection
+        const { isMockQID } = await import('@/lib/wikidata/utils');
+        const isTestMode = process.env.USE_MOCK_GOOGLE_SEARCH === 'true' ||
+                          process.env.PLAYWRIGHT_TEST === 'true' ||
+                          isMockQID(qid); // Use utility function
       
       if (isTestMode) {
         console.log(`[PUBLISHING TEST] ⚠️  Test mode: QID ${qid} is mock, skipping Wikidata verification`);

@@ -178,3 +178,4 @@ FIRECRAWL_API_KEY=fc-your-api-key-here
 
 **Status**: ✅ **EXPECTED BEHAVIOR** - Mocked Firecrawl is intentional for development
 
+

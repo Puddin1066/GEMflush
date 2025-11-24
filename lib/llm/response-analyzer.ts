@@ -273,9 +273,17 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
     
     // Extract potential business names from numbered lists (most reliable)
     // Pattern: "1. Business Name" or "1) Business Name"
-    const numberedListPattern = /^\s*\d+[\.\)]\s+([A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)/gm;
+    // Stop at common delimiters: dash, colon, or newline (to avoid matching descriptions)
+    // Exclude dash from main match to stop at "Business Name - Description"
+    const numberedListPattern = /^\s*\d+[\.\)]\s+([A-Z][a-zA-Z\s&']+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)(?=\s*[-:]|\s*$|\n)/gm;
     const numberedMatches = Array.from(response.matchAll(numberedListPattern));
-    const numberedBusinesses = numberedMatches.map(match => match[1].trim());
+    // Clean up extracted names - remove any trailing dashes or descriptions that might have been captured
+    const numberedBusinesses = numberedMatches.map(match => {
+      let name = match[1].trim();
+      // Remove anything after a dash or colon if it was accidentally captured
+      name = name.split(/\s*[-:]\s*/)[0].trim();
+      return name;
+    });
     
     // Also extract from bullet lists
     const bulletListPattern = /^[\-\*•]\s+([A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)/gm;

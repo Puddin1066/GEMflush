@@ -321,3 +321,4 @@ export async function generateRefactoredFiles(context: GenerationContext): Promi
   const generator = new FileGenerator();
   return generator.generateRefactoredFiles(context);
 }
+

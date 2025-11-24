@@ -33,6 +33,7 @@ export class WikidataClient {
 
   /**
    * Publish entity to Wikidata
+   * SAFETY: Always defaults to test.wikidata.org to prevent blocking on production
    */
   async publishEntity(
     entity: WikidataEntity,
@@ -41,9 +42,39 @@ export class WikidataClient {
     const startTime = Date.now();
     
     try {
+      // SAFETY: Force test.wikidata.org - production publishing can get accounts blocked
+      // Only allow production if explicitly enabled via environment variable
+      const allowProduction = process.env.WIKIDATA_ALLOW_PRODUCTION === 'true';
+      if (options.target === 'production' && !allowProduction) {
+        console.warn(
+          '[SAFETY] Production publishing blocked. ' +
+          'Set WIKIDATA_ALLOW_PRODUCTION=true to enable (not recommended). ' +
+          'Publishing to test.wikidata.org instead.'
+        );
+        options.target = 'test';
+      }
+
       // Validate entity if enabled
       if (this.config.validateEntities) {
         this.validateEntity(entity);
+      }
+
+      // Validate PIDs and QIDs before publishing (prevents blocking)
+      const validationErrors = await this.validatePIDsAndQIDs(entity);
+      if (validationErrors.length > 0) {
+        // In test mode, log warnings but continue (test.wikidata.org tolerates errors better)
+        // In production mode, fail early to prevent blocking
+        if (options.target === 'production') {
+          throw new WikidataError(
+            `Invalid PIDs/QIDs detected. Publishing would be blocked:\n${validationErrors.join('\n')}`,
+            'VALIDATION_ERROR'
+          );
+        } else {
+          console.warn(
+            '[VALIDATION] PID/QID incompatibilities detected (test.wikidata.org will tolerate):',
+            validationErrors
+          );
+        }
       }
 
       // Handle dry run
@@ -56,14 +87,27 @@ export class WikidataClient {
         return this.handleValidationOnly(entity, options);
       }
 
-      // Set API URL based on target
-      const apiUrl = options.target === 'production' 
+      // Set API URL based on target (always test unless explicitly allowed)
+      const apiUrl = options.target === 'production' && allowProduction
         ? 'https://www.wikidata.org/w/api.php'
         : 'https://test.wikidata.org/w/api.php';
 
       // Check for mock mode
       if (process.env.WIKIDATA_PUBLISH_MODE === 'mock') {
         return this.handleMockMode(entity, options);
+      }
+
+      // P0 Fix: Check for existing entity before creating (prevents label conflicts)
+      const labelObj = entity.labels?.en;
+      const label = typeof labelObj === 'string' ? labelObj : labelObj?.value || '';
+      const descObj = entity.descriptions?.en;
+      const description = typeof descObj === 'string' ? descObj : descObj?.value || '';
+      const existingQid = await this.findExistingEntity(label, description, apiUrl);
+      
+      if (existingQid) {
+        console.log(`[WIKIDATA CLIENT] Entity already exists (${existingQid}), updating instead of creating`);
+        // Use updateEntity instead of createEntity to avoid conflicts
+        return await this.updateEntity(existingQid, entity, options);
       }
 
       // Authenticate and get token
@@ -87,18 +131,94 @@ export class WikidataClient {
 
     } catch (error) {
       console.error('Entity publication failed:', error);
+      
+      // SAFETY: Provide helpful error messages for PID/QID incompatibility
+      let errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check for common Wikidata API errors that indicate PID/QID issues
+      if (errorMessage.includes('modification-failed') || 
+          errorMessage.includes('invalid-snak') ||
+          errorMessage.includes('bad-request') ||
+          errorMessage.includes('property-not-found')) {
+        errorMessage += 
+          '\n\nThis error likely indicates PID/QID incompatibility. ' +
+          'test.wikidata.org tolerates these errors better than production. ' +
+          'Check that all PIDs and QIDs are valid and compatible.';
+      }
+      
       return {
         success: false,
         publishedTo: options.target === 'production' ? 'wikidata.org' : 'test.wikidata.org',
         propertiesPublished: 0,
         referencesPublished: 0,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       };
     }
   }
 
   /**
+   * Find existing Wikidata entity by label and description
+   * Uses Action API wbsearchentities for efficient lookup
+   * SOLID: Single Responsibility - entity search only
+   * DRY: Reuses makeRequest method for API calls
+   * 
+   * @param label - Entity label (business name)
+   * @param description - Optional description for better matching
+   * @param apiUrl - Wikidata API URL (test or production)
+   * @returns QID if found, null otherwise
+   */
+  async findExistingEntity(
+    label: string,
+    description?: string,
+    apiUrl?: string
+  ): Promise<string | null> {
+    try {
+      // Use test.wikidata.org by default (safer)
+      const searchUrl = apiUrl || 'https://test.wikidata.org/w/api.php';
+      
+      // Search by label using wbsearchentities (Action API)
+      const searchParams: Record<string, string> = {
+        action: 'wbsearchentities',
+        search: label,
+        language: 'en',
+        limit: '5',
+        format: 'json'
+      };
+      
+      const searchResult = await this.makeRequest(searchUrl, searchParams, 'GET');
+      
+      if (!searchResult.data.search) {
+        return null;
+      }
+      
+      // Match by label and optionally description
+      for (const item of searchResult.data.search) {
+        if (item.label?.toLowerCase() === label.toLowerCase()) {
+          // If description provided, try to match it
+          if (description && item.description) {
+            const descMatch = item.description.toLowerCase().includes(description.toLowerCase().substring(0, 50));
+            if (descMatch) {
+              return item.id;
+            }
+          } else {
+            // No description provided or no description in result, return first label match
+            return item.id;
+          }
+        }
+      }
+      
+      return null;
+      
+    } catch (error) {
+      console.warn('Error searching for existing entity:', error);
+      return null; // Fail gracefully - allow creation to proceed
+    }
+  }
+
+  /**
    * Update existing entity
+   * SOLID: Single Responsibility - entity updates only
+   * DRY: Reuses authenticate, prepareEntityData, callWikidataAPI methods
    */
   async updateEntity(
     qid: string,
@@ -168,64 +288,145 @@ export class WikidataClient {
   }
 
   /**
-   * Login to Wikidata
-   * SOLID: Single Responsibility - handles authentication flow
-   * DRY: Reuses makeRequest for token and login requests
+   * Validate Wikidata credentials
+   * P0 Fix: Enhanced credential validation with helpful error messages
    */
-  private async login(apiUrl: string): Promise<string> {
+  private validateCredentials(): void {
     const username = process.env.WIKIDATA_BOT_USERNAME;
     const password = process.env.WIKIDATA_BOT_PASSWORD;
 
-    if (!username || !password) {
+    if (!username) {
       throw new WikidataError(
-        'WIKIDATA_BOT_USERNAME and WIKIDATA_BOT_PASSWORD environment variables are required',
+        'WIKIDATA_BOT_USERNAME environment variable is required. ' +
+        'Set it in your .env file or environment: WIKIDATA_BOT_USERNAME=YourBot@YourBot',
         'AUTH_ERROR'
       );
     }
 
-    // Step 1: Get login token (MediaWiki requires cookies from this request for login)
-    const tokenResult = await this.makeRequest(apiUrl, {
-      action: 'query',
-      meta: 'tokens',
-      type: 'login',
-      format: 'json'
-    });
-
-    const loginToken = tokenResult.data.query?.tokens?.logintoken;
-    if (!loginToken) {
-      throw new WikidataError('Failed to get login token', 'AUTH_ERROR');
-    }
-
-    // Step 2: Perform login with token cookies (critical for MediaWiki authentication)
-    // Include cookies from token request to maintain session continuity
-    const tokenCookies = tokenResult.cookies || '';
-    const loginResult = await this.makeRequest(apiUrl, {
-      action: 'login',
-      lgname: username,
-      lgpassword: password,
-      lgtoken: loginToken,
-      format: 'json'
-    }, 'POST', tokenCookies);
-
-    if (loginResult.data.login?.result !== 'Success') {
-      const errorCode = loginResult.data.login?.result || 'Unknown error';
-      const errorMessage = loginResult.data.login?.message || '';
+    if (!password) {
       throw new WikidataError(
-        `Login failed: ${errorCode}${errorMessage ? ` - ${errorMessage}` : ''}`,
+        'WIKIDATA_BOT_PASSWORD environment variable is required. ' +
+        'Set it in your .env file or environment: WIKIDATA_BOT_PASSWORD=your_bot_password',
         'AUTH_ERROR'
       );
     }
 
-    // Step 3: Extract cookies from login response
-    // Combine token cookies with login cookies for full session
-    const loginCookies = loginResult.cookies || '';
-    if (!loginCookies && !tokenCookies) {
-      throw new WikidataError('No session cookies received from login', 'AUTH_ERROR');
+    // Validate username format (should include @ for bot passwords)
+    if (!username.includes('@')) {
+      console.warn(
+        'WIKIDATA_BOT_USERNAME should be in format "BotName@BotName" for bot passwords. ' +
+        'Current value may not work correctly.'
+      );
+    }
+  }
+
+  /**
+   * Login to Wikidata
+   * P0 Fix: Enhanced with retry logic and better error handling
+   * SOLID: Single Responsibility - handles authentication flow
+   * DRY: Reuses makeRequest for token and login requests
+   */
+  private async login(apiUrl: string, retryAttempts: number = 3): Promise<string> {
+    // Validate credentials first
+    this.validateCredentials();
+
+    const username = process.env.WIKIDATA_BOT_USERNAME!;
+    const password = process.env.WIKIDATA_BOT_PASSWORD!;
+
+    let lastError: Error | null = null;
+
+    // Retry logic for transient failures
+    for (let attempt = 1; attempt <= retryAttempts; attempt++) {
+      try {
+        // Step 1: Get login token (MediaWiki requires cookies from this request for login)
+        const tokenResult = await this.makeRequest(apiUrl, {
+          action: 'query',
+          meta: 'tokens',
+          type: 'login',
+          format: 'json'
+        });
+
+        const loginToken = tokenResult.data.query?.tokens?.logintoken;
+        if (!loginToken) {
+          throw new WikidataError('Failed to get login token', 'AUTH_ERROR');
+        }
+
+        // Step 2: Perform login with token cookies (critical for MediaWiki authentication)
+        // Include cookies from token request to maintain session continuity
+        const tokenCookies = tokenResult.cookies || '';
+        const loginResult = await this.makeRequest(apiUrl, {
+          action: 'login',
+          lgname: username,
+          lgpassword: password,
+          lgtoken: loginToken,
+          format: 'json'
+        }, 'POST', tokenCookies);
+
+        if (loginResult.data.login?.result !== 'Success') {
+          const errorCode = loginResult.data.login?.result || 'Unknown error';
+          const errorMessage = loginResult.data.login?.message || '';
+          
+          // Provide helpful error messages for common failures
+          let helpfulMessage = `Login failed: ${errorCode}`;
+          if (errorMessage) {
+            helpfulMessage += ` - ${errorMessage}`;
+          }
+          
+          if (errorCode === 'WrongPass' || errorCode === 'WrongPluginPass') {
+            helpfulMessage += '. Check that WIKIDATA_BOT_PASSWORD is correct.';
+          } else if (errorCode === 'NotExists') {
+            helpfulMessage += '. Check that WIKIDATA_BOT_USERNAME is correct.';
+          } else if (errorCode === 'Throttled') {
+            helpfulMessage += '. Too many login attempts. Wait a few minutes and try again.';
+            // For throttled errors, don't retry immediately
+            if (attempt < retryAttempts) {
+              const delay = 60000; // Wait 1 minute for throttled errors
+              console.warn(`Login throttled, waiting ${delay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+          }
+          
+          throw new WikidataError(helpfulMessage, 'AUTH_ERROR');
+        }
+
+        // Step 3: Extract cookies from login response
+        // Combine token cookies with login cookies for full session
+        const loginCookies = loginResult.cookies || '';
+        if (!loginCookies && !tokenCookies) {
+          throw new WikidataError('No session cookies received from login', 'AUTH_ERROR');
+        }
+
+        // Combine cookies: prefer login cookies, fallback to token cookies
+        const sessionCookies = loginCookies || tokenCookies;
+        return sessionCookies;
+
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        // Don't retry on credential errors
+        if (error instanceof WikidataError && 
+            (error.message.includes('WrongPass') || 
+             error.message.includes('NotExists') ||
+             error.message.includes('environment variable'))) {
+          throw error; // Fail immediately for credential errors
+        }
+        
+        // Retry on network/transient errors
+        if (attempt < retryAttempts) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+          console.warn(`Login attempt ${attempt} failed, retrying in ${delay}ms:`, error);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
 
-    // Combine cookies: prefer login cookies, fallback to token cookies
-    const sessionCookies = loginCookies || tokenCookies;
-    return sessionCookies;
+    // All retries exhausted
+    throw new WikidataError(
+      `Login failed after ${retryAttempts} attempts: ${lastError?.message}`,
+      'AUTH_ERROR',
+      { lastError }
+    );
   }
 
   /**
@@ -460,14 +661,35 @@ export class WikidataClient {
 
   /**
    * Handle mock mode
+   * DRY: Reuses generateMockQID utility
+   * Enhanced: Matches Wikidata Action API response structure
+   * Reference: https://www.wikidata.org/w/api.php?action=help&modules=wbeditentity
    */
   private handleMockMode(entity: WikidataEntity, options: PublishOptions): PublishResult {
-    const mockQID = `Q${999999000 + Math.floor(Math.random() * 1000)}`;
+    // Import utility function (DRY: reuse existing logic)
+    const { generateMockQID } = require('./utils');
+    const mockQID = generateMockQID(options.target === 'production');
+    
+    // Simulate Action API response structure
+    // Reference: https://www.wikidata.org/w/api.php?action=help&modules=wbeditentity#response
+    const mockApiResponse = {
+      entity: {
+        id: mockQID,
+        type: 'item',
+        labels: entity.labels || {},
+        descriptions: entity.descriptions || {},
+        claims: entity.claims || {},
+        lastrevid: Math.floor(Math.random() * 1000000) + 1000000,
+        modified: new Date().toISOString(),
+      },
+      success: 1,
+    };
     
     console.log(`[MOCK] Publishing to ${options.target}:`, {
       qid: mockQID,
       properties: Object.keys(entity.claims).length,
-      references: this.countReferences(entity)
+      references: this.countReferences(entity),
+      apiResponse: mockApiResponse,
     });
 
     return {
@@ -475,8 +697,93 @@ export class WikidataClient {
       qid: mockQID,
       publishedTo: `${options.target} (mock)`,
       propertiesPublished: Object.keys(entity.claims).length,
-      referencesPublished: this.countReferences(entity)
+      referencesPublished: this.countReferences(entity),
     };
+  }
+
+  /**
+   * Validate PIDs and QIDs for compatibility
+   * SAFETY: Prevents publishing invalid properties that could get accounts blocked
+   * Returns array of validation errors (empty if all valid)
+   */
+  private async validatePIDsAndQIDs(entity: WikidataEntity): Promise<string[]> {
+    const errors: string[] = [];
+    
+    if (!entity.claims) {
+      return errors; // Will be caught by validateEntity
+    }
+
+    // Known valid PIDs for businesses (whitelist approach for safety)
+    const validPIDs = new Set([
+      'P31',  // instance of
+      'P856', // official website
+      'P1448', // official name
+      'P625', // coordinate location
+      'P6375', // street address
+      'P131', // located in
+      'P17',  // country
+      'P452', // industry
+      'P1329', // phone number
+      'P968', // email address
+      'P159', // headquarters location
+      'P571', // inception
+      'P112', // founded by
+      'P1128', // employees
+    ]);
+
+    // Validate each PID
+    for (const pid of Object.keys(entity.claims)) {
+      // Check PID format
+      if (!/^P\d+$/.test(pid)) {
+        errors.push(`Invalid PID format: ${pid} (must be P followed by numbers)`);
+        continue;
+      }
+
+      // Check if PID is in whitelist (safety check)
+      if (!validPIDs.has(pid)) {
+        // Warn but don't fail - test.wikidata.org will validate
+        console.warn(`[VALIDATION] PID ${pid} not in known whitelist - may cause incompatibility`);
+      }
+
+      // Validate claims for this PID
+      const claims = entity.claims[pid];
+      if (!Array.isArray(claims) || claims.length === 0) {
+        errors.push(`PID ${pid} has no claims`);
+        continue;
+      }
+
+      // Validate each claim's value
+      for (const claim of claims) {
+        if (!claim.mainsnak) {
+          errors.push(`PID ${pid} has claim without mainsnak`);
+          continue;
+        }
+
+        const snak = claim.mainsnak;
+        
+        // Check for QID values (entity references)
+        if (snak.datavalue?.type === 'wikibase-entityid') {
+          // Type guard: value is WikibaseEntityIdValue for wikibase-entityid type
+          const entityValue = snak.datavalue.value as { id?: string };
+          const qid = entityValue?.id;
+          if (qid) {
+            // Validate QID format
+            if (!/^Q\d+$/.test(qid)) {
+              errors.push(`PID ${pid} has invalid QID format: ${qid}`);
+            }
+            // Note: We don't validate QID existence here (would require API call)
+            // test.wikidata.org will validate and return error if invalid
+          }
+        }
+
+        // Check for type mismatches
+        if (snak.snaktype === 'value' && !snak.datavalue) {
+          errors.push(`PID ${pid} has value snaktype but no datavalue`);
+        }
+      }
+    }
+
+    return errors;
   }
 
   /**

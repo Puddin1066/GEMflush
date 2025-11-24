@@ -237,3 +237,4 @@ For multiple pages, use Firecrawl's `/v1/crawl` endpoint with batching.
 - [Firecrawl Caching](https://docs.firecrawl.dev/api-reference/scrape#maxage-parameter)
 
 
+

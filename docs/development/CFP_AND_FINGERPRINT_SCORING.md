@@ -543,3 +543,4 @@ The fingerprint analysis produces:
 All metrics are derived from **objective analysis** of LLM responses, enabling quantitative measurement of local business visibility.
 
 
+

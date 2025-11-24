@@ -283,3 +283,4 @@ GET /api/business/NaN 400 in 802ms
 **Status**: 🔴 **CRITICAL** - Wikidata auto-publish is broken for Pro tier users  
 **Next Steps**: Fix Wikidata login configuration and Pro tier UI messaging
 
+

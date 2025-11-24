@@ -139,3 +139,4 @@ if (args.includes('--all') || args.includes('-a')) {
   console.log('❌ Please specify --all or table names. Use --help for usage info.');
   process.exit(1);
 }
+

@@ -61,6 +61,10 @@ export async function executeCrawlJob(
     jobId: jobId ?? undefined,
   };
   
+  // P0 Fix: Declare actualJobId outside try block so it's available in catch block
+  // DRY: Reuse this variable for error handling
+  let actualJobId: number | null = jobId;
+  
   try {
     log.info('Starting enhanced crawl job with error handling', {
       jobId: jobId ?? undefined,
@@ -91,7 +95,6 @@ export async function executeCrawlJob(
     context.url = business.url;
 
     // Create or update crawl job (with retry for database operations)
-    let actualJobId = jobId;
     if (!actualJobId) {
       const job = await withRetry(
         () => createCrawlJob({
@@ -118,8 +121,9 @@ export async function executeCrawlJob(
     }
 
     // Execute enhanced multi-page crawl with retry logic
+    // P0 Fix: Convert null to undefined for webCrawler.crawl (expects number | undefined)
     const crawlResult = await withRetry(
-      () => webCrawler.crawl(business!.url, actualJobId),
+      () => webCrawler.crawl(business!.url, actualJobId ?? undefined),
       { ...context, operation: 'firecrawl-crawl' },
       RETRY_CONFIGS.firecrawl
     );
@@ -180,18 +184,35 @@ export async function executeCrawlJob(
       error: sanitizedError,
     });
 
+    // P0 Fix: Use actualJobId instead of jobId (actualJobId is created even if jobId is null)
+    // DRY: Reuse actualJobId variable that was set earlier
+    const jobIdToUpdate = actualJobId || jobId;
+    
     // Update job as failed (best effort, don't throw if this fails)
-    if (jobId) {
+    if (jobIdToUpdate) {
       try {
-        await updateCrawlJob(jobId, {
+        await updateCrawlJob(jobIdToUpdate, {
           status: 'failed',
           progress: 0,
           errorMessage: error instanceof Error ? error.message : String(error),
           completedAt: new Date(),
         });
+        log.info('Crawl job marked as failed with error message', {
+          jobId: jobIdToUpdate,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
       } catch (updateError) {
-        log.warn('Failed to update job status to failed', { jobId: jobId ?? undefined, error: updateError });
+        log.warn('Failed to update job status to failed', { 
+          jobId: jobIdToUpdate, 
+          error: updateError 
+        });
       }
+    } else {
+      log.warn('Cannot update crawl job - no job ID available', {
+        businessId,
+        originalJobId: jobId,
+        actualJobId,
+      });
     }
 
     return {
@@ -297,226 +318,61 @@ export async function executeFingerprint(
 
 /**
  * Execute parallel crawl and fingerprint processing
- * Enhanced with comprehensive error handling and graceful degradation
+ * 
+ * @deprecated Use executeCFPAutomation() from cfp-automation-service.ts instead
+ * This function is kept for backward compatibility and delegates to the consolidated CFP automation service.
+ * 
+ * All CFP orchestration logic has been moved to cfp-automation-service.ts to eliminate duplication.
  */
 export async function executeParallelProcessing(businessId: number): Promise<ParallelExecutionResult> {
-  const startTime = Date.now();
-  const context: ErrorContext = {
-    operation: 'parallel-processing',
-    businessId,
+  // Delegate to consolidated CFP automation service (DRY: single source of truth)
+  const { executeCFPAutomation } = await import('./cfp-automation-service');
+  const result = await executeCFPAutomation(businessId, {
+    updateStatus: true,
+    scheduleNext: false, // Parallel processing doesn't schedule next run
+  });
+
+  // Convert to ParallelExecutionResult format for backward compatibility
+  return {
+    crawlResult: {
+      success: result.crawlSuccess,
+      businessId: result.businessId,
+      duration: result.duration,
+      error: result.crawlSuccess ? undefined : (result.error || 'Crawl failed'),
+    },
+    fingerprintResult: {
+      success: result.fingerprintSuccess,
+      businessId: result.businessId,
+      duration: result.duration,
+      error: result.fingerprintSuccess ? undefined : (result.error || 'Fingerprint failed'),
+    },
+    overallSuccess: result.success,
+    totalDuration: result.duration,
   };
-  
-  try {
-    log.info('Starting parallel crawl and fingerprint processing with error handling', { businessId });
-
-    // Get business data with retry
-    const business = await withRetry(
-      () => getBusinessById(businessId),
-      { ...context, operation: 'get-business' },
-      RETRY_CONFIGS.database
-    );
-    
-    if (!business) {
-      throw new ProcessingError(
-        `Business not found: ${businessId}`,
-        'BUSINESS_NOT_FOUND',
-        false,
-        context
-      );
-    }
-
-    context.url = business.url;
-
-    // Update status to 'crawling' when processing starts (for Pro tier auto-processing)
-    // This provides immediate feedback that CFP has started
-    // Also reset error status to pending/crawling to allow retry
-    if (business.status === 'pending' || business.status === 'error') {
-      await withRetry(
-        () => updateBusiness(businessId, { status: 'crawling' }),
-        { ...context, operation: 'update-status-crawling' },
-        RETRY_CONFIGS.database
-      );
-    }
-
-    // Start both processes in parallel with independent error handling
-    const [crawlResult, fingerprintResult] = await Promise.allSettled([
-      executeCrawlJob(null, businessId, business),
-      executeFingerprint(business, false), // Don't update status yet
-    ]);
-
-    // Extract results and errors
-    const crawlSuccess = crawlResult.status === 'fulfilled' && crawlResult.value.success;
-    const crawlError = crawlResult.status === 'rejected' ? crawlResult.reason : 
-                      (crawlResult.status === 'fulfilled' && !crawlResult.value.success ? 
-                       new Error(crawlResult.value.error || 'Crawl failed') : null);
-
-    const fingerprintSuccess = fingerprintResult.status === 'fulfilled' && fingerprintResult.value.success;
-    const fingerprintError = fingerprintResult.status === 'rejected' ? fingerprintResult.reason :
-                            (fingerprintResult.status === 'fulfilled' && !fingerprintResult.value.success ?
-                             new Error(fingerprintResult.value.error || 'Fingerprint failed') : null);
-
-    // Handle errors with graceful degradation
-    const errorHandling = handleParallelProcessingError(crawlError, fingerprintError, context);
-
-    // If crawl succeeded but fingerprint failed, retry fingerprint with fresh crawl data
-    if (crawlSuccess && !fingerprintSuccess && errorHandling.shouldContinue) {
-      log.info('Retrying fingerprint with fresh crawl data', { businessId });
-      
-      try {
-        const updatedBusiness = await withRetry(
-          () => getBusinessById(businessId),
-          { ...context, operation: 'get-updated-business' },
-          RETRY_CONFIGS.database
-        );
-        
-        if (updatedBusiness) {
-          const retryResult = await executeFingerprint(updatedBusiness, true);
-          
-          return {
-            crawlResult: crawlResult.status === 'fulfilled' ? crawlResult.value : {
-              success: false,
-              businessId,
-              error: crawlError?.message || 'Crawl failed',
-            },
-            fingerprintResult: retryResult,
-            overallSuccess: retryResult.success,
-            totalDuration: Date.now() - startTime,
-          };
-        }
-      } catch (retryError) {
-        log.warn('Fingerprint retry failed', { businessId, error: retryError });
-      }
-    }
-
-    // Update final business status with error handling
-    // Note: CFP is only complete when published to Wikidata, but 'crawled' indicates
-    // that both crawl and fingerprint steps are done
-    try {
-      if (crawlSuccess && fingerprintSuccess) {
-        await withRetry(
-          () => updateBusiness(businessId, { status: 'crawled' }),
-          { ...context, operation: 'update-final-status-crawled' },
-          RETRY_CONFIGS.database
-        );
-      } else if (crawlSuccess) {
-        await withRetry(
-          () => updateBusiness(businessId, { status: 'crawled' }),
-          { ...context, operation: 'update-final-status-crawled' },
-          RETRY_CONFIGS.database
-        );
-      } else {
-        await withRetry(
-          () => updateBusiness(businessId, { status: 'error' }),
-          { ...context, operation: 'update-final-status-error' },
-          RETRY_CONFIGS.database
-        );
-      }
-    } catch (statusUpdateError) {
-      log.warn('Failed to update final business status', { businessId, error: statusUpdateError });
-    }
-
-    // Trigger auto-publish for Pro tier after crawl completes successfully
-    if (crawlSuccess) {
-      try {
-        const team = await getTeamForBusiness(businessId);
-        if (team) {
-          const { getAutomationConfig } = await import('@/lib/services/automation-service');
-          const config = getAutomationConfig(team);
-          
-          if (config.autoPublish) {
-            log.info('Triggering auto-publish for Pro tier business', { businessId, planName: team.planName });
-            const { handleAutoPublish } = await import('@/lib/services/scheduler-service-decision');
-            await handleAutoPublish(businessId).catch(error => {
-              log.error('Auto-publish failed', error, { businessId });
-              // Don't fail entire process if publish fails
-            });
-          } else {
-            log.debug('Auto-publish disabled for team', { businessId, planName: team.planName, autoPublish: config.autoPublish });
-          }
-        }
-      } catch (error) {
-        log.warn('Failed to trigger auto-publish', { businessId, error });
-        // Don't fail entire process if auto-publish check fails
-      }
-    }
-
-    const overallSuccess = crawlSuccess && fingerprintSuccess;
-    const totalDuration = Date.now() - startTime;
-
-    log.info('Parallel processing completed', {
-      businessId,
-      crawlSuccess,
-      fingerprintSuccess,
-      overallSuccess,
-      degradedMode: errorHandling.degradedMode,
-      totalDuration,
-      errors: errorHandling.errors,
-    });
-
-    return {
-      crawlResult: crawlResult.status === 'fulfilled' ? crawlResult.value : {
-        success: false,
-        businessId,
-        error: crawlError?.message || 'Crawl failed',
-      },
-      fingerprintResult: fingerprintResult.status === 'fulfilled' ? fingerprintResult.value : {
-        success: false,
-        businessId,
-        error: fingerprintError?.message || 'Fingerprint failed',
-      },
-      overallSuccess,
-      totalDuration,
-    };
-
-  } catch (error) {
-    const totalDuration = Date.now() - startTime;
-    const sanitizedError = sanitizeErrorForLogging(error instanceof Error ? error : new Error(String(error)));
-    
-    log.error('Parallel processing failed completely', {
-      ...context,
-      totalDuration,
-      error: sanitizedError,
-    });
-
-    // Try to update business status to error (best effort)
-    try {
-      await updateBusiness(businessId, { status: 'error' });
-    } catch (statusError) {
-      log.warn('Failed to update business status to error', { businessId, error: statusError });
-    }
-
-    return {
-      crawlResult: {
-        success: false,
-        businessId,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      fingerprintResult: {
-        success: false,
-        businessId,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      overallSuccess: false,
-      totalDuration,
-    };
-  }
 }
 
 /**
  * Auto-start processing for new businesses
- * Enhanced to use parallel processing
+ * 
+ * Delegates to executeCFPAutomation() - the single source of truth for CFP automation.
+ * This wrapper maintains backward compatibility while using the consolidated service.
  */
 export async function autoStartProcessing(businessId: number): Promise<ExecutionResult> {
   try {
-    log.info('Auto-starting enhanced processing', { businessId });
+    log.info('Auto-starting CFP automation', { businessId });
 
-    const result = await executeParallelProcessing(businessId);
+    // Use consolidated CFP automation service
+    const { executeCFPAutomation } = await import('./cfp-automation-service');
+    const result = await executeCFPAutomation(businessId, {
+      updateStatus: true,
+      scheduleNext: false, // On-demand doesn't schedule next processing
+    });
     
     return {
-      success: result.overallSuccess,
-      businessId,
-      duration: result.totalDuration,
-      error: result.overallSuccess ? undefined : 'One or more processes failed',
+      success: result.success,
+      businessId: result.businessId,
+      duration: result.duration,
+      error: result.success ? undefined : result.error,
     };
 
   } catch (error) {

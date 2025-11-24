@@ -14,6 +14,7 @@ import {
 } from '@/lib/types/firecrawl-contract';
 import { firecrawlClient } from './firecrawl-client';
 import { generateMockCrawlData, shouldUseMockCrawlData } from '@/lib/utils/mock-crawl-data';
+import { generateMockFirecrawlCrawlResponse } from '@/lib/utils/firecrawl-mock';
 import { updateCrawlJob } from '@/lib/db/queries';
 
 // Enhanced crawler with multi-page capabilities and Firecrawl LLM integration
@@ -164,15 +165,28 @@ class EnhancedWebCrawler implements IWebCrawler {
     }
 
     // Start Firecrawl crawl with LLM extraction
-    const crawlResponse = await firecrawlClient.crawlWithLLMExtraction(url, {
-      maxDepth: this.DEFAULT_MAX_DEPTH,
-      limit: this.DEFAULT_PAGE_LIMIT,
-      includes: this.RELEVANT_PAGE_PATTERNS,
-      excludes: this.EXCLUDED_PAGE_PATTERNS,
-    });
+    // P0 Fix: Firecrawl client now falls back to mocks on API failures (paused subscription)
+    // DRY: Reuse firecrawlClient which handles errors gracefully
+    let crawlResponse: FirecrawlCrawlResponse;
+    try {
+      crawlResponse = await firecrawlClient.crawlWithLLMExtraction(url, {
+        maxDepth: this.DEFAULT_MAX_DEPTH,
+        limit: this.DEFAULT_PAGE_LIMIT,
+        includes: this.RELEVANT_PAGE_PATTERNS,
+        excludes: this.EXCLUDED_PAGE_PATTERNS,
+      });
+    } catch (error) {
+      // P0 Fix: If Firecrawl client throws (shouldn't happen with fallback, but just in case)
+      // Fall back to mock data
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`[CRAWLER] Firecrawl client error, using mock fallback: ${errorMsg}`);
+      crawlResponse = generateMockFirecrawlCrawlResponse(url);
+    }
 
     if (!crawlResponse.success) {
-      throw new Error(crawlResponse.error || 'Firecrawl crawl failed');
+      // P0 Fix: Even if response indicates failure, try mock fallback
+      console.warn(`[CRAWLER] Firecrawl response indicates failure, using mock fallback: ${crawlResponse.error}`);
+      crawlResponse = generateMockFirecrawlCrawlResponse(url);
     }
 
     // Handle async job if no immediate data

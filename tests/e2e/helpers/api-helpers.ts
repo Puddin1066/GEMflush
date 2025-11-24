@@ -213,38 +213,84 @@ export async function mockOpenRouterAPI(page: Page) {
       body = {};
     }
     
-    // Generate mock response based on prompt (similar to OpenRouterClient.getMockResponse)
-    // This ensures crawls complete quickly with realistic data
+    // Generate detailed mock response matching OpenRouter API structure
+    // Reference: https://openrouter.ai/docs/api-reference/chat/create
+    const requestId = `chatcmpl-mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const model = body.model || 'openai/gpt-4-turbo';
+    const messages = body.messages || [];
+    const lastMessage = messages[messages.length - 1]?.content || '';
+    
+    // Extract business context from prompt for realistic responses
+    const businessNameMatch = lastMessage.match(/(?:about|for|regarding)\s+([A-Z][a-zA-Z\s&]+?)(?:\s+in|\s+at|\.|$)/i);
+    const businessName = businessNameMatch ? businessNameMatch[1].trim() : 'the business';
+    
+    // Generate context-aware content based on prompt type
+    let content = '';
+    const lowerPrompt = lastMessage.toLowerCase();
+    
+    // For recommendation queries, ensure we include competitors for competitive analysis
+    if (lowerPrompt.includes('recommend') || lowerPrompt.includes('best') || lowerPrompt.includes('top')) {
+      // Use realistic competitor names that will pass validation
+      const competitors = ['TechCorp Solutions', 'DataSystems Inc', 'CloudSoft LLC', 'DevTools Group'];
+      const mentioned = Math.random() > 0.3; // 70% chance of mentioning target business
+      const position = mentioned ? Math.floor(Math.random() * 3) + 1 : null;
+      
+      content = `Here are the top recommendations:\n\n`;
+      let rank = 1;
+      
+      if (mentioned && position) {
+        // Insert target business at specified position
+        // Format: "1. BusinessName" (no dash, easier to parse)
+        for (let i = 1; i < position; i++) {
+          content += `${i}. ${competitors[i - 1]}\n`;
+          rank++;
+        }
+        content += `${position}. ${businessName}\n`;
+        rank++;
+      }
+      
+      // Add remaining competitors
+      for (let i = rank - 1; i < competitors.length && rank <= 5; i++) {
+        content += `${rank}. ${competitors[i]}\n`;
+        rank++;
+      }
+      
+      content += `\nEach of these businesses has demonstrated professional standards.`;
+    } else if (lowerPrompt.includes('what do you know about') || lowerPrompt.includes('information about')) {
+      content = `I know that ${businessName} is a well-established business in their industry. They provide quality services and have a good reputation in their local market. The business has been operating for several years and serves customers in their area.`;
+    } else if (lowerPrompt.includes('thinking about') || lowerPrompt.includes('considering')) {
+      content = `${businessName} seems like a solid choice. They have a good track record and appear to be reputable. I would consider them if you're looking for their type of services in the area.`;
+    } else {
+      content = `I can provide information about ${businessName}. They are a local business that offers quality services. For more specific details, I'd recommend visiting their website or contacting them directly.`;
+    }
+    
+    // Match OpenRouter API response structure exactly
+    // Reference: https://openrouter.ai/docs/api-reference/chat/create#response
     const mockResponse = {
-      id: 'mock-' + Date.now(),
-      model: body.model || 'openai/gpt-4-turbo',
+      id: requestId,
+      model: model,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
       choices: [
         {
+          index: 0,
           message: {
             role: 'assistant',
-            content: JSON.stringify({
-              businessDetails: {
-                industry: 'Technology',
-                founded: '2020',
-                employeeCount: '10-50',
-              },
-              llmEnhanced: {
-                extractedEntities: ['Test Business'],
-                businessCategory: 'Technology',
-                serviceOfferings: ['Software Development', 'Consulting'],
-                targetAudience: 'Businesses',
-                keyDifferentiators: ['Innovation', 'Quality'],
-                confidence: 0.8,
-              },
-            }),
+            content: content,
           },
           finish_reason: 'stop',
+          logprobs: null,
         },
       ],
       usage: {
-        prompt_tokens: 150,
-        completion_tokens: 100,
-        total_tokens: 250,
+        prompt_tokens: Math.floor(lastMessage.length / 4) + 50, // Rough estimate
+        completion_tokens: Math.floor(content.length / 4),
+        total_tokens: Math.floor((lastMessage.length + content.length) / 4) + 50,
+      },
+      // OpenRouter-specific fields
+      provider: {
+        id: model.includes('gpt') ? 'openai' : model.includes('claude') ? 'anthropic' : 'google',
+        is_moderation: false,
       },
     };
     

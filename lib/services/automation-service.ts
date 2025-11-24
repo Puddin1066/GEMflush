@@ -1,7 +1,18 @@
 /**
- * Automation Service
- * SOLID: Single Responsibility - handles automation configuration and scheduling
+ * Automation Configuration Service
+ * 
+ * Purpose: Tier-based automation configuration and decision logic (pure functions)
+ * 
+ * SOLID: Single Responsibility - handles automation configuration ONLY (no execution)
  * DRY: Centralizes tier-based automation logic
+ * 
+ * This service provides:
+ * - Configuration based on subscription tier
+ * - Decision functions (shouldAutoCrawl, shouldAutoPublish)
+ * - Helper functions (calculateNextCrawlDate, getEntityRichnessForTier)
+ * 
+ * Note: This does NOT execute automation - it only provides configuration and decisions.
+ * For execution, see: cfp-automation-service.ts
  */
 
 import { Team, Business } from '@/lib/db/schema';
@@ -68,8 +79,15 @@ export function getAutomationConfig(team: Team | null): AutomationConfig {
 
 /**
  * Check if automation should crawl a business
+ * 
+ * Handles all decision logic: team null check, manual frequency, automation enabled, and schedule checks.
  */
 export function shouldAutoCrawl(business: Business, team: Team | null): boolean {
+  // No team means no automation
+  if (!team) {
+    return false;
+  }
+
   const config = getAutomationConfig(team);
 
   // Manual frequency means no auto-crawl

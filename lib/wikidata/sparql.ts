@@ -358,7 +358,48 @@ export class WikidataSPARQLService implements IWikidataSPARQLService {
         });
       
       console.log(`✓ Cached: ${entityType}:${searchKey} → ${qid} (${source})`);
-    } catch (error) {
+    } catch (error: any) {
+      // P0 Fix: Better error handling for constraint issues
+      if (error?.code === '23505' || error?.message?.includes('unique constraint') || 
+          error?.message?.includes('ON CONFLICT')) {
+        // Constraint exists but ON CONFLICT failed - try update instead
+        console.warn(
+          `Database cache constraint issue for ${entityType}:${searchKey}. ` +
+          `Attempting update instead of insert...`
+        );
+        
+        try {
+          await db
+            .update(qidCache)
+            .set({
+              qid,
+              source,
+              queryCount: sql`${qidCache.queryCount} + 1`,
+              lastQueriedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(qidCache.entityType, entityType),
+                eq(qidCache.searchKey, searchKey)
+              )
+            );
+          console.log(`✓ Updated cache: ${entityType}:${searchKey} → ${qid} (${source})`);
+        } catch (updateError) {
+          // If update also fails, log but don't throw (non-critical)
+          console.error(
+            `Database cache save failed for ${entityType}:${searchKey}:`,
+            updateError
+          );
+          console.error(
+            'This may indicate a database migration issue. ' +
+            'Run: pnpm drizzle-kit push to ensure qid_cache table has unique constraint.'
+          );
+        }
+      } else {
+        // Other errors - log but don't throw (non-critical cache operation)
+        console.error(`Database cache save error:`, error);
+      }
       console.error('Database cache save error:', error);
     }
   }

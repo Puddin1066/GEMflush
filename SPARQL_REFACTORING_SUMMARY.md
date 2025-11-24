@@ -242,3 +242,4 @@ const countryQID = await sparqlService.findCountryQID('United States');
 
 **Result**: Fast, reliable, zero-cost QID lookups for 95%+ of queries, with SPARQL as optional fallback for edge cases.
 
+

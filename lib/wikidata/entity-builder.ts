@@ -16,6 +16,7 @@ import type { Reference } from './notability-checker';
 import { IWikidataEntityBuilder } from '@/lib/types/service-contracts';
 import { validateWikidataEntity } from '@/lib/validation/wikidata';
 import { sparqlService } from './sparql';
+import { normalizeBusinessName } from './utils';
 
 // Type alias for service contract compatibility (returns strict contract internally)
 type WikidataEntityData = WikidataEntityDataContract;
@@ -107,22 +108,11 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
   
   /**
    * Normalize business name by removing test timestamps and trailing numbers
-   * DRY: Centralized name normalization (matches notability-checker logic)
-   * SOLID: Single Responsibility - name cleaning only
-   * 
-   * Removes patterns like:
-   * - "Business Name 1763324055284" (timestamp suffix)
-   * - "Business Name 123" (trailing numbers)
-   * 
-   * @param name - Raw business name (may include test timestamps)
-   * @returns Cleaned name suitable for Wikidata labels
+   * DRY: Reuses centralized utility function from utils.ts
+   * SOLID: Single Responsibility - delegates to utility
    */
   private normalizeBusinessName(name: string): string {
-    // Remove trailing timestamps (13+ digit numbers) or shorter number sequences
-    // Pattern: space followed by digits at the end
-    // Examples: "Alpha Dental Center 1763324055284" -> "Alpha Dental Center"
-    //           "Business Name 123" -> "Business Name"
-    return name.replace(/\s+\d{6,}$/, '').trim();
+    return normalizeBusinessName(name);
   }
   
   private buildLabels(business: Business, crawledData?: CrawledData): WikidataEntityData['labels'] {
@@ -704,8 +694,10 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
         content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
       
-      // Parse suggestions
-      const parsed = JSON.parse(content);
+      // P1 Fix: Robust JSON parsing with fallback
+      // SOLID: Single Responsibility - handles JSON parsing errors gracefully
+      // DRY: Reuses parseLLMResponse utility pattern
+      const parsed = this.parseLLMResponseSafely(content);
       
       // Handle different response formats (DRY: normalize to array)
       // LLM might return array directly or object with suggestions property
@@ -726,7 +718,61 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       
     } catch (error) {
       console.error('Property suggestion error:', error);
+      // P1 Fix: Log error details for debugging
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 3).join('\n')
+        });
+      }
       return { claims: {}, suggestions: [] };
+    }
+  }
+
+  /**
+   * Parse LLM response safely with fallback strategies
+   * P1 Fix: Handles non-JSON LLM responses gracefully
+   * SOLID: Single Responsibility - JSON parsing only
+   * DRY: Centralized parsing logic for reuse
+   * 
+   * @param content - Raw LLM response content
+   * @returns Parsed JSON object or throws error
+   */
+  private parseLLMResponseSafely(content: string): any {
+    // Try direct JSON parse first
+    try {
+      return JSON.parse(content);
+    } catch (error) {
+      // Fallback 1: Extract JSON from text (common LLM pattern)
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          // Fix common JSON issues
+          const fixed = jsonMatch[0]
+            .replace(/,\s*}/g, '}')  // Remove trailing commas in objects
+            .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+            .replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Add quotes to unquoted keys
+          
+          return JSON.parse(fixed);
+        } catch (fixError) {
+          // Fallback 2: Try to extract array if object parse fails
+          const arrayMatch = content.match(/\[[\s\S]*\]/);
+          if (arrayMatch) {
+            try {
+              return JSON.parse(arrayMatch[0]);
+            } catch {
+              // Continue to final error
+            }
+          }
+        }
+      }
+      
+      // If all parsing attempts fail, throw descriptive error
+      throw new Error(
+        `Failed to parse LLM response as JSON. ` +
+        `Content preview: ${content.substring(0, 200)}... ` +
+        `Original error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
   

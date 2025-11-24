@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if crawl is needed (cache logic - DRY: reuse caching logic)
-    const { shouldCrawl: needsCrawl } = await import('@/lib/services/business-processing');
+    const { shouldCrawl: needsCrawl } = await import('@/lib/services/business-decisions');
     const needsCrawlCheck = await needsCrawl(business);
     
     if (!needsCrawlCheck) {

@@ -16,3 +16,4 @@ CREATE INDEX IF NOT EXISTS idx_crawl_jobs_status_progress ON crawl_jobs(status, 
 
 -- Add index for business and job type queries
 CREATE INDEX IF NOT EXISTS idx_crawl_jobs_business_type ON crawl_jobs(business_id, job_type);
+

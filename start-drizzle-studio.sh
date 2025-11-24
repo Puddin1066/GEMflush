@@ -18,3 +18,4 @@ echo "📊 Database: $POSTGRES_URL"
 echo "🌐 URL: https://local.drizzle.studio"
 
 pnpm db:studio
+

@@ -1,14 +1,93 @@
 /**
  * Test Utilities - Following DRY Principles
  * Centralized helpers for unit, integration, and E2E tests
+ * 
+ * SOLID: Single Responsibility - Each helper has one clear purpose
+ * DRY: Reusable functions to avoid code duplication
  */
 
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { users, teams, teamMembers, businesses, type NewUser, type NewTeam, type NewBusiness } from '@/lib/db/schema';
+import {
+  users,
+  teams,
+  teamMembers,
+  businesses,
+  llmFingerprints,
+  wikidataEntities,
+  crawlJobs,
+  competitors,
+  activityLogs,
+  invitations,
+  type NewUser,
+  type NewTeam,
+  type NewBusiness,
+} from '@/lib/db/schema';
 import { hashPassword } from '@/lib/auth/session';
 import { SignJWT } from 'jose';
 import { eq } from 'drizzle-orm';
+
+/**
+ * Cleanup Test Database
+ * 
+ * Deletes all test data in correct order to respect foreign key constraints.
+ * Follows dependency order: child tables first, then parent tables.
+ * 
+ * SOLID: Single Responsibility - Database cleanup only
+ * DRY: Reusable across all integration tests
+ * 
+ * Note: Uses CASCADE delete where possible to handle complex dependencies
+ */
+export async function cleanupTestDatabase(): Promise<void> {
+  // Strategic logging for debugging (only in test environment)
+  const isTestEnv = process.env.NODE_ENV === 'test' || process.env.VITEST;
+  const log = isTestEnv ? console.log : () => {};
+
+  try {
+    log('[Test Cleanup] Starting database cleanup...');
+
+    // Delete in dependency order (child tables first)
+    // Tables that reference businesses
+    log('[Test Cleanup] Deleting crawl_jobs...');
+    await db.delete(crawlJobs).catch(() => {}); // Ignore if table is empty
+    
+    log('[Test Cleanup] Deleting llm_fingerprints...');
+    await db.delete(llmFingerprints).catch(() => {});
+    
+    log('[Test Cleanup] Deleting wikidata_entities...');
+    await db.delete(wikidataEntities).catch(() => {});
+    
+    log('[Test Cleanup] Deleting competitors...');
+    await db.delete(competitors).catch(() => {});
+    
+    // Tables that reference teams/users
+    log('[Test Cleanup] Deleting businesses...');
+    await db.delete(businesses).catch(() => {});
+    
+    log('[Test Cleanup] Deleting activity_logs...');
+    await db.delete(activityLogs).catch(() => {});
+    
+    log('[Test Cleanup] Deleting invitations...');
+    await db.delete(invitations).catch(() => {});
+    
+    log('[Test Cleanup] Deleting team_members...');
+    await db.delete(teamMembers).catch(() => {});
+    
+    // Parent tables (no foreign key dependencies)
+    log('[Test Cleanup] Deleting teams...');
+    await db.delete(teams).catch(() => {});
+    
+    log('[Test Cleanup] Deleting users...');
+    await db.delete(users).catch(() => {});
+    
+    log('[Test Cleanup] Database cleanup complete');
+  } catch (error) {
+    // Strategic logging: log error details for debugging
+    console.error('[Test Cleanup] Error during cleanup:', error);
+    // Don't throw - allow tests to continue even if cleanup fails
+    // This prevents one test's cleanup failure from breaking other tests
+  }
+}
 
 // Test-specific session token creation
 // Ensure AUTH_SECRET is at least 32 characters for JWT signing

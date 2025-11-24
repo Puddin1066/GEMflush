@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if fingerprint can run (frequency enforcement - DRY: reuse frequency logic)
-    const { canRunFingerprint } = await import('@/lib/services/business-processing');
+    const { canRunFingerprint } = await import('@/lib/services/business-decisions');
     const { getTeamForUser } = await import('@/lib/db/queries');
     const team = await getTeamForUser();
     
@@ -148,6 +148,14 @@ export async function POST(request: NextRequest) {
         createdAt: new Date(),
       })
       .returning();
+
+    // Update business status to 'crawled' after fingerprint completes
+    // Note: 'crawled' indicates both crawl and fingerprint are complete
+    // CFP is only fully complete when published to Wikidata (status: 'published')
+    await db
+      .update(businesses)
+      .set({ status: 'crawled' })
+      .where(eq(businesses.id, business.id));
 
     const response = {
       success: true,

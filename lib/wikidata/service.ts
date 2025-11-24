@@ -98,7 +98,12 @@ export class WikidataService {
       const processingTime = Date.now() - startTime;
 
       // Step 8: Publish entity
-      const publishResult = await this.client.publishEntity(entity, options);
+      // SAFETY: Always default to test.wikidata.org to prevent blocking
+      const publishOptions: PublishOptions = {
+        ...options,
+        target: options.target || 'test', // Force test if not specified
+      };
+      const publishResult = await this.client.publishEntity(entity, publishOptions);
 
       const metrics = {
         processingTime,

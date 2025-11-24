@@ -285,3 +285,4 @@ function transformBusinessToDTO(business, fingerprint) {
 
 **Status**: ✅ **TEST CREATED** - Ready for execution
 
+

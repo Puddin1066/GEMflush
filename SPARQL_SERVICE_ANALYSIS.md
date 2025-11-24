@@ -217,3 +217,4 @@ import {
 
 **Action Required**: Import comprehensive mappings from `qid-mappings.ts` to `sparql.ts`
 
+

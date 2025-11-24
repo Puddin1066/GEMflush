@@ -406,3 +406,4 @@ export async function validateWorkspace(): Promise<ValidationResult> {
   const validator = new TypeValidator();
   return validator.validateWorkspace();
 }
+

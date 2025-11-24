@@ -1,14 +1,14 @@
 /**
  * Fingerprint Analysis Page
  * Shows detailed LLM visibility analysis with per-model breakdown
+ * 
+ * Client Component with automatic polling for real-time updates
  */
 
-import { redirect } from 'next/navigation';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
-import { db } from '@/lib/db/drizzle';
-import { businesses, llmFingerprints } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
-import { toFingerprintDetailDTO } from '@/lib/data/fingerprint-dto';
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useBusinessDetail } from '@/lib/hooks/use-business-detail';
 import { VisibilityScoreDisplay } from '@/components/fingerprint/visibility-score-display';
 import { ModelBreakdownList } from '@/components/fingerprint/model-breakdown-list';
 import { CFPProcessExplanation } from '@/components/fingerprint/cfp-process-explanation';
@@ -18,59 +18,71 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCcw, Eye, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { formatSentiment } from '@/lib/utils/format';
+import { BusinessDetailSkeleton } from '@/components/loading';
+import { ErrorCard } from '@/components/error';
 
-interface FingerprintPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-export default async function FingerprintPage({ params }: FingerprintPageProps) {
-  const { id } = await params;
-  // Authentication
-  const user = await getUser();
-  if (!user) {
-    redirect('/sign-in');
+export default function FingerprintPage() {
+  const params = useParams();
+  const businessId = parseInt(params.id as string, 10);
+  
+  // Validate business ID
+  if (isNaN(businessId) || businessId <= 0) {
+    return (
+      <div className="flex-1 p-4 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <ErrorCard
+            title="Invalid Business ID"
+            message={`"${params.id}" is not a valid business ID.`}
+            backHref="/dashboard/businesses"
+          />
+        </div>
+      </div>
+    );
   }
 
-  const team = await getTeamForUser();
-  if (!team) {
-    redirect('/sign-in');
+  // Get business and fingerprint data (hook handles polling automatically)
+  const { business, fingerprint, loading, error, refresh } = useBusinessDetail(businessId);
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-4 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <BusinessDetailSkeleton />
+        </div>
+      </div>
+    );
   }
 
-  const businessId = parseInt(id);
-  if (isNaN(businessId)) {
-    redirect('/dashboard');
+  if (error) {
+    return (
+      <div className="flex-1 p-4 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <ErrorCard
+            message={error}
+            onRetry={refresh}
+            backHref="/dashboard/businesses"
+          />
+        </div>
+      </div>
+    );
   }
-
-  // Get business
-  const [business] = await db
-    .select()
-    .from(businesses)
-    .where(
-      and(
-        eq(businesses.id, businessId),
-        eq(businesses.teamId, team.id)
-      )
-    )
-    .limit(1);
 
   if (!business) {
-    redirect('/dashboard');
+    return (
+      <div className="flex-1 p-4 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <ErrorCard
+            title="Business Not Found"
+            message="The business you're looking for doesn't exist or you don't have access to it."
+            backHref="/dashboard/businesses"
+          />
+        </div>
+      </div>
+    );
   }
 
-  // Get latest fingerprints for trend calculation
-  const latestFingerprints = await db
-    .select()
-    .from(llmFingerprints)
-    .where(eq(llmFingerprints.businessId, businessId))
-    .orderBy(desc(llmFingerprints.createdAt))
-    .limit(2);
-
-  const [currentFingerprint, previousFingerprint] = latestFingerprints;
-
-  if (!currentFingerprint) {
-    // No fingerprint yet - show CTA
+  // No fingerprint yet - show CTA
+  if (!fingerprint) {
     return (
       <div className="flex-1 p-4 lg:p-8">
         <div className="max-w-4xl mx-auto">
@@ -87,27 +99,28 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
               No Fingerprint Analysis Yet
             </h2>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Run an LLM fingerprint analysis to discover how visible your business
-              is across major AI models.
+              {business.status === 'crawling' || business.status === 'generating'
+                ? 'Fingerprint analysis is being generated. This page will update automatically when complete.'
+                : 'Run an LLM fingerprint analysis to discover how visible your business is across major AI models.'}
             </p>
-            <Button className="gem-gradient text-white">
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Run Analysis Now
-            </Button>
+            {(business.status === 'crawling' || business.status === 'generating') && (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            )}
+            <Link href={`/dashboard/businesses/${businessId}`}>
+              <Button className="gem-gradient text-white">
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                {business.status === 'crawling' || business.status === 'generating' ? 'Processing...' : 'Run Analysis Now'}
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // Transform to DTO with business data to reconstruct prompts
-  const dto = toFingerprintDetailDTO(
-    currentFingerprint as any,
-    previousFingerprint as any,
-    business // Pass business data to reconstruct prompts
-  );
-
-  const sentiment = formatSentiment(dto.summary.sentiment);
+  const sentiment = formatSentiment(fingerprint.summary.sentiment);
+  
+  // FingerprintDetailDTO already has createdAt formatted as "2 days ago" etc.
 
   return (
     <div className="flex-1 p-4 lg:p-8">
@@ -145,14 +158,14 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
               <p className="text-sm text-gray-600 mb-2">Overall Visibility Score</p>
               <div className="flex justify-center mb-4">
                 <VisibilityScoreDisplay
-                  score={dto.visibilityScore}
-                  trend={dto.trend}
+                  score={fingerprint.visibilityScore}
+                  trend={fingerprint.trend}
                   size="lg"
                   showBadge
                 />
               </div>
               <p className="text-sm text-gray-500">
-                Last analyzed {dto.createdAt}
+                Last analyzed {fingerprint.createdAt}
               </p>
             </div>
           </CardContent>
@@ -168,10 +181,10 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">
-                {dto.summary.mentionRate}%
+                {fingerprint.summary.mentionRate}%
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Mentioned in {dto.summary.mentionRate}% of queries
+                Mentioned in {fingerprint.summary.mentionRate}% of queries
               </p>
             </CardContent>
           </Card>
@@ -200,7 +213,7 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">
-                {dto.results.filter(r => r.mentioned).length}/{dto.results.length}
+                {fingerprint.results.filter(r => r.mentioned).length}/{fingerprint.results.length}
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 Models mentioned you
@@ -216,7 +229,7 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-gray-900">
-                {dto.summary.averageRank ? `#${dto.summary.averageRank}` : 'N/A'}
+                {fingerprint.summary.averageRank ? `#${fingerprint.summary.averageRank}` : 'N/A'}
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 In recommendation queries
@@ -237,15 +250,19 @@ export default async function FingerprintPage({ params }: FingerprintPageProps) 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ModelBreakdownList results={dto.results} />
+            <ModelBreakdownList results={fingerprint.results} />
           </CardContent>
         </Card>
 
         {/* Visibility Score History Chart */}
-        <VisibilityScoreChart businessId={businessId} />
+        <VisibilityScoreChart 
+          businessId={businessId}
+          businessStatus={business.status}
+          automationEnabled={business.automationEnabled}
+        />
 
         {/* Competitive Link */}
-        {dto.competitiveLeaderboard && (
+        {fingerprint.competitiveLeaderboard && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

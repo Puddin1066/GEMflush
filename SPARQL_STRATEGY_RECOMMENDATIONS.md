@@ -257,3 +257,4 @@ If SPARQL is used, add:
 - ✅ **Industry** (~60%) and **Legal Form** (~30%) are less common
 - ✅ **Location is the primary use case**
 
+

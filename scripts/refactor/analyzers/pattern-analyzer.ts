@@ -790,3 +790,4 @@ export async function analyzePatterns(filePath: string): Promise<PatternAnalysis
     throw new Error(`Failed to analyze patterns for ${filePath}: ${error}`);
   }
 }
+

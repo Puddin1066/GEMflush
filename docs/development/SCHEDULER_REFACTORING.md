@@ -147,3 +147,4 @@ Note: `processWeeklyCrawls()` still works but is deprecated and calls `processSc
 - `app/api/cron/monthly/route.ts` - Deprecated endpoint (backward compatibility)
 
 
+
