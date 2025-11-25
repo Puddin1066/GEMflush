@@ -15,6 +15,7 @@ import {
   FingerprintHistoryDTO,
 } from './types';
 import { formatDistanceToNow } from 'date-fns';
+import { calculateTrend, roundPercentage, roundToDecimal } from './utils';
 
 /**
  * Transform FingerprintAnalysis domain object → FingerprintDetailDTO
@@ -42,7 +43,7 @@ export function toFingerprintDetailDTO(
 
   // Calculate trend by comparing to previous analysis
   const trend = normalizedPrevious
-    ? calculateTrend(normalizedAnalysis.visibilityScore, normalizedPrevious.visibilityScore)
+    ? calculateTrend(normalizedAnalysis.visibilityScore, normalizedPrevious.visibilityScore, 5)
     : 'neutral';
 
   // Determine top performing models (highest mention rate)
@@ -88,10 +89,10 @@ export function toFingerprintDetailDTO(
   }
 
   return {
-    visibilityScore: Math.round(normalizedAnalysis.visibilityScore),
+    visibilityScore: roundPercentage(normalizedAnalysis.visibilityScore) ?? 0,
     trend,
     summary: {
-      mentionRate: Math.round(normalizedAnalysis.mentionRate),
+      mentionRate: roundPercentage(normalizedAnalysis.mentionRate) ?? 0,
       sentiment,
       topModels,
       averageRank: normalizedAnalysis.avgRankPosition,
@@ -113,11 +114,9 @@ export function toFingerprintDetailDTO(
 function normalizeFingerprintAnalysis(
   analysis: FingerprintAnalysis | { createdAt?: Date | null; generatedAt?: Date | null; [key: string]: any }
 ): FingerprintAnalysis {
-  // Map createdAt to generatedAt if needed
+  // Map createdAt to generatedAt if needed (database uses createdAt, domain uses generatedAt)
   const generatedAt = (analysis as any).generatedAt || (analysis as any).createdAt;
-  const validGeneratedAt = generatedAt 
-    ? (generatedAt instanceof Date ? generatedAt : new Date(generatedAt))
-    : new Date();
+  const validGeneratedAt = normalizeDate(generatedAt);
 
   // Ensure llmResults is always an array (handle null/undefined from database)
   const llmResults = analysis.llmResults || (analysis as any).llmResults;
@@ -132,9 +131,7 @@ function normalizeFingerprintAnalysis(
     accuracyScore: analysis.accuracyScore ?? (analysis as any).accuracyScore ?? 0,
     avgRankPosition: analysis.avgRankPosition ?? (analysis as any).avgRankPosition ?? null,
     llmResults: safeLlmResults,
-    generatedAt: validGeneratedAt instanceof Date && !isNaN(validGeneratedAt.getTime()) 
-      ? validGeneratedAt 
-      : new Date(),
+    generatedAt: validGeneratedAt,
     competitiveBenchmark: analysis.competitiveBenchmark || (analysis as any).competitiveBenchmark,
     competitiveLeaderboard: analysis.competitiveLeaderboard || (analysis as any).competitiveLeaderboard,
     insights: analysis.insights || (analysis as any).insights,
@@ -209,9 +206,8 @@ export function toCompetitiveLeaderboardDTO(
   leaderboard: {
     targetBusiness: {
       name: string;
-      rank: number | null;
+      avgPosition: number | null; // REFACTOR: rank removed, use avgPosition
       mentionCount: number;
-      avgPosition: number | null;
     };
     competitors: Array<{
       name: string;
@@ -292,9 +288,9 @@ export function toCompetitiveLeaderboardDTO(
     rank: idx + 1,
     name: comp.name,
     mentionCount: comp.mentionCount,
-    avgPosition: Math.round(comp.avgPosition * 10) / 10, // Round to 1 decimal
+    avgPosition: roundToDecimal(comp.avgPosition, 1) ?? 0,
     appearsWithTarget: comp.appearsWithTarget,
-    marketShare: totalMentions > 0 ? (comp.mentionCount / totalMentions) * 100 : 0,
+    marketShare: roundPercentage(totalMentions > 0 ? (comp.mentionCount / totalMentions) * 100 : 0) ?? 0,
     badge: idx === 0 ? 'top' : undefined, // Top competitor gets badge
   }));
 
@@ -323,9 +319,9 @@ export function toCompetitiveLeaderboardDTO(
   return {
     targetBusiness: {
       name: targetBusiness.name,
-      rank: targetBusiness.rank,
+      rank: roundPercentage(targetBusiness.avgPosition),
       mentionCount: targetBusiness.mentionCount,
-      mentionRate: Math.round(mentionRate),
+      mentionRate: roundPercentage(mentionRate) ?? 0,
     },
     competitors: competitorDTOs,
     totalQueries: totalRecommendationQueries,
@@ -400,19 +396,21 @@ function generateRecommendation(
   }
 }
 
-/**
- * Calculate trend from current vs previous score
- */
-function calculateTrend(
-  current: number,
-  previous: number
-): 'up' | 'down' | 'neutral' {
-  const diff = current - previous;
-  const threshold = 5; // 5% change to be significant
+// calculateTrend moved to utils.ts
 
-  if (diff > threshold) return 'up';
-  if (diff < -threshold) return 'down';
-  return 'neutral';
+/**
+ * Normalize date to Date object with fallback
+ * DRY: Helper for date normalization
+ */
+function normalizeDate(date: Date | string | null | undefined): Date {
+  if (!date) return new Date();
+  
+  if (date instanceof Date) {
+    return isNaN(date.getTime()) ? new Date() : date;
+  }
+  
+  const parsed = new Date(date);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
 /**
@@ -461,10 +459,10 @@ export function toFingerprintHistoryDTOs(
       ? fp.createdAt.toISOString() 
       : new Date(fp.createdAt as string).toISOString(),
     visibilityScore: fp.visibilityScore,
-    mentionRate: fp.mentionRate ? Math.round(fp.mentionRate) : null,
-    sentimentScore: fp.sentimentScore ? Math.round(fp.sentimentScore * 100) : null,
-    accuracyScore: fp.accuracyScore ? Math.round(fp.accuracyScore * 100) : null,
-    avgRankPosition: fp.avgRankPosition ? Math.round(fp.avgRankPosition * 10) / 10 : null,
+    mentionRate: roundPercentage(fp.mentionRate),
+    sentimentScore: roundPercentage(fp.sentimentScore ? fp.sentimentScore * 100 : null),
+    accuracyScore: roundPercentage(fp.accuracyScore ? fp.accuracyScore * 100 : null),
+    avgRankPosition: roundToDecimal(fp.avgRankPosition, 1),
   }));
 }
 

@@ -86,25 +86,25 @@ async function buildCheckoutSessionConfig(
   team: { id: number; stripeCustomerId: string | null },
   userId: number
 ): Promise<Stripe.Checkout.SessionCreateParams> {
-  const baseUrl = await getBaseUrl();
-  
+    const baseUrl = await getBaseUrl();
+    
   return {
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price: priceId,
-        quantity: 1
-      }
-    ],
-    mode: 'subscription',
-    success_url: `${baseUrl}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/pricing`,
-    customer: team.stripeCustomerId || undefined,
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1
+        }
+      ],
+      mode: 'subscription',
+      success_url: `${baseUrl}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
+      customer: team.stripeCustomerId || undefined,
     client_reference_id: userId.toString(),
-    allow_promotion_codes: true,
-    subscription_data: {
+      allow_promotion_codes: true,
+      subscription_data: {
       trial_period_days: TRIAL_PERIOD_DAYS
-    }
+      }
   };
 }
 
@@ -166,39 +166,39 @@ function buildBillingPortalConfiguration(
   priceIds: string[]
 ): Stripe.BillingPortal.ConfigurationCreateParams {
   return {
-    business_profile: {
-      headline: 'Manage your subscription'
-    },
-    features: {
-      subscription_update: {
-        enabled: true,
-        default_allowed_updates: ['price', 'quantity', 'promotion_code'],
-        proration_behavior: 'create_prorations',
-        products: [
-          {
+      business_profile: {
+        headline: 'Manage your subscription'
+      },
+      features: {
+        subscription_update: {
+          enabled: true,
+          default_allowed_updates: ['price', 'quantity', 'promotion_code'],
+          proration_behavior: 'create_prorations',
+          products: [
+            {
             product: productId,
             prices: priceIds
-          }
-        ]
-      },
-      subscription_cancel: {
-        enabled: true,
-        mode: 'at_period_end',
-        cancellation_reason: {
-          enabled: true,
-          options: [
-            'too_expensive',
-            'missing_features',
-            'switched_service',
-            'unused',
-            'other'
+            }
           ]
+        },
+        subscription_cancel: {
+          enabled: true,
+          mode: 'at_period_end',
+          cancellation_reason: {
+            enabled: true,
+            options: [
+              'too_expensive',
+              'missing_features',
+              'switched_service',
+              'unused',
+              'other'
+            ]
+          }
+        },
+        payment_method_update: {
+          enabled: true
         }
-      },
-      payment_method_update: {
-        enabled: true
       }
-    }
   };
 }
 
@@ -380,15 +380,15 @@ export async function handleSubscriptionChange(
       await updateActiveSubscription(team, subscription, customerId);
     } else if (status === SUBSCRIPTION_STATUS.CANCELED || status === SUBSCRIPTION_STATUS.UNPAID) {
       await updateCanceledSubscription(team, status);
-    }
-  } catch (error) {
-    console.error('Error updating team subscription:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      teamId: team.id,
-      customerId,
-      subscriptionStatus: status,
-    });
-    throw error; // Re-throw to allow webhook retry
+      }
+    } catch (error) {
+      console.error('Error updating team subscription:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        teamId: team.id,
+        customerId,
+        subscriptionStatus: status,
+      });
+      throw error; // Re-throw to allow webhook retry
   }
 }
 

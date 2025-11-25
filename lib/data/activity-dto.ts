@@ -11,6 +11,7 @@
 import 'server-only';
 import type { ActivityDTO } from './types';
 import type { CrawlJob, Business, LLMFingerprint, WikidataEntity } from '@/lib/db/schema';
+import { toISOStringWithFallback } from './utils';
 
 /**
  * Type guards for activity item types
@@ -100,9 +101,7 @@ function transformCrawlJobToActivity(
     businessName: business.name,
     status,
     message,
-    timestamp: crawlJob.createdAt instanceof Date 
-      ? crawlJob.createdAt.toISOString() 
-      : new Date().toISOString(),
+    timestamp: toISOStringWithFallback(crawlJob.createdAt),
     details: buildActivityDetails({
       progress: crawlJob.progress ?? undefined, // Convert null to undefined
       error: crawlJob.errorMessage,
@@ -128,9 +127,7 @@ function transformFingerprintToActivity(
     businessName: business.name,
     status,
     message,
-    timestamp: fingerprint.createdAt instanceof Date 
-      ? fingerprint.createdAt.toISOString() 
-      : new Date().toISOString(),
+    timestamp: toISOStringWithFallback(fingerprint.createdAt),
     details: {
       result: fingerprint.visibilityScore 
         ? `Visibility score: ${fingerprint.visibilityScore}` 
@@ -156,9 +153,7 @@ function transformPublishToActivity(
     businessName: business.name,
     status,
     message,
-    timestamp: publish.publishedAt instanceof Date 
-      ? publish.publishedAt.toISOString() 
-      : new Date().toISOString(),
+    timestamp: toISOStringWithFallback(publish.publishedAt),
     details: {
       result: publish.qid || undefined,
       error: publish.success ? undefined : publish.error,

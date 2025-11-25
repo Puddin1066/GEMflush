@@ -230,11 +230,11 @@ describe('🔴 RED: Wikidata Service - Desired Behavior Specification', () => {
 
       // Use the existing mockClientInstance from the top-level mock
       mockClientInstance.publishEntity.mockResolvedValue({
-        success: true,
-        qid: 'Q123',
-        publishedTo: 'test.wikidata.org',
-        propertiesPublished: 1,
-        referencesPublished: 0,
+          success: true,
+          qid: 'Q123',
+          publishedTo: 'test.wikidata.org',
+          propertiesPublished: 1,
+          referencesPublished: 0,
       });
 
       // Act: Create entity (TEST SPECIFIES DESIRED BEHAVIOR)
@@ -360,11 +360,11 @@ describe('🔴 RED: Wikidata Service - Desired Behavior Specification', () => {
 
       // Use the existing mockClientInstance from the top-level mock
       mockClientInstance.publishEntity.mockResolvedValue({
-        success: true,
-        qid: 'Q123',
-        publishedTo: 'test.wikidata.org',
-        propertiesPublished: 2,
-        referencesPublished: 0,
+          success: true,
+          qid: 'Q123',
+          publishedTo: 'test.wikidata.org',
+          propertiesPublished: 2,
+          referencesPublished: 0,
       });
 
       // Act: Create entity with limits (TEST SPECIFIES DESIRED BEHAVIOR)

@@ -90,13 +90,16 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
       const sentimentAnalysis = this.analyzeSentiment(response.content, businessName);
       const competitorAnalysis = this.analyzeCompetitors(response.content, businessName);
       
+      // REFACTOR: Extract rank directly here instead of from CompetitorAnalysis
+      const rankPosition = this.extractRanking(response.content, businessName);
+      
       const result: LLMResult = {
         model: response.model,
         promptType: promptType as 'factual' | 'opinion' | 'recommendation',
         mentioned: mentionAnalysis.mentioned,
         sentiment: sentimentAnalysis.sentiment,
         confidence: this.calculateOverallConfidence(mentionAnalysis, sentimentAnalysis, competitorAnalysis),
-        rankPosition: competitorAnalysis.targetRank,
+        rankPosition,
         competitorMentions: competitorAnalysis.competitors,
         rawResponse: response.content,
         tokensUsed: response.tokensUsed,
@@ -266,21 +269,18 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
    * 
    * SOLID: Single Responsibility - extracts and validates competitor names
    * DRY: Reusable validation logic for business name extraction
+   * REFACTOR: Removed targetRank - rank extraction now happens directly in analyzeResponse
    */
   analyzeCompetitors(response: string, businessName: string): CompetitorAnalysis {
     const competitors: string[] = [];
-    let targetRank: number | null = null;
     
     // Extract potential business names from numbered lists (most reliable)
     // Pattern: "1. Business Name" or "1) Business Name"
     // Stop at common delimiters: dash, colon, or newline (to avoid matching descriptions)
-    // Exclude dash from main match to stop at "Business Name - Description"
     const numberedListPattern = /^\s*\d+[\.\)]\s+([A-Z][a-zA-Z\s&']+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)(?=\s*[-:]|\s*$|\n)/gm;
     const numberedMatches = Array.from(response.matchAll(numberedListPattern));
-    // Clean up extracted names - remove any trailing dashes or descriptions that might have been captured
     const numberedBusinesses = numberedMatches.map(match => {
       let name = match[1].trim();
-      // Remove anything after a dash or colon if it was accidentally captured
       name = name.split(/\s*[-:]\s*/)[0].trim();
       return name;
     });
@@ -290,30 +290,34 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
     const bulletMatches = Array.from(response.matchAll(bulletListPattern));
     const bulletBusinesses = bulletMatches.map(match => match[1].trim());
     
+    // Extract from comma-separated lists (e.g., "Best businesses: Test Business, Competitor A, Competitor B")
+    const commaListPattern = /(?:best|top|recommended|leading)\s+(?:businesses|companies|providers|options)[:\s]+([A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?(?:\s*,\s*[A-Z][a-zA-Z\s&'-]+(?:Inc|LLC|Corp|Company|Co|Ltd|Group|Services|Solutions)?)*)/i;
+    const commaMatch = response.match(commaListPattern);
+    if (commaMatch) {
+      const commaList = commaMatch[1].split(',').map(name => name.trim());
+      numberedBusinesses.push(...commaList);
+    }
+    
     // Combine and deduplicate
     const allPotentialBusinesses = [...new Set([...numberedBusinesses, ...bulletBusinesses])];
     
     // Filter out invalid business names (LLM response text, not actual business names)
     const filteredBusinesses = allPotentialBusinesses
-      .filter(name => this.isValidBusinessName(name)) // NEW: Validate it's actually a business name
+      .filter(name => this.isValidBusinessName(name))
       .filter(name => !this.isSameBusinessName(name, businessName))
       .filter(name => !this.isCommonFalsePositive(name))
-      .filter(name => !this.isLLMResponseText(name)) // NEW: Filter out LLM response text
+      .filter(name => !this.isLLMResponseText(name))
       .filter((name, index, array) => array.indexOf(name) === index); // Remove duplicates
     
     competitors.push(...filteredBusinesses);
-    
-    // Look for ranking information
-    targetRank = this.extractRanking(response, businessName);
     
     // Calculate confidence based on context
     const confidence = this.calculateCompetitorConfidence(response, competitors, businessName);
     
     return {
       competitors,
-      targetRank,
       confidence,
-      reasoning: `Found ${competitors.length} potential competitors${targetRank ? `, target ranked at position ${targetRank}` : ''}`
+      reasoning: `Found ${competitors.length} potential competitors`
     };
   }
   
@@ -583,21 +587,12 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
       return null;
     }
     
-    for (const pattern of RANKING_PATTERNS) {
-      const match = response.match(pattern);
-      if (match) {
-        const rank = parseInt(match[1], 10);
-        if (rank >= 1 && rank <= 10) { // Reasonable ranking range
-          return rank;
-        }
-      }
-    }
-    
-    // Look for ordinal positions in lists
+    // GREEN: Look for ordinal positions in numbered lists first (most reliable)
     const lines = response.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (this.isSameBusinessName(line, businessName)) {
+      // Check if this line contains the business name
+      if (this.isSameBusinessName(line, businessName) || line.toLowerCase().includes(businessName.toLowerCase())) {
         // Check if this line starts with a number
         const numberMatch = line.match(/^\s*(\d+)[\.\)]/);
         if (numberMatch) {
@@ -605,6 +600,17 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
           if (rank >= 1 && rank <= 10) {
             return rank;
           }
+        }
+      }
+    }
+    
+    // Also check ranking patterns
+    for (const pattern of RANKING_PATTERNS) {
+      const match = response.match(pattern);
+      if (match) {
+        const rank = parseInt(match[1], 10);
+        if (rank >= 1 && rank <= 10) { // Reasonable ranking range
+          return rank;
         }
       }
     }
@@ -690,6 +696,11 @@ export class ResponseAnalyzer implements IResponseAnalyzer {
     sentiment: SentimentAnalysis, 
     competitor: CompetitorAnalysis
   ): number {
+    // GREEN: Lower confidence significantly if business is not mentioned
+    if (!mention.mentioned) {
+      return Math.min(0.4, mention.confidence * 0.3);
+    }
+    
     // Weighted average of individual confidences
     const mentionWeight = 0.5;
     const sentimentWeight = 0.3;

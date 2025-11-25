@@ -166,7 +166,7 @@ export function DashboardClient({ dashboardData: initialData, user, team }: Dash
               <Building2 className="h-5 w-5 text-gray-400" />
             </div>
             <div className="text-3xl font-bold text-gray-900">
-              {dashboardData.totalBusinesses}
+              {dashboardData.totalBusinesses} {dashboardData.totalBusinesses === 1 ? 'business' : 'businesses'}
             </div>
           </CardContent>
         </Card>

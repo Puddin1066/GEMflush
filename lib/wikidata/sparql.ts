@@ -496,8 +496,8 @@ export class WikidataSPARQLService implements IWikidataSPARQLService {
         const binding = response.results.bindings[0];
         const uri = binding.city?.value || binding.item?.value;
         if (uri) {
-          const qid = this.extractQID(uri);
-          return qid;
+        const qid = this.extractQID(uri);
+        return qid;
         }
       }
     } catch (error) {

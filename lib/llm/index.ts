@@ -26,6 +26,17 @@ export { PromptGenerator, promptGenerator } from './prompt-generator';
 export { ResponseAnalyzer, responseAnalyzer } from './response-analyzer';
 export { ParallelProcessor, parallelProcessor } from './parallel-processor';
 
+// Services (extracted for SOLID compliance)
+export { VisibilityMetricsService } from './visibility-metrics-service';
+export { LeaderboardService } from './leaderboard-service';
+
+// Utilities
+export { businessToContext } from './business-context';
+export { estimateCompetitorPosition } from './position-estimator';
+export { filterValidResults, filterByPromptType, filterMentionedResults, filterRankedResults } from './result-filter';
+export { calculateVisibilityScore, SCORE_WEIGHTS } from './score-calculator';
+export { MockResponseGenerator } from './mock-response-generator';
+
 // ============================================================================
 // TYPE EXPORTS
 // ============================================================================

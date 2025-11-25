@@ -18,6 +18,7 @@ import {
 } from './types';
 import { Business } from '@/lib/db/schema';
 import { CrawledData } from '@/lib/types/gemflush';
+import { businessToContext as convertBusinessToContext } from './business-context';
 
 // ============================================================================
 // PROMPT TEMPLATES
@@ -54,26 +55,26 @@ const OPINION_TEMPLATES: PromptTemplate[] = [
   },
   {
       type: 'opinion', 
-    template: 'A friend recommended {businessName}{locationContext} to me. What\'s your take on them? Are they known for being professional and delivering good results in the {industry} space?',
-    variables: ['businessName', 'locationContext', 'industry']
+    template: 'A friend recommended {businessName}{locationContext} to me. What\'s your opinion on them? What do you think about their reputation and quality? Are they known for being professional and delivering good results?',
+    variables: ['businessName', 'locationContext']
   }
 ];
 
 const RECOMMENDATION_TEMPLATES: PromptTemplate[] = [
   {
     type: 'recommendation',
-    template: 'What are the best {industryPlural}{locationContext}? I\'m looking for top recommendations for quality {serviceType} providers in the area.',
-    variables: ['industryPlural', 'locationContext', 'serviceType']
+    template: 'What are the best {industryPlural}{locationContext}? I\'m looking for top recommendations for quality {serviceType} providers in the area, including {businessName}.',
+    variables: ['industryPlural', 'locationContext', 'serviceType', 'businessName']
   },
   {
     type: 'recommendation',
-    template: 'Can you recommend the top 5 {industryPlural}{locationContext}? I need reliable options for {serviceContext} and want to know who the leading providers are.',
-    variables: ['industryPlural', 'locationContext', 'serviceContext']
+    template: 'Can you recommend the top 5 {industryPlural}{locationContext}? I need reliable options for {serviceContext} and want to know who the leading providers are, including {businessName}.',
+    variables: ['industryPlural', 'locationContext', 'serviceContext', 'businessName']
   },
   {
       type: 'recommendation',
-    template: 'I\'m looking for the most reputable {industryPlural}{locationContext}. Who would you recommend for someone seeking high-quality {serviceType} services?',
-    variables: ['industryPlural', 'locationContext', 'serviceType']
+    template: 'I\'m looking for the most reputable {industryPlural}{locationContext}. Who would you recommend for someone seeking high-quality {serviceType} services? Please include {businessName} in your recommendations.',
+    variables: ['industryPlural', 'locationContext', 'serviceType', 'businessName']
   }
 ];
 
@@ -170,19 +171,13 @@ export class PromptGenerator implements IPromptGenerator {
   
   /**
    * Convert Business entity to BusinessContext
+   * DRY: Use shared conversion utility
    */
   private businessToContext(business: Business): BusinessContext {
-    return {
-      name: business.name,
-      url: business.url,
-      category: business.category || undefined,
-      location: business.location ? {
-        city: business.location.city,
-        state: business.location.state,
-        country: business.location.country
-      } : undefined,
-      crawlData: business.crawlData || undefined
-    };
+    const context = convertBusinessToContext(business);
+    // Note: businessToContext utility includes businessId, but prompt-generator doesn't need it
+    // This is fine - extra fields are ignored
+    return context;
   }
   
   /**

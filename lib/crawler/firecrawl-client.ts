@@ -22,10 +22,18 @@ import {
 } from '@/lib/utils/firecrawl-mock';
 
 export class EnhancedFirecrawlClient implements IFirecrawlClient {
+  // Constants
+  private static readonly FIRECRAWL_API_BASE_URL = 'https://api.firecrawl.dev';
+  private static readonly MIN_REQUEST_INTERVAL_MS = 7000; // 7 seconds between requests
+  private static readonly MOCK_DELAY_MS = 2000; // Simulate API delay for mocks
+  private static readonly JOB_STATUS_MOCK_DELAY_MS = 1000;
+  private static readonly SUPPORTED_ERROR_CODES = [402, 403, 429] as const;
+  private static readonly DEFAULT_WAIT_FOR_MS = 2000; // Wait for dynamic content
+
   private apiKey: string | null;
-  private baseUrl = 'https://api.firecrawl.dev';
+  private baseUrl = EnhancedFirecrawlClient.FIRECRAWL_API_BASE_URL;
   private lastRequestTime = 0;
-  private readonly MIN_REQUEST_INTERVAL = 7000; // 7 seconds between requests
+  private readonly MIN_REQUEST_INTERVAL = EnhancedFirecrawlClient.MIN_REQUEST_INTERVAL_MS;
   private useMock: boolean;
 
   constructor() {
@@ -130,7 +138,7 @@ Be precise and only extract information that is explicitly stated on the webpage
       pageOptions: {
         onlyMainContent: true,
         includeLinks: true,
-        waitFor: 2000, // Wait 2 seconds for dynamic content
+        waitFor: EnhancedFirecrawlClient.DEFAULT_WAIT_FOR_MS,
       },
       extractorOptions: {
         mode: 'llm-extraction',
@@ -145,7 +153,7 @@ Be precise and only extract information that is explicitly stated on the webpage
     // Use mock if API key not available
     if (this.useMock) {
       console.log(`[FIRECRAWL] Using mock response for: ${url}`);
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
+      await this.simulateApiDelay(EnhancedFirecrawlClient.MOCK_DELAY_MS);
       return generateMockFirecrawlCrawlResponse(url);
     }
 
@@ -160,21 +168,7 @@ Be precise and only extract information that is explicitly stated on the webpage
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        
-        // P0 Fix: Handle paused subscription and API failures - fall back to mocks
-        // DRY: Reuse mock generation instead of throwing errors
-        if (response.status === 402 || response.status === 403 || response.status === 429) {
-          console.warn(`[FIRECRAWL] API error ${response.status} (subscription paused or rate limited), falling back to mock: ${errorText}`);
-          console.log(`[FIRECRAWL] Using mock response as fallback for: ${url}`);
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-          return generateMockFirecrawlCrawlResponse(url);
-        }
-        
-        if (response.status === 429) {
-          throw new Error('Firecrawl Rate Limit Exceeded (429)');
-        }
-        throw new Error(`Firecrawl Crawl API Error ${response.status}: ${errorText}`);
+        return this.handleApiError(response, url);
       }
 
       const data: FirecrawlCrawlResponse = await response.json();
@@ -187,13 +181,7 @@ Be precise and only extract information that is explicitly stated on the webpage
 
       return data;
     } catch (error) {
-      // P0 Fix: Fall back to mocks on any API failure (subscription paused, network error, etc.)
-      // DRY: Reuse mock generation instead of propagating errors
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.warn(`[FIRECRAWL] API call failed, falling back to mock: ${errorMsg}`);
-      console.log(`[FIRECRAWL] Using mock response as fallback for: ${url}`);
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-      return generateMockFirecrawlCrawlResponse(url);
+      return this.handleApiFailure(error, url);
     }
   }
 
@@ -208,7 +196,7 @@ Be precise and only extract information that is explicitly stated on the webpage
     // Use mock if API key not available
     if (this.useMock) {
       console.log(`[FIRECRAWL] Using mock job status for: ${jobId}`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+      await this.simulateApiDelay(EnhancedFirecrawlClient.JOB_STATUS_MOCK_DELAY_MS);
       return generateMockFirecrawlJobStatus(jobId, 'https://example.com', 'completed');
     }
 
@@ -224,7 +212,7 @@ Be precise and only extract information that is explicitly stated on the webpage
         const errorText = await response.text();
         
         // P0 Fix: Handle paused subscription - fall back to mocks
-        if (response.status === 402 || response.status === 403 || response.status === 429) {
+        if (this.isRecoverableError(response.status)) {
           console.warn(`[FIRECRAWL] Job status API error ${response.status} (subscription paused), using mock: ${errorText}`);
           return generateMockFirecrawlJobStatus(jobId, 'https://example.com', 'completed');
         }
@@ -372,10 +360,62 @@ Be precise and only extract information that is explicitly stated on the webpage
     if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
       const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
       console.log(`[FIRECRAWL] Rate limit: waiting ${waitTime}ms...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await this.simulateApiDelay(waitTime);
     }
 
     this.lastRequestTime = Date.now();
+  }
+
+  /**
+   * Handle API error responses with fallback to mocks
+   */
+  private async handleApiError(response: Response, url: string): Promise<FirecrawlCrawlResponse> {
+    let errorText = '';
+    try {
+      errorText = await response.text();
+    } catch {
+      // Response might not have text() method (e.g., in tests)
+      errorText = `HTTP ${response.status} ${response.statusText || 'Error'}`;
+    }
+    
+    // P0 Fix: Handle paused subscription and API failures - fall back to mocks
+    if (this.isRecoverableError(response.status)) {
+      console.warn(`[FIRECRAWL] API error ${response.status} (subscription paused or rate limited), falling back to mock: ${errorText}`);
+      console.log(`[FIRECRAWL] Using mock response as fallback for: ${url}`);
+      await this.simulateApiDelay(EnhancedFirecrawlClient.MOCK_DELAY_MS);
+      return generateMockFirecrawlCrawlResponse(url);
+    }
+    
+    if (response.status === 429) {
+      throw new Error('Firecrawl Rate Limit Exceeded (429)');
+    }
+    throw new Error(`Firecrawl Crawl API Error ${response.status}: ${errorText}`);
+  }
+
+  /**
+   * Handle API failures (network errors, etc.) with fallback to mocks
+   */
+  private async handleApiFailure(error: unknown, url: string): Promise<FirecrawlCrawlResponse> {
+    // P0 Fix: Fall back to mocks on any API failure (subscription paused, network error, etc.)
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.warn(`[FIRECRAWL] API call failed, falling back to mock: ${errorMsg}`);
+    console.log(`[FIRECRAWL] Using mock response as fallback for: ${url}`);
+    await this.simulateApiDelay(EnhancedFirecrawlClient.MOCK_DELAY_MS);
+    return generateMockFirecrawlCrawlResponse(url);
+  }
+
+  /**
+   * Check if error status code is recoverable (should fall back to mocks)
+   */
+  private isRecoverableError(statusCode: number): boolean {
+    return EnhancedFirecrawlClient.SUPPORTED_ERROR_CODES.includes(statusCode as typeof EnhancedFirecrawlClient.SUPPORTED_ERROR_CODES[number]);
+  }
+
+  /**
+   * Simulate API delay for mock responses
+   */
+  private async simulateApiDelay(ms: number): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 

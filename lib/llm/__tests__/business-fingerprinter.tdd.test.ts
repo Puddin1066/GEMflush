@@ -102,7 +102,7 @@ describe('🔴 RED: Business Fingerprinter - Desired Behavior Specification', ()
       expect(result.metrics.visibilityScore).toBeGreaterThanOrEqual(0);
       expect(result.metrics.visibilityScore).toBeLessThanOrEqual(100);
       expect(result.metrics.mentionRate).toBeGreaterThanOrEqual(0);
-      expect(result.metrics.mentionRate).toBeLessThanOrEqual(1);
+      expect(result.metrics.mentionRate).toBeLessThanOrEqual(100); // mentionRate is percentage (0-100)
       expect(result.competitiveLeaderboard).toBeDefined();
       expect(result.llmResults).toBeDefined();
       expect(result.generatedAt).toBeInstanceOf(Date);
@@ -391,6 +391,199 @@ describe('🔴 RED: Business Fingerprinter - Desired Behavior Specification', ()
           crawlData: context.crawlData,
         })
       );
+    });
+
+    /**
+     * SPECIFICATION: Generate Analysis with All Three Prompt Types
+     * 
+     * Given: Business context
+     * When: fingerprintWithContext() is called
+     * Then: Analysis includes results from all three prompt types (factual, opinion, recommendation)
+     */
+    it('MUST generate analysis with all three prompt types', async () => {
+      // Arrange: Business context
+      const context: BusinessContext = {
+        name: 'Test Business',
+        url: 'https://test.com',
+        category: 'Restaurant',
+        location: {
+          city: 'Seattle',
+          state: 'WA',
+          country: 'US',
+        },
+      };
+
+      const mockLLMResults = [
+        {
+          model: 'openai/gpt-4-turbo',
+          promptType: 'factual' as const,
+          mentioned: true,
+          sentiment: 'positive' as const,
+          confidence: 0.9,
+          rankPosition: null,
+          competitorMentions: [],
+          rawResponse: 'Factual response',
+          tokensUsed: 100,
+          prompt: 'Factual prompt',
+          processingTime: 500,
+        },
+        {
+          model: 'anthropic/claude-3-opus',
+          promptType: 'opinion' as const,
+          mentioned: true,
+          sentiment: 'positive' as const,
+          confidence: 0.85,
+          rankPosition: null,
+          competitorMentions: [],
+          rawResponse: 'Opinion response',
+          tokensUsed: 120,
+          prompt: 'Opinion prompt',
+          processingTime: 600,
+        },
+        {
+          model: 'google/gemini-2.5-flash',
+          promptType: 'recommendation' as const,
+          mentioned: true,
+          sentiment: 'positive' as const,
+          confidence: 0.8,
+          rankPosition: 2,
+          competitorMentions: ['Competitor A'],
+          rawResponse: 'Recommendation response',
+          tokensUsed: 150,
+          prompt: 'Recommendation prompt',
+          processingTime: 700,
+        },
+      ];
+
+      const { promptGenerator } = await import('../prompt-generator');
+      const { parallelProcessor } = await import('../parallel-processor');
+
+      vi.mocked(promptGenerator.generatePrompts).mockReturnValue({
+        factual: 'Factual prompt',
+        opinion: 'Opinion prompt',
+        recommendation: 'Recommendation prompt',
+      } as any);
+      vi.mocked(parallelProcessor.processQueries).mockResolvedValue(mockLLMResults as any);
+
+      // Act: Generate fingerprint with context (TEST DRIVES IMPLEMENTATION)
+      const { businessFingerprinter } = await import('../business-fingerprinter');
+      const result = await businessFingerprinter.fingerprintWithContext(context);
+
+      // Assert: SPECIFICATION - MUST include all prompt types in analysis
+      expect(result).toBeDefined();
+      expect(result.llmResults).toBeDefined();
+      const promptTypes = result.llmResults.map(r => r.promptType);
+      expect(promptTypes).toContain('factual');
+      expect(promptTypes).toContain('opinion');
+      expect(promptTypes).toContain('recommendation');
+    });
+  });
+
+  /**
+   * SPECIFICATION 3: getCapabilities() - MUST Return Fingerprinting Capabilities
+   * 
+   * DESIRED BEHAVIOR: getCapabilities() MUST return information about
+   * available models, prompt types, and configuration.
+   */
+  describe('getCapabilities', () => {
+    /**
+     * SPECIFICATION: Return Fingerprinting Capabilities
+     * 
+     * Given: Business fingerprinter instance
+     * When: getCapabilities() is called
+     * Then: Capabilities information is returned (models, prompt types, config)
+     */
+    it('MUST return fingerprinting capabilities and configuration', async () => {
+      // Act: Get capabilities (TEST DRIVES IMPLEMENTATION)
+      const { businessFingerprinter } = await import('../business-fingerprinter');
+      const capabilities = businessFingerprinter.getCapabilities();
+
+      // Assert: SPECIFICATION - MUST return capabilities
+      expect(capabilities).toBeDefined();
+      expect(capabilities.models).toBeDefined();
+      expect(Array.isArray(capabilities.models)).toBe(true);
+      expect(capabilities.models.length).toBeGreaterThan(0);
+      expect(capabilities.promptTypes).toBeDefined();
+      expect(Array.isArray(capabilities.promptTypes)).toBe(true);
+      expect(capabilities.maxConcurrency).toBeDefined();
+      expect(typeof capabilities.maxConcurrency).toBe('number');
+      expect(capabilities.cachingEnabled).toBeDefined();
+      expect(typeof capabilities.cachingEnabled).toBe('boolean');
+    });
+  });
+
+  /**
+   * SPECIFICATION 4: Error Handling - MUST Handle Partial Failures
+   * 
+   * DESIRED BEHAVIOR: When some queries fail but others succeed, the
+   * fingerprinter MUST return analysis based on successful queries.
+   */
+  describe('Error Handling', () => {
+    /**
+     * SPECIFICATION: Handle Partial Query Failures
+     * 
+     * Given: Some queries succeed and some fail
+     * When: fingerprint() is called
+     * Then: Analysis is generated from successful queries only
+     */
+    it('MUST generate analysis from successful queries when some queries fail', async () => {
+      // Arrange: Business with mixed success/failure results
+      const business = BusinessTestFactory.create({
+        id: 1,
+        name: 'Test Business',
+      });
+
+      const mockLLMResults = [
+        {
+          model: 'openai/gpt-4-turbo',
+          promptType: 'factual' as const,
+          mentioned: true,
+          sentiment: 'positive' as const,
+          confidence: 0.9,
+          rankPosition: null,
+          competitorMentions: [],
+          rawResponse: 'Successful response',
+          tokensUsed: 100,
+          prompt: 'Factual prompt',
+          processingTime: 500,
+        },
+        {
+          model: 'anthropic/claude-3-opus',
+          promptType: 'opinion' as const,
+          mentioned: false,
+          sentiment: 'neutral' as const,
+          confidence: 0.0,
+          rankPosition: null,
+          competitorMentions: [],
+          rawResponse: '',
+          tokensUsed: 0,
+          prompt: 'Opinion prompt',
+          processingTime: 0,
+          error: 'Query failed',
+        },
+      ];
+
+      const { promptGenerator } = await import('../prompt-generator');
+      const { parallelProcessor } = await import('../parallel-processor');
+
+      vi.mocked(promptGenerator.generatePrompts).mockReturnValue({
+        factual: 'test',
+        opinion: 'test',
+        recommendation: 'test',
+      } as any);
+      vi.mocked(parallelProcessor.processQueries).mockResolvedValue(mockLLMResults as any);
+
+      // Act: Generate fingerprint with partial failures (TEST DRIVES IMPLEMENTATION)
+      const { businessFingerprinter } = await import('../business-fingerprinter');
+      const result = await businessFingerprinter.fingerprint(business);
+
+      // Assert: SPECIFICATION - MUST generate analysis from successful queries
+      expect(result).toBeDefined();
+      expect(result.metrics).toBeDefined();
+      expect(result.metrics.visibilityScore).toBeGreaterThanOrEqual(0);
+      // Should still have results even with partial failures
+      expect(result.llmResults).toBeDefined();
+      expect(Array.isArray(result.llmResults)).toBe(true);
     });
   });
 });

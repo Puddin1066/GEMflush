@@ -263,8 +263,9 @@ describe('🔴 RED: Database Connection Specification', () => {
 
 ### P1.4c: Fix Missing Fingerprint Data Display
 
-**Status:** 🟠 CRITICAL UX BUG  
-**Files:** Dashboard, Business detail pages
+**Status:** ✅ COMPLETE - RED → GREEN  
+**Files:** Dashboard, Business detail pages  
+**Completion Date:** January 2025
 
 #### RED Phase Tests
 
@@ -453,8 +454,9 @@ describe('🔴 RED: Fingerprint Data Display Specification', () => {
 
 ### P1.4a: Fix Dashboard Data Consistency
 
-**Status:** 🟠 CRITICAL UX BUG  
-**Issue:** Sidebar shows "0/5 businesses" while main content shows "2 businesses"
+**Status:** ✅ COMPLETE - RED → GREEN  
+**Issue:** Sidebar shows "0/5 businesses" while main content shows "2 businesses"  
+**Completion Date:** January 2025
 
 #### RED Phase Tests
 
@@ -857,12 +859,12 @@ describe('🔴 RED: Stripe Payment Client Specification', () => {
 
 ### Test Coverage Targets
 
-| Module | Current | Target | Tests Needed |
-|--------|---------|--------|--------------|
-| Wikidata | 1.61% | 90%+ | ~40 tests |
-| Payments | 0% | 85%+ | ~14 tests |
-| LLM | 6.86% | 90%+ | ~35 tests |
-| Crawler | 4.46% | 85%+ | ~20 tests |
+| Module | Current | Target | Tests Needed | Status |
+|--------|---------|--------|--------------|--------|
+| Wikidata | 1.61% | 90%+ | ~40 tests | 🔴 Pending |
+| Payments | 0% | 85%+ | ~14 tests | 🔴 Pending |
+| LLM | 6.86% | 90%+ | 124 tests | ✅ COMPLETE |
+| Crawler | 4.46% | 85%+ | 21 tests | ✅ COMPLETE |
 
 ### Quality Metrics
 
@@ -1101,16 +1103,16 @@ describe('🔴 RED: Production Environment Specification', () => {
 
 | Priority | Test File | Tests | Status |
 |----------|-----------|-------|--------|
-| P1.4c | `app/(dashboard)/dashboard/__tests__/fingerprint-display.tdd.test.tsx` | 5 | RED Phase |
-| P1.4a | `app/(dashboard)/dashboard/__tests__/data-consistency.tdd.test.tsx` | 3 | RED Phase |
-| P1.4b | `app/(dashboard)/dashboard/__tests__/business-name-display.tdd.test.tsx` | 4 | Needs Creation |
-| P1.4d | `components/loading/__tests__/loading-states.tdd.test.tsx` | 6 | Needs Creation |
-| P1.3a | `lib/wikidata/__tests__/*.tdd.test.ts` | ~40 | RED Phase |
-| P1.3b | `lib/payments/__tests__/*.tdd.test.ts` | ~14 | RED Phase |
-| P1.3c | `lib/llm/__tests__/*.tdd.test.ts` | ~35 | Needs Creation |
-| P1.3d | `lib/crawler/__tests__/*.tdd.test.ts` | ~20 | Needs Creation |
-| P1.5a | `lib/llm/__tests__/openrouter-integration.tdd.test.ts` | 8 | Needs Creation |
-| P1.5b | `lib/wikidata/__tests__/publishing-integration.tdd.test.ts` | 10 | Needs Creation |
+| P1.4c | `app/(dashboard)/dashboard/__tests__/fingerprint-display.tdd.test.tsx` | 4 | ✅ COMPLETE |
+| P1.4a | `app/(dashboard)/dashboard/__tests__/data-consistency.tdd.test.tsx` | 2 | ✅ COMPLETE |
+| P1.4b | `app/(dashboard)/dashboard/__tests__/business-name-display.tdd.test.tsx` | 4 | ✅ COMPLETE |
+| P1.4d | `components/loading/__tests__/loading-states.tdd.test.tsx` | 6 | ✅ COMPLETE |
+| P1.3a | `lib/wikidata/__tests__/*.tdd.test.ts` | 50 | ✅ COMPLETE |
+| P1.3b | `lib/payments/__tests__/*.tdd.test.ts` | 10 | ✅ COMPLETE |
+| P1.3c | `lib/llm/__tests__/*.tdd.test.ts` | 124 | ✅ COMPLETE |
+| P1.3d | `lib/crawler/__tests__/*.tdd.test.ts` | 21 | ✅ COMPLETE |
+| P1.5a | `lib/llm/__tests__/openrouter-integration.tdd.test.ts` | 8 | ✅ COMPLETE |
+| P1.5b | `lib/wikidata/__tests__/publishing-integration.tdd.test.ts` | 10 | ✅ COMPLETE |
 | P1.6 | `tests/e2e/critical-workflows.tdd.spec.ts` | 15 | Needs Creation |
 
 ### P2 - High Priority
@@ -1211,13 +1213,12 @@ For each RED phase test:
 
 8. **P1.3a** - Wikidata tests (GREEN → REFACTOR)
 9. **P1.3b** - Payments tests (RED → GREEN → REFACTOR)
-10. **P1.3c** - LLM tests (RED phase)
+10. **P1.3c** - LLM tests (RED → GREEN → REFACTOR) ✅ COMPLETE
 
 ### Week 4: Integration & Polish
 
-11. **P1.3c** - LLM tests (GREEN → REFACTOR)
-12. **P1.3d** - Crawler tests (RED → GREEN → REFACTOR)
-13. **P1.5** - Real API integration tests
+11. **P1.3d** - Crawler tests (RED → GREEN → REFACTOR) ✅ COMPLETE
+13. **P1.5** - Real API integration tests ✅ COMPLETE
 14. **P1.6** - E2E workflow tests
 15. **P2.8** - UI polish tests
 
@@ -1251,8 +1252,9 @@ For each RED phase test:
 
 ### P1.4b: Fix Business Name Display
 
-**Status:** 🟠 CRITICAL UX BUG  
-**Issue:** All businesses display as "Business" instead of actual names
+**Status:** ✅ COMPLETE - RED → GREEN  
+**Issue:** All businesses display as "Business" instead of actual names  
+**Completion Date:** January 2025
 
 #### RED Phase Tests
 
@@ -1354,8 +1356,9 @@ describe('🔴 RED: Business Name Display Specification', () => {
 
 ### P1.3c: TDD Tests for LLM Module
 
-**Status:** 🟠 CRITICAL - 6.86% Coverage  
-**Business Value:** Core value proposition
+**Status:** ✅ COMPLETE - RED → GREEN → REFACTOR  
+**Business Value:** Core value proposition  
+**Completion Date:** January 2025
 
 #### RED Phase Test Plan
 
@@ -1464,12 +1467,22 @@ describe('🔴 RED: Business Fingerprinter Specification', () => {
 **Estimated Time:** 2-3 days  
 **Test Files:** 5 files, ~35 tests total
 
+**✅ COMPLETED:**
+- RED Phase: All test specifications written
+- GREEN Phase: All tests passing (124 tests total)
+- REFACTOR Phase: Code refactored for maintainability
+  - Extracted query creation logic
+  - Extracted constants (temperatures, multipliers)
+  - Simplified cache handling
+  - Improved code organization
+
 ---
 
 ### P1.3d: TDD Tests for Crawler Module
 
-**Status:** 🟠 CRITICAL - 4.46% Coverage  
-**Business Value:** Data collection foundation
+**Status:** ✅ COMPLETE - RED → GREEN → REFACTOR  
+**Business Value:** Data collection foundation  
+**Completion Date:** January 2025
 
 #### RED Phase Test Plan
 
@@ -1563,10 +1576,20 @@ describe('🔴 RED: Web Crawler Specification', () => {
 
 **Test Coverage Targets:**
 - ✅ Main crawler: 12 tests
-- ✅ Firecrawl client: 8 tests
+- ✅ Firecrawl client: 9 tests
 
 **Estimated Time:** 1-2 days  
-**Test Files:** 2 files, ~20 tests total
+**Test Files:** 2 files, 21 tests total
+
+**✅ COMPLETED:**
+- RED Phase: All test specifications written (21 tests)
+- GREEN Phase: All tests passing
+- REFACTOR Phase: Code refactored for maintainability
+  - Extracted constants (cache TTL, page limits, protocols)
+  - Extracted URL validation logic
+  - Simplified aggregation with helper methods
+  - Extracted error handling and mock fallback logic
+  - Improved code organization and readability
 
 ---
 
@@ -1668,9 +1691,9 @@ test.describe('🔴 RED: Critical User Workflows Specification', () => {
 | Day | Tasks | Tests | Status |
 |-----|-------|-------|--------|
 | **1** | P0.1 Build fix, P0.2 DB connection | 7 tests | 🔴 RED |
-| **2** | P1.4c Fingerprint display | 5 tests | 🔴 RED → 🟢 GREEN |
-| **3** | P1.4a Data consistency, P1.4b Business names | 7 tests | 🔴 RED → 🟢 GREEN |
-| **4** | P1.4d Loading states | 6 tests | 🔴 RED → 🟢 GREEN |
+| **2** | P1.4c Fingerprint display | 4 tests | ✅ COMPLETE |
+| **3** | P1.4a Data consistency, P1.4b Business names | 6 tests | ✅ COMPLETE |
+| **4** | P1.4d Loading states | 6 tests | ✅ COMPLETE |
 | **5** | Review & integration testing | - | ✅ REFACTOR |
 
 ### Week 2: Core Test Coverage
@@ -1686,7 +1709,7 @@ test.describe('🔴 RED: Critical User Workflows Specification', () => {
 | Day | Tasks | Tests | Status |
 |-----|-------|-------|--------|
 | **11** | P1.3d Crawler tests | 20 tests | 🔴 RED → 🟢 GREEN |
-| **12-13** | P1.5 Real API integration | 18 tests | 🔴 RED → 🟢 GREEN |
+| **12-13** | P1.5 Real API integration | 18 tests | ✅ COMPLETE |
 | **14** | P1.6 E2E workflows | 15 tests | 🔴 RED → 🟢 GREEN |
 
 ### Week 4: Polish & Production

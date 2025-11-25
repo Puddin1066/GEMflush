@@ -2,6 +2,7 @@ import 'server-only';
 import { getBusinessById, getLatestCrawlJob } from '@/lib/db/queries';
 import type { Business } from '@/lib/db/schema';
 import { dtoLogger } from '@/lib/utils/dto-logger';
+import { toISOString, toISOStringWithFallback, filterSuccessMessages } from './utils';
 
 /**
  * Business Data Transfer Object (DTO) Adapters
@@ -50,24 +51,7 @@ export async function toBusinessDetailDTO(business: Business, latestCrawlJob?: {
   // PRODUCTION FIX: Filter out success/status messages from errorMessage
   // The crawler incorrectly uses errorMessage for status updates (e.g., "Crawl completed")
   // Only include actual error messages (messages that indicate failure)
-  let errorMessage = latestCrawlJob?.errorMessage || null;
-  
-  // Filter out success/status messages that shouldn't be in errorMessage
-  // These are not errors, just status updates
-  if (errorMessage) {
-    const successMessages = [
-      'Crawl completed',
-      'Crawl completed successfully',
-      'completed',
-      'success',
-    ];
-    const isSuccessMessage = successMessages.some(msg => 
-      errorMessage?.toLowerCase().includes(msg.toLowerCase())
-    );
-    if (isSuccessMessage) {
-      errorMessage = null; // Not an error, don't show as errorMessage
-    }
-  }
+  const errorMessage = filterSuccessMessages(latestCrawlJob?.errorMessage);
 
   // Log if we're trying to access errorMessage from business (it doesn't exist there)
   if ((business as any).errorMessage !== undefined) {
@@ -90,30 +74,12 @@ export async function toBusinessDetailDTO(business: Business, latestCrawlJob?: {
     status: business.status,
     wikidataQID: business.wikidataQID || null,
     automationEnabled: business.automationEnabled ?? true,
-    createdAt: business.createdAt instanceof Date 
-      ? business.createdAt.toISOString() 
-      : typeof business.createdAt === 'string' 
-        ? business.createdAt 
-        : new Date().toISOString(),
-    updatedAt: business.updatedAt instanceof Date 
-      ? business.updatedAt.toISOString() 
-      : typeof business.updatedAt === 'string' 
-        ? business.updatedAt 
-        : undefined,
-    lastCrawledAt: business.lastCrawledAt instanceof Date 
-      ? business.lastCrawledAt.toISOString() 
-      : typeof business.lastCrawledAt === 'string' 
-        ? business.lastCrawledAt 
-        : business.lastCrawledAt,
-    wikidataPublishedAt: business.wikidataPublishedAt instanceof Date 
-      ? business.wikidataPublishedAt.toISOString() 
-      : business.wikidataPublishedAt,
-    nextCrawlAt: business.nextCrawlAt instanceof Date 
-      ? business.nextCrawlAt.toISOString() 
-      : business.nextCrawlAt,
-    lastAutoPublishedAt: business.lastAutoPublishedAt instanceof Date 
-      ? business.lastAutoPublishedAt.toISOString() 
-      : business.lastAutoPublishedAt,
+    createdAt: toISOStringWithFallback(business.createdAt),
+    updatedAt: toISOString(business.updatedAt) || undefined,
+    lastCrawledAt: toISOString(business.lastCrawledAt),
+    wikidataPublishedAt: toISOString(business.wikidataPublishedAt),
+    nextCrawlAt: toISOString(business.nextCrawlAt),
+    lastAutoPublishedAt: toISOString(business.lastAutoPublishedAt),
     crawlData: business.crawlData || null,
     errorMessage, // From crawlJobs, not businesses
   };

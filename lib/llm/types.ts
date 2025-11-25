@@ -59,9 +59,8 @@ export interface BusinessVisibilityMetrics {
 export interface CompetitiveLeaderboard {
   targetBusiness: {
     name: string;
-    rank: number | null;
+    avgPosition: number | null; // REFACTOR: Consolidated rank and avgPosition into single field
     mentionCount: number;
-    avgPosition: number | null;
   };
   competitors: Array<{
     name: string;
@@ -140,7 +139,6 @@ export interface SentimentAnalysis {
 
 export interface CompetitorAnalysis {
   competitors: string[];
-  targetRank: number | null;
   confidence: number;
   reasoning?: string;
 }

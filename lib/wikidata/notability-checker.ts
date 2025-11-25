@@ -578,7 +578,7 @@ Return ONLY valid JSON with this exact structure:
   private getTrustScore(sourceType: ReferenceAssessment['sourceType']): number {
     return NotabilityChecker.TRUST_SCORES[sourceType as keyof typeof NotabilityChecker.TRUST_SCORES] || NotabilityChecker.TRUST_SCORES.other;
   }
-  
+
   /**
    * Create fallback assessment when LLM fails
    * Graceful degradation following Error Handling best practices
@@ -588,15 +588,15 @@ Return ONLY valid JSON with this exact structure:
    */
   private createFallbackAssessment(references: Reference[]): NotabilityAssessment {
     if (references.length === 0) {
-      return {
-        meetsNotability: false,
-        confidence: 0.5,
-        seriousReferenceCount: 0,
-        publiclyAvailableCount: 0,
-        independentCount: 0,
-        summary: 'No references found - cannot assess notability',
-        references: [],
-        recommendations: ['Seek additional references from reputable sources (news, government, directories, review platforms)'],
+    return {
+      meetsNotability: false,
+      confidence: 0.5,
+      seriousReferenceCount: 0,
+      publiclyAvailableCount: 0,
+      independentCount: 0,
+      summary: 'No references found - cannot assess notability',
+      references: [],
+      recommendations: ['Seek additional references from reputable sources (news, government, directories, review platforms)'],
       };
     }
     

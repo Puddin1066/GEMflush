@@ -183,7 +183,7 @@ describe('🔴 RED: OpenRouter Client - Desired Behavior Specification', () => {
 
     it('MUST cache responses in development mode', async () => {
       // Arrange: Development mode with cache
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
       process.env.OPENROUTER_API_KEY = 'test-key';
 
       const mockResponse = {
@@ -214,7 +214,7 @@ describe('🔴 RED: OpenRouter Client - Desired Behavior Specification', () => {
 
     it('MUST use cached response when available', async () => {
       // Arrange: Cached response exists
-      process.env.NODE_ENV = 'development';
+      vi.stubEnv('NODE_ENV', 'development');
 
       const fs = await import('fs');
       const cachedResponse = {
@@ -243,7 +243,106 @@ describe('🔴 RED: OpenRouter Client - Desired Behavior Specification', () => {
   });
 
   /**
-   * SPECIFICATION 2: getDefaultModels() - MUST Return Default Models
+   * SPECIFICATION 2: queryParallel() - MUST Process Multiple Queries in Parallel
+   * 
+   * DESIRED BEHAVIOR: queryParallel() MUST execute multiple LLM queries
+   * in parallel with intelligent batching and return all responses.
+   */
+  describe('queryParallel', () => {
+    /**
+     * SPECIFICATION: Process Multiple Queries in Parallel
+     * 
+     * Given: Multiple LLM queries
+     * When: queryParallel() is called
+     * Then: All queries are executed in parallel and responses are returned
+     */
+    it('MUST process multiple queries in parallel and return all responses', async () => {
+      // Arrange: Multiple queries
+      const queries = [
+        {
+          model: 'openai/gpt-4-turbo',
+          prompt: 'What is Test Business?',
+          promptType: 'factual' as const,
+        },
+        {
+          model: 'anthropic/claude-3-opus',
+          prompt: 'What do people think about Test Business?',
+          promptType: 'opinion' as const,
+        },
+        {
+          model: 'google/gemini-2.5-flash',
+          prompt: 'Recommend top businesses',
+          promptType: 'recommendation' as const,
+        },
+      ];
+
+      const mockResponses = [
+        {
+          content: 'Test Business is a company',
+          tokensUsed: 50,
+          model: 'openai/gpt-4-turbo',
+        },
+        {
+          content: 'People think Test Business is good',
+          tokensUsed: 60,
+          model: 'anthropic/claude-3-opus',
+        },
+        {
+          content: 'Test Business is recommended',
+          tokensUsed: 70,
+          model: 'google/gemini-2.5-flash',
+        },
+      ];
+
+      // Disable caching for this test
+      vi.stubEnv('NODE_ENV', 'production');
+      process.env.OPENROUTER_API_KEY = 'test-key-123';
+      
+      // Mock fs to ensure cache doesn't interfere
+      const fs = await import('fs');
+      vi.mocked(fs.default.existsSync).mockReturnValue(false);
+      
+      // Mock fetch to return responses sequentially
+      let callCount = 0;
+      vi.mocked(global.fetch).mockImplementation(async () => {
+        const response = mockResponses[callCount];
+        callCount++;
+        return {
+          ok: true,
+          json: async () => ({
+            id: `gen-${callCount}`,
+            model: response.model,
+            choices: [{
+              message: { role: 'assistant', content: response.content },
+              finish_reason: 'stop',
+            }],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: response.tokensUsed - 10,
+              total_tokens: response.tokensUsed,
+            },
+          }),
+        } as Response;
+      });
+
+      // Act: Query parallel (TEST DRIVES IMPLEMENTATION)
+      const { OpenRouterClient } = await import('../openrouter-client');
+      const client = new OpenRouterClient();
+      const results = await client.queryParallel(queries);
+
+      // Assert: SPECIFICATION - MUST return all responses
+      expect(results).toBeDefined();
+      expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBe(3);
+      expect(results[0].content).toBe('Test Business is a company');
+      expect(results[1].content).toBe('People think Test Business is good');
+      expect(results[2].content).toBe('Test Business is recommended');
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  /**
+   * SPECIFICATION 3: getDefaultModels() - MUST Return Default Models
    * 
    * DESIRED BEHAVIOR: getDefaultModels() MUST return the list of default
    * LLM models used for fingerprinting.

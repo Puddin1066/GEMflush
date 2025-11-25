@@ -12,6 +12,7 @@ import type {
   WikidataConfig
 } from './types';
 import { WikidataError, PublishError } from './types';
+import { generateMockQID } from './utils';
 
 export class WikidataClient {
   private readonly config: Required<WikidataConfig>;
@@ -132,16 +133,16 @@ export class WikidataClient {
       // P0 Fix: Check for existing entity before creating (prevents label conflicts)
       // Skip in test mode to allow tests to work with mocked responses
       if (!this.isTestMode()) {
-        const labelObj = entity.labels?.en;
-        const label = typeof labelObj === 'string' ? labelObj : labelObj?.value || '';
-        const descObj = entity.descriptions?.en;
-        const description = typeof descObj === 'string' ? descObj : descObj?.value || '';
-        const existingQid = await this.findExistingEntity(label, description, apiUrl);
-        
-        if (existingQid) {
-          console.log(`[WIKIDATA CLIENT] Entity already exists (${existingQid}), updating instead of creating`);
-          // Use updateEntity instead of createEntity to avoid conflicts
-          return await this.updateEntity(existingQid, entity, options);
+      const labelObj = entity.labels?.en;
+      const label = typeof labelObj === 'string' ? labelObj : labelObj?.value || '';
+      const descObj = entity.descriptions?.en;
+      const description = typeof descObj === 'string' ? descObj : descObj?.value || '';
+      const existingQid = await this.findExistingEntity(label, description, apiUrl);
+      
+      if (existingQid) {
+        console.log(`[WIKIDATA CLIENT] Entity already exists (${existingQid}), updating instead of creating`);
+        // Use updateEntity instead of createEntity to avoid conflicts
+        return await this.updateEntity(existingQid, entity, options);
         }
       }
 
@@ -539,25 +540,25 @@ export class WikidataClient {
         let response: Response | undefined;
 
         try {
-          if (method === 'POST') {
-            headers['Content-Type'] = 'application/x-www-form-urlencoded';
-            response = await fetch(url, {
-              method: 'POST',
-              headers,
-              body: new URLSearchParams(params),
-              signal: controller.signal
-            });
-          } else {
-            const urlWithParams = new URL(url);
-            Object.entries(params).forEach(([key, value]) => {
-              urlWithParams.searchParams.append(key, value);
-            });
-            
-            response = await fetch(urlWithParams.toString(), {
-              method: 'GET',
-              headers,
-              signal: controller.signal
-            });
+        if (method === 'POST') {
+          headers['Content-Type'] = 'application/x-www-form-urlencoded';
+          response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: new URLSearchParams(params),
+            signal: controller.signal
+          });
+        } else {
+          const urlWithParams = new URL(url);
+          Object.entries(params).forEach(([key, value]) => {
+            urlWithParams.searchParams.append(key, value);
+          });
+          
+          response = await fetch(urlWithParams.toString(), {
+            method: 'GET',
+            headers,
+            signal: controller.signal
+          });
           }
         } catch (fetchError) {
           // When fetch rejects (e.g., network error, mocked rejection), throw immediately
@@ -748,8 +749,7 @@ export class WikidataClient {
    * Reference: https://www.wikidata.org/w/api.php?action=help&modules=wbeditentity
    */
   private handleMockMode(entity: WikidataEntity, options: PublishOptions): PublishResult {
-    // Import utility function (DRY: reuse existing logic)
-    const { generateMockQID } = require('./utils');
+    // Use utility function (DRY: reuse existing logic)
     const mockQID = generateMockQID(options.target === 'production');
     
     // Simulate Action API response structure

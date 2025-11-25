@@ -3,6 +3,7 @@ import { getBusinessesByTeam, getLatestFingerprint, getFingerprintHistory } from
 import type { DashboardDTO, DashboardBusinessDTO } from './types';
 import type { Business, LLMFingerprint } from '@/lib/db/schema';
 import { dtoLogger } from '@/lib/utils/dto-logger';
+import { formatLocation, formatRelativeTimestamp, calculateTrend } from './utils';
 
 /**
  * Dashboard Data Access Layer
@@ -74,7 +75,7 @@ function transformBusinessToDTO(
     trend,
     trendValue,
     wikidataQid: business.wikidataQID,
-    lastFingerprint: formatTimestamp(fingerprint?.createdAt),
+    lastFingerprint: formatRelativeTimestamp(fingerprint?.createdAt),
     status: business.status as DashboardBusinessDTO['status'],
     automationEnabled: business.automationEnabled ?? false, // Use database value, default to false
   };
@@ -115,14 +116,7 @@ function aggregateBusinessStatuses(businesses: Business[]): {
   );
 }
 
-/**
- * Format location for display
- */
-function formatLocation(location: Business['location']): string {
-  if (!location) return 'Location not set';
-  
-  return `${location.city}, ${location.state}`;
-}
+// formatLocation moved to utils.ts
 
 /**
  * Calculate trend from fingerprint history
@@ -159,28 +153,12 @@ function calculateTrendFromHistory(
   }
 
   const trendValue = latestScore - firstScore;
-  const trend: 'up' | 'down' | 'neutral' = 
-    trendValue > 0 ? 'up' : trendValue < 0 ? 'down' : 'neutral';
+  const trend = calculateTrend(latestScore, firstScore, 0); // Use 0 threshold for exact comparison
 
   return { trendValue, trend };
 }
 
-/**
- * Format timestamp for display
- */
-function formatTimestamp(date?: Date | null): string {
-  if (!date) return 'Never';
-  
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  return `${Math.floor(days / 30)} months ago`;
-}
+// formatTimestamp moved to utils.ts as formatRelativeTimestamp
 
 /**
  * Calculate average visibility score

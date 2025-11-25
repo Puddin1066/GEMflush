@@ -264,18 +264,19 @@ describe('🔴 RED: Wikidata SPARQL Service Specification', () => {
    */
   it('finds legal form QID from local mappings', async () => {
     // Arrange: Not in memory or database
-    vi.mocked(db.select).mockReturnValue({
+    mockSelect.mockReturnValue({
       from: vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
           limit: vi.fn().mockResolvedValue([]),
         }),
       }),
-    } as any);
+    });
 
     // Act: Find legal form QID (TEST DRIVES IMPLEMENTATION)
     const qid = await service.findLegalFormQID('LLC');
 
     // Assert: Returns QID from local mappings (or null if not in mappings)
+    // Legal forms should be in local mappings (LEGAL_FORM_QIDS)
     expect(qid).toBeTruthy(); // Will be null if not in mappings, but test specifies behavior
   });
 });

@@ -627,3 +627,4 @@ lib/db/queries.ts
 **Remember**: The app layer connects UI (components) with business logic (lib/). Write tests first, use lib/ modules, and keep pages and routes focused.
 
 
+

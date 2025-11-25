@@ -1,6 +1,7 @@
 import 'server-only';
 import type { CrawlJob } from '@/lib/db/schema';
 import type { CrawlResultDTO } from './types';
+import { toISOString, toISOStringWithFallback } from './utils';
 
 /**
  * Crawl Job Data Transfer Object (DTO) Adapters
@@ -44,20 +45,12 @@ export function toCrawlJobDTO(job: CrawlJob): CrawlJobDTO {
     result: job.result,
     errorMessage: job.errorMessage || null,
     firecrawlJobId: job.firecrawlJobId || null,
-    startedAt: job.startedAt instanceof Date 
-      ? job.startedAt.toISOString() 
-      : job.startedAt,
+    startedAt: toISOString(job.startedAt),
     pagesDiscovered: job.pagesDiscovered || null,
     pagesProcessed: job.pagesProcessed || null,
     firecrawlMetadata: job.firecrawlMetadata || null,
-    createdAt: job.createdAt instanceof Date 
-      ? job.createdAt.toISOString() 
-      : typeof job.createdAt === 'string' 
-        ? job.createdAt 
-        : new Date().toISOString(),
-    completedAt: job.completedAt instanceof Date 
-      ? job.completedAt.toISOString() 
-      : job.completedAt,
+    createdAt: toISOStringWithFallback(job.createdAt),
+    completedAt: toISOString(job.completedAt),
   };
 }
 

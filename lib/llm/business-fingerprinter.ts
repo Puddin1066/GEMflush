@@ -21,15 +21,37 @@ import {
   LLMQuery,
   LLMResult,
   DEFAULT_MODELS,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
+  IPromptGenerator,
+  IParallelProcessor
 } from './types';
 import { Business } from '@/lib/db/schema';
 import { CrawledData } from '@/lib/types/gemflush';
-import { promptGenerator } from './prompt-generator';
-import { parallelProcessor } from './parallel-processor';
+import { promptGenerator as defaultPromptGenerator } from './prompt-generator';
+import { parallelProcessor as defaultParallelProcessor } from './parallel-processor';
 import { loggers } from '@/lib/utils/logger';
+import { filterValidResults } from './result-filter';
+import { businessToContext as convertBusinessToContext } from './business-context';
+import { VisibilityMetricsService } from './visibility-metrics-service';
+import { LeaderboardService } from './leaderboard-service';
 
 const log = loggers.fingerprint;
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const PROMPT_TEMPERATURES = {
+  factual: 0.3,        // Lower temperature for factual queries
+  opinion: 0.5,        // Medium temperature for opinion queries
+  recommendation: 0.7, // Higher temperature for creative recommendations
+} as const;
+
+const PROMPT_TYPES: Array<'factual' | 'opinion' | 'recommendation'> = [
+  'factual',
+  'opinion',
+  'recommendation',
+];
 
 // ============================================================================
 // FINGERPRINTING STRATEGIES
@@ -51,6 +73,24 @@ interface FingerprintingSession {
 export class BusinessFingerprinter implements IBusinessFingerprinter {
   private readonly models = DEFAULT_MODELS;
   private readonly config = DEFAULT_CONFIG;
+  private readonly promptGenerator: IPromptGenerator;
+  private readonly parallelProcessor: IParallelProcessor;
+  private readonly visibilityService: VisibilityMetricsService;
+  private readonly leaderboardService: LeaderboardService;
+  
+  constructor(
+    promptGenerator?: IPromptGenerator,
+    parallelProcessor?: IParallelProcessor,
+    visibilityService?: VisibilityMetricsService,
+    leaderboardService?: LeaderboardService
+  ) {
+    // DIP: Use dependency injection with default fallbacks for backward compatibility
+    // Use imported singletons as defaults to avoid initialization order issues
+    this.promptGenerator = promptGenerator || defaultPromptGenerator;
+    this.parallelProcessor = parallelProcessor || defaultParallelProcessor;
+    this.visibilityService = visibilityService || new VisibilityMetricsService(this.models);
+    this.leaderboardService = leaderboardService || new LeaderboardService();
+  }
   
   /**
    * Generate comprehensive business fingerprint analysis
@@ -77,7 +117,8 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     
     try {
       // Execute all LLM queries in parallel
-      session.results = await parallelProcessor.processQueries(session.queries, context.name);
+      // DIP: Use injected dependency
+      session.results = await this.parallelProcessor.processQueries(session.queries, context.name);
       
       // Generate comprehensive analysis
       session.analysis = this.generateAnalysis(session);
@@ -111,49 +152,57 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
    * Create a new fingerprinting session
    */
   private createFingerprintingSession(context: BusinessContext): FingerprintingSession {
-    const sessionId = `fp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = this.generateSessionId();
     const startTime = Date.now();
-    
-    // Generate prompts for all combinations
-    const prompts = promptGenerator.generatePrompts(context);
-    
-    // Create queries for all model-prompt combinations
-    const queries: LLMQuery[] = [];
-    
-    for (const model of this.models) {
-      // Factual query
-      queries.push({
-        model,
-        prompt: prompts.factual,
-        promptType: 'factual',
-        temperature: 0.3, // Lower temperature for factual queries
-        maxTokens: this.config.maxTokens
-      });
-      
-      // Opinion query
-      queries.push({
-        model,
-        prompt: prompts.opinion,
-        promptType: 'opinion',
-        temperature: 0.5, // Medium temperature for opinion queries
-        maxTokens: this.config.maxTokens
-      });
-      
-      // Recommendation query
-      queries.push({
-        model,
-        prompt: prompts.recommendation,
-        promptType: 'recommendation',
-        temperature: 0.7, // Higher temperature for creative recommendations
-        maxTokens: this.config.maxTokens
-      });
-    }
+    const prompts = this.promptGenerator.generatePrompts(context);
+    const queries = this.createQueriesForAllModels(prompts);
     
     return {
       sessionId,
       businessContext: context,
       startTime,
       queries
+    };
+  }
+
+  /**
+   * Generate unique session ID
+   */
+  private generateSessionId(): string {
+    return `fp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Create queries for all model-prompt combinations
+   * DRY: Extracted to reduce duplication
+   */
+  private createQueriesForAllModels(prompts: { factual: string; opinion: string; recommendation: string }): LLMQuery[] {
+    const queries: LLMQuery[] = [];
+    
+    for (const model of this.models) {
+      for (const promptType of PROMPT_TYPES) {
+        queries.push(this.createQuery(model, promptType, prompts[promptType]));
+      }
+    }
+    
+    return queries;
+  }
+
+  /**
+   * Create a single LLM query
+   * DRY: Extracted to reduce duplication
+   */
+  private createQuery(
+    model: string,
+    promptType: 'factual' | 'opinion' | 'recommendation',
+    prompt: string
+  ): LLMQuery {
+    return {
+      model,
+      prompt,
+      promptType,
+      temperature: PROMPT_TEMPERATURES[promptType],
+      maxTokens: this.config.maxTokens
     };
   }
   
@@ -163,15 +212,24 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
   private generateAnalysis(session: FingerprintingSession): FingerprintAnalysis {
     const { businessContext, results, startTime } = session;
     
-    if (!results || results.length === 0) {
+    // GREEN: Only return fallback if results is explicitly null/undefined
+    // Empty array means queries were processed but returned no results (different from error case)
+    // We should still process empty arrays to calculate metrics (they'll be 0)
+    if (!results) {
       return this.createFallbackAnalysis(businessContext, Date.now() - startTime);
     }
     
+    // GREEN: Filter out null/undefined results but keep empty arrays for processing
+    // DRY: Use shared filtering utility
+    const validResults = filterValidResults(results);
+    
+    
+    // SRP: Delegate to specialized services
     // Calculate visibility metrics
-    const metrics = this.calculateVisibilityMetrics(results);
+    const metrics = this.visibilityService.calculateMetrics(validResults);
     
     // Generate competitive leaderboard
-    const competitiveLeaderboard = this.generateCompetitiveLeaderboard(results, businessContext.name);
+    const competitiveLeaderboard = this.leaderboardService.generateLeaderboard(validResults, businessContext.name);
     
     // Create comprehensive analysis
     const analysis: FingerprintAnalysis = {
@@ -196,247 +254,13 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     
     return analysis;
   }
-  
-  /**
-   * Calculate comprehensive visibility metrics
-   */
-  private calculateVisibilityMetrics(results: LLMResult[]): BusinessVisibilityMetrics {
-    const validResults = results.filter(r => !r.error);
-    const totalQueries = results.length;
-    const successfulQueries = validResults.length;
-    
-    if (successfulQueries === 0) {
-      return {
-        visibilityScore: 0,
-        mentionRate: 0,
-        sentimentScore: 0,
-        confidenceLevel: 0,
-        avgRankPosition: null,
-        totalQueries,
-        successfulQueries
-      };
-    }
-    
-    // Calculate mention rate (as percentage 0-100, not decimal 0-1)
-    // DRY: Store as percentage to match DTO expectations
-    const mentionedResults = validResults.filter(r => r.mentioned);
-    const mentionRate = successfulQueries > 0 
-      ? (mentionedResults.length / successfulQueries) * 100 
-      : 0;
-    
-    // Calculate sentiment score (0-1 scale)
-    const sentimentScores = mentionedResults.map(r => {
-      switch (r.sentiment) {
-        case 'positive': return 1;
-        case 'negative': return 0;
-        case 'neutral': return 0.5;
-        default: return 0.5;
-      }
-    });
-    
-    const avgSentimentScore = sentimentScores.length > 0 
-      ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length
-      : 0.5;
-    
-    // Calculate average confidence
-    const avgConfidence = validResults.reduce((sum, r) => sum + r.confidence, 0) / successfulQueries;
-    
-    // Calculate average rank position (only for mentioned results with rankings)
-    const rankedResults = mentionedResults.filter(r => r.rankPosition !== null);
-    const avgRankPosition = rankedResults.length > 0
-      ? rankedResults.reduce((sum, r) => sum + (r.rankPosition || 0), 0) / rankedResults.length
-      : null;
-    
-    // Calculate overall visibility score (0-100)
-    // Note: mentionRate is now a percentage (0-100), but calculateVisibilityScore expects decimal (0-1)
-    const visibilityScore = this.calculateVisibilityScore({
-      mentionRate: mentionRate / 100, // Convert percentage to decimal for score calculation
-      sentimentScore: avgSentimentScore,
-      confidenceLevel: avgConfidence,
-      avgRankPosition,
-      successfulQueries,
-      totalQueries
-    });
-    
-    return {
-      visibilityScore,
-      mentionRate,
-      sentimentScore: avgSentimentScore,
-      confidenceLevel: avgConfidence,
-      avgRankPosition,
-      totalQueries,
-      successfulQueries
-    };
-  }
-  
-  /**
-   * Calculate overall visibility score using weighted formula
-   */
-  private calculateVisibilityScore(metrics: {
-    mentionRate: number;
-    sentimentScore: number;
-    confidenceLevel: number;
-    avgRankPosition: number | null;
-    successfulQueries: number;
-    totalQueries: number;
-  }): number {
-    // Base score from mention rate (0-40 points)
-    const mentionScore = metrics.mentionRate * 40;
-    
-    // Sentiment bonus/penalty (0-25 points)
-    const sentimentScore = metrics.sentimentScore * 25;
-    
-    // Confidence bonus (0-20 points)
-    const confidenceScore = metrics.confidenceLevel * 20;
-    
-    // Ranking bonus (0-15 points, higher for better rankings)
-    let rankingScore = 0;
-    if (metrics.avgRankPosition !== null) {
-      // Better rankings (lower numbers) get higher scores
-      rankingScore = Math.max(0, 15 - (metrics.avgRankPosition - 1) * 3);
-    }
-    
-    // Query success penalty (reduce score if many queries failed)
-    const successRate = metrics.successfulQueries / metrics.totalQueries;
-    const successPenalty = (1 - successRate) * 10;
-    
-    const rawScore = mentionScore + sentimentScore + confidenceScore + rankingScore - successPenalty;
-    
-    // Ensure score is between 0 and 100
-    return Math.max(0, Math.min(100, Math.round(rawScore)));
-  }
-  
-  /**
-   * Generate competitive leaderboard from results
-   */
-  private generateCompetitiveLeaderboard(results: LLMResult[], businessName: string): CompetitiveLeaderboard {
-    // Focus on recommendation queries for competitive analysis
-    const recommendationResults = results.filter(r => r.promptType === 'recommendation' && !r.error);
-    
-    if (recommendationResults.length === 0) {
-      return {
-        targetBusiness: {
-          name: businessName,
-          rank: null,
-          mentionCount: 0,
-          avgPosition: null
-        },
-        competitors: [],
-        totalRecommendationQueries: 0
-      };
-    }
-    
-    // Collect all competitor mentions
-    const competitorMentions = new Map<string, { count: number; positions: number[]; appearsWithTarget: number }>();
-    
-    let targetMentionCount = 0;
-    let targetPositions: number[] = [];
-    
-    for (const result of recommendationResults) {
-      // Track target business
-      if (result.mentioned) {
-        targetMentionCount++;
-        if (result.rankPosition !== null) {
-          targetPositions.push(result.rankPosition);
-        }
-      }
-      
-      // Track competitors
-      for (const competitor of result.competitorMentions) {
-        if (!competitorMentions.has(competitor)) {
-          competitorMentions.set(competitor, { count: 0, positions: [], appearsWithTarget: 0 });
-        }
-        
-        const competitorData = competitorMentions.get(competitor)!;
-        competitorData.count++;
-        
-        // If target business was also mentioned, increment co-occurrence
-        if (result.mentioned) {
-          competitorData.appearsWithTarget++;
-        }
-        
-        // Try to extract position for this competitor (simplified approach)
-        // In a more sophisticated implementation, we'd parse the full response structure
-        const estimatedPosition = this.estimateCompetitorPosition(result.rawResponse, competitor);
-        if (estimatedPosition !== null) {
-          competitorData.positions.push(estimatedPosition);
-        }
-      }
-    }
-    
-    // Build competitor list
-    const competitors = Array.from(competitorMentions.entries())
-      .map(([name, data]) => ({
-        name,
-        mentionCount: data.count,
-        avgPosition: data.positions.length > 0 
-          ? data.positions.reduce((sum, pos) => sum + pos, 0) / data.positions.length
-          : 0,
-        appearsWithTarget: data.appearsWithTarget
-      }))
-      .sort((a, b) => b.mentionCount - a.mentionCount) // Sort by mention count
-      .slice(0, 10); // Top 10 competitors
-    
-    // Calculate target business rank
-    const targetRank = targetMentionCount > 0 && targetPositions.length > 0
-      ? Math.round(targetPositions.reduce((sum, pos) => sum + pos, 0) / targetPositions.length)
-      : null;
-    
-    const targetAvgPosition = targetPositions.length > 0
-      ? targetPositions.reduce((sum, pos) => sum + pos, 0) / targetPositions.length
-      : null;
-    
-    return {
-      targetBusiness: {
-        name: businessName,
-        rank: targetRank,
-        mentionCount: targetMentionCount,
-        avgPosition: targetAvgPosition
-      },
-      competitors,
-      totalRecommendationQueries: recommendationResults.length
-    };
-  }
-  
-  /**
-   * Estimate competitor position in response (simplified heuristic)
-   */
-  private estimateCompetitorPosition(response: string, competitorName: string): number | null {
-    const lines = response.split('\n');
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.toLowerCase().includes(competitorName.toLowerCase())) {
-        // Look for numbered list pattern
-        const numberMatch = line.match(/^\s*(\d+)[\.\)]/);
-        if (numberMatch) {
-          const position = parseInt(numberMatch[1], 10);
-          if (position >= 1 && position <= 10) {
-            return position;
-          }
-        }
-      }
-    }
-    
-    return null;
-  }
-  
+
   /**
    * Convert Business entity to BusinessContext
+   * DRY: Use shared conversion utility
    */
   private businessToContext(business: Business): BusinessContext {
-    return {
-      businessId: business.id,
-      name: business.name,
-      url: business.url,
-      category: business.category || undefined,
-      location: business.location ? {
-        city: business.location.city,
-        state: business.location.state,
-        country: business.location.country
-      } : undefined,
-      crawlData: business.crawlData || undefined
-    };
+    return convertBusinessToContext(business);
   }
   
   /**
@@ -456,9 +280,8 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     const fallbackLeaderboard: CompetitiveLeaderboard = {
       targetBusiness: {
         name: context.name,
-        rank: null,
-        mentionCount: 0,
-        avgPosition: null
+        avgPosition: null,
+        mentionCount: 0
       },
       competitors: [],
       totalRecommendationQueries: 0
@@ -486,7 +309,9 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
    * Log detailed analysis results for monitoring
    */
   private logAnalysisResults(analysis: FingerprintAnalysis): void {
-    const stats = parallelProcessor.getProcessingStats(analysis.llmResults);
+    // Calculate simple stats for logging
+    const validResults = filterValidResults(analysis.llmResults);
+    const mentionedCount = validResults.filter(r => r.mentioned).length;
     
     log.info('Fingerprint analysis summary', {
       businessName: analysis.businessName,
@@ -497,19 +322,12 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
       avgRankPosition: analysis.avgRankPosition,
       competitorCount: analysis.competitiveLeaderboard.competitors.length,
       processingTime: analysis.processingTime,
-      queryStats: stats
+      queryStats: {
+        totalQueries: analysis.llmResults.length,
+        successfulQueries: validResults.length,
+        mentionRate: validResults.length > 0 ? Math.round((mentionedCount / validResults.length) * 100) : 0
+      }
     });
-    
-    // Log model performance breakdown
-    for (const [model, performance] of Object.entries(stats.modelPerformance)) {
-      log.debug('Model performance', {
-        model,
-        queries: performance.queries,
-        mentions: performance.mentions,
-        mentionRate: Math.round((performance.mentions / performance.queries) * 100),
-        avgConfidence: Math.round(performance.avgConfidence * 100)
-      });
-    }
   }
   
   /**

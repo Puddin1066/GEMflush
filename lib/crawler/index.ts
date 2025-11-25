@@ -33,14 +33,30 @@ interface MultiPageCrawlResult {
 }
 
 class EnhancedWebCrawler implements IWebCrawler {
+  // Constants
+  private static readonly MILLISECONDS_PER_SECOND = 1000;
+  private static readonly SECONDS_PER_MINUTE = 60;
+  private static readonly MINUTES_PER_HOUR = 60;
+  private static readonly HOURS_PER_DAY = 24;
+  private static readonly CACHE_TTL_HOURS = 24;
+  private static readonly MAX_CACHE_SIZE = 100;
+  private static readonly DEFAULT_MAX_DEPTH = 2;
+  private static readonly DEFAULT_PAGE_LIMIT = 8;
+  private static readonly MAX_SERVICES = 10;
+  private static readonly SUPPORTED_PROTOCOLS = ['http:', 'https:'] as const;
+  
   // Caching State - Rate limiting handled by FirecrawlClient
   private cache: Map<string, CrawlCacheEntry> = new Map();
-  private readonly CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours cache
-  private readonly MAX_CACHE_SIZE = 100;
+  private readonly CACHE_TTL = EnhancedWebCrawler.MILLISECONDS_PER_SECOND * 
+                                EnhancedWebCrawler.SECONDS_PER_MINUTE * 
+                                EnhancedWebCrawler.MINUTES_PER_HOUR * 
+                                EnhancedWebCrawler.HOURS_PER_DAY * 
+                                EnhancedWebCrawler.CACHE_TTL_HOURS;
+  private readonly MAX_CACHE_SIZE = EnhancedWebCrawler.MAX_CACHE_SIZE;
 
   // Multi-page crawling configuration
-  private readonly DEFAULT_MAX_DEPTH = 2;
-  private readonly DEFAULT_PAGE_LIMIT = 8;
+  private readonly DEFAULT_MAX_DEPTH = EnhancedWebCrawler.DEFAULT_MAX_DEPTH;
+  private readonly DEFAULT_PAGE_LIMIT = EnhancedWebCrawler.DEFAULT_PAGE_LIMIT;
   private readonly RELEVANT_PAGE_PATTERNS = [
     '**/about*', '**/services*', '**/contact*', '**/team*', 
     '**/products*', '**/solutions*', '**/company*'
@@ -67,17 +83,7 @@ class EnhancedWebCrawler implements IWebCrawler {
 
     try {
       // Validate URL
-      let parsedUrl: URL;
-      try {
-        parsedUrl = new URL(url);
-      } catch {
-        // If URL parsing fails, it's invalid
-        throw new Error('Invalid URL format');
-      }
-      
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        throw new Error('Only HTTP and HTTPS URLs are supported');
-      }
+      this.validateUrl(url);
 
       console.log(`[CRAWLER] 🚀 Starting enhanced multi-page crawl for: ${url}`);
       
@@ -297,12 +303,7 @@ class EnhancedWebCrawler implements IWebCrawler {
   private aggregateMultiPageResults(pages: FirecrawlCrawlPageData[], baseUrl: string): CrawledData {
     console.log(`[CRAWLER] 🔄 Aggregating data from ${pages.length} pages`);
 
-    // Initialize aggregated data structure
-    const aggregated: CrawledData = {};
-    const allServices: string[] = [];
-    const allSocialLinks: any = {};
-    let bestDescription = '';
-    let mostCompleteContactInfo: any = {};
+    const aggregationState = this.initializeAggregationState();
 
     // Process each page's extracted data
     pages.forEach((page, index) => {
@@ -310,69 +311,144 @@ class EnhancedWebCrawler implements IWebCrawler {
       if (!extractedData) return;
 
       console.log(`[CRAWLER] 📄 Processing page ${index + 1}: ${page.url}`);
-
-      // Business name - prefer main page, fallback to first found
-      if (extractedData.businessName && (!aggregated.name || index === 0)) {
-        aggregated.name = String(extractedData.businessName).trim();
-      }
-
-      // Description - prefer longer, more detailed descriptions
-      if (extractedData.description && extractedData.description.length > bestDescription.length) {
-        bestDescription = String(extractedData.description).trim();
-      }
-
-      // Contact information - prefer most complete
-      if (extractedData.phone || extractedData.email || extractedData.address) {
-        const contactScore = (extractedData.phone ? 1 : 0) + (extractedData.email ? 1 : 0) + (extractedData.address ? 1 : 0);
-        const currentScore = (mostCompleteContactInfo.phone ? 1 : 0) + (mostCompleteContactInfo.email ? 1 : 0) + (mostCompleteContactInfo.address ? 1 : 0);
-        
-        if (contactScore > currentScore) {
-          mostCompleteContactInfo = {
-            phone: extractedData.phone,
-            email: extractedData.email,
-            address: extractedData.address,
-          };
-        }
-      }
-
-      // Location - prefer most complete location data
-      if (extractedData.city || extractedData.state || extractedData.country) {
-        if (!aggregated.location || !aggregated.location.city) {
-          aggregated.location = {
-            address: extractedData.address || mostCompleteContactInfo.address,
-            city: extractedData.city,
-            state: extractedData.state,
-            country: extractedData.country || 'US',
-            postalCode: extractedData.postalCode,
-          };
-        }
-      }
-
-      // Services - collect from all pages
-      if (Array.isArray(extractedData.services)) {
-        allServices.push(...extractedData.services.map(s => String(s).trim()));
-      }
-
-      // Social media - merge from all pages
-      if (extractedData.socialMedia) {
-        Object.assign(allSocialLinks, extractedData.socialMedia);
-      }
-
-      // Business details - prefer most complete
-      if (extractedData.industry || extractedData.founded) {
-        if (!aggregated.businessDetails) {
-          aggregated.businessDetails = {};
-        }
-        
-        if (extractedData.industry && !aggregated.businessDetails.industry) {
-          aggregated.businessDetails.industry = String(extractedData.industry).trim();
-        }
-        
-        if (extractedData.founded && !aggregated.businessDetails.founded) {
-          aggregated.businessDetails.founded = String(extractedData.founded).trim();
-        }
-      }
+      this.processPageData(extractedData, aggregationState, index);
     });
+
+    return this.finalizeAggregatedData(aggregationState);
+  }
+
+  /**
+   * Initialize aggregation state structure
+   */
+  private initializeAggregationState() {
+    return {
+      aggregated: {} as CrawledData,
+      allServices: [] as string[],
+      allSocialLinks: {} as Record<string, string>,
+      bestDescription: '',
+      mostCompleteContactInfo: {} as { phone?: string; email?: string; address?: string },
+    };
+  }
+
+  /**
+   * Process extracted data from a single page
+   */
+  private processPageData(
+    extractedData: BusinessExtractData,
+    state: ReturnType<typeof this.initializeAggregationState>,
+    pageIndex: number
+  ): void {
+    // Business name - prefer main page, fallback to first found
+    if (extractedData.businessName && (!state.aggregated.name || pageIndex === 0)) {
+      state.aggregated.name = String(extractedData.businessName).trim();
+    }
+
+    // Description - prefer longer, more detailed descriptions
+    if (extractedData.description && extractedData.description.length > state.bestDescription.length) {
+      state.bestDescription = String(extractedData.description).trim();
+    }
+
+    // Contact information - prefer most complete
+    this.updateMostCompleteContactInfo(extractedData, state);
+
+    // Location - prefer most complete location data
+    this.updateLocation(extractedData, state);
+
+    // Services - collect from all pages
+    if (Array.isArray(extractedData.services)) {
+      state.allServices.push(...extractedData.services.map(s => String(s).trim()));
+    }
+
+    // Social media - merge from all pages
+    if (extractedData.socialMedia) {
+      Object.assign(state.allSocialLinks, extractedData.socialMedia);
+    }
+
+    // Business details - prefer most complete
+    this.updateBusinessDetails(extractedData, state);
+  }
+
+  /**
+   * Update most complete contact information
+   */
+  private updateMostCompleteContactInfo(
+    extractedData: BusinessExtractData,
+    state: ReturnType<typeof this.initializeAggregationState>
+  ): void {
+    if (!extractedData.phone && !extractedData.email && !extractedData.address) {
+      return;
+    }
+
+    const contactScore = this.calculateContactScore(extractedData);
+    const currentScore = this.calculateContactScore(state.mostCompleteContactInfo);
+    
+    if (contactScore > currentScore) {
+      state.mostCompleteContactInfo = {
+        phone: extractedData.phone,
+        email: extractedData.email,
+        address: extractedData.address,
+      };
+    }
+  }
+
+  /**
+   * Calculate contact information completeness score
+   */
+  private calculateContactScore(contact: { phone?: string; email?: string; address?: string }): number {
+    return (contact.phone ? 1 : 0) + (contact.email ? 1 : 0) + (contact.address ? 1 : 0);
+  }
+
+  /**
+   * Update location data
+   */
+  private updateLocation(
+    extractedData: BusinessExtractData,
+    state: ReturnType<typeof this.initializeAggregationState>
+  ): void {
+    if (!extractedData.city && !extractedData.state && !extractedData.country) {
+      return;
+    }
+
+    if (!state.aggregated.location || !state.aggregated.location.city) {
+      state.aggregated.location = {
+        address: extractedData.address || state.mostCompleteContactInfo.address,
+        city: extractedData.city,
+        state: extractedData.state,
+        country: extractedData.country || 'US',
+        postalCode: extractedData.postalCode,
+      };
+    }
+  }
+
+  /**
+   * Update business details
+   */
+  private updateBusinessDetails(
+    extractedData: BusinessExtractData,
+    state: ReturnType<typeof this.initializeAggregationState>
+  ): void {
+    if (!extractedData.industry && !extractedData.founded) {
+      return;
+    }
+
+    if (!state.aggregated.businessDetails) {
+      state.aggregated.businessDetails = {};
+    }
+    
+    if (extractedData.industry && !state.aggregated.businessDetails.industry) {
+      state.aggregated.businessDetails.industry = String(extractedData.industry).trim();
+    }
+    
+    if (extractedData.founded && !state.aggregated.businessDetails.founded) {
+      state.aggregated.businessDetails.founded = String(extractedData.founded).trim();
+    }
+  }
+
+  /**
+   * Finalize aggregated data structure
+   */
+  private finalizeAggregatedData(state: ReturnType<typeof this.initializeAggregationState>): CrawledData {
+    const { aggregated, bestDescription, mostCompleteContactInfo, allServices, allSocialLinks } = state;
 
     // Finalize aggregated data
     if (bestDescription) {
@@ -387,14 +463,13 @@ class EnhancedWebCrawler implements IWebCrawler {
       aggregated.email = String(mostCompleteContactInfo.email).trim();
     }
 
-    // Store address from most complete contact info
     if (mostCompleteContactInfo.address) {
       aggregated.address = String(mostCompleteContactInfo.address).trim();
     }
 
     // Deduplicate and clean services
     if (allServices.length > 0) {
-      aggregated.services = [...new Set(allServices)].slice(0, 10); // Limit to 10 services
+      aggregated.services = [...new Set(allServices)].slice(0, EnhancedWebCrawler.MAX_SERVICES);
     }
 
     // Social links
@@ -496,6 +571,22 @@ class EnhancedWebCrawler implements IWebCrawler {
       result,
       timestamp: Date.now()
     });
+  }
+
+  /**
+   * Validate URL format and protocol
+   */
+  private validateUrl(url: string): void {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error('Invalid URL format');
+    }
+    
+    if (!EnhancedWebCrawler.SUPPORTED_PROTOCOLS.includes(parsedUrl.protocol as typeof EnhancedWebCrawler.SUPPORTED_PROTOCOLS[number])) {
+      throw new Error('Only HTTP and HTTPS URLs are supported');
+    }
   }
 
   /**
