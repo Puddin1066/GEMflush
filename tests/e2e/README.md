@@ -1,6 +1,10 @@
 # E2E Tests for UX/UI Data Flows
 
-## Current Status: ⚠️ Partial Coverage
+## Current Status: ✅ TDD Tests Ready (Requires DATABASE_URL)
+
+**⚠️ PREREQUISITE**: Set `DATABASE_URL` or `POSTGRES_URL` environment variable before running tests.
+
+See `README_SETUP.md` for setup instructions.
 
 ### What's Tested
 - ✅ Authentication redirects

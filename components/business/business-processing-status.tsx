@@ -142,6 +142,7 @@ export function BusinessProcessingStatus({
 
   return (
     <div
+      data-business-status={status}
       className={cn(
         'flex items-center',
         sizeConfig.container,

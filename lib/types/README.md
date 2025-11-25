@@ -425,3 +425,4 @@ export type CrawlResult =
 
 **Remember**: Types are the foundation of type safety. Keep contracts clear, focused, and well-tested.
 
+

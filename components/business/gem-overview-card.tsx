@@ -65,7 +65,7 @@ export function GemOverviewCard({
               </CardDescription>
             </div>
           </div>
-          <Badge className={status.color}>{status.label}</Badge>
+          <Badge className={status.color} data-status={business.status}>{status.label}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

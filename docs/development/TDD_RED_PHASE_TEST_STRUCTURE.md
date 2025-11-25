@@ -522,3 +522,4 @@ Use the validation checklist above to ensure the test is correctly structured.
 
 **Remember**: A correctly structured RED phase test is an executable specification that drives implementation. If the test doesn't clearly define what should happen, the implementation will be unclear too.
 
+

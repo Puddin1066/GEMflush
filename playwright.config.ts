@@ -1,8 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
 
 /**
  * Playwright Configuration for E2E Tests
  */
+
+// Load .env file to ensure DATABASE_URL is available
+dotenv.config();
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -49,6 +53,13 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000, // Increased to 3 minutes for slower startup
     env: {
+      // CRITICAL: Pass all required environment variables to Next.js server for E2E tests
+      // Without these, sign-up and all database operations fail
+      DATABASE_URL: process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
+      POSTGRES_URL: process.env.POSTGRES_URL || process.env.DATABASE_URL || '',
+      // Pass other required vars (Next.js needs these too)
+      AUTH_SECRET: process.env.AUTH_SECRET || '',
+      BASE_URL: process.env.BASE_URL || 'http://localhost:3000',
       // Force OpenRouter to use mock responses during E2E tests
       // Setting to empty string ensures OpenRouter client checks `if (!apiKey)` which is true
       // This prevents expensive API calls and speeds up tests significantly

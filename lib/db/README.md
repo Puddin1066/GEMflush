@@ -442,3 +442,4 @@ status: text('status', { enum: ['pending', 'crawling', 'crawled', 'published'] }
 
 **Remember**: The database layer is the foundation of the application. Write tests first, use transactions for multi-step operations, and always validate data.
 
+

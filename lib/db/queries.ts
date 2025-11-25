@@ -200,6 +200,15 @@ export async function updateBusiness(
   return result[0];
 }
 
+export async function deleteBusiness(businessId: number) {
+  const result = await db
+    .delete(businesses)
+    .where(eq(businesses.id, businessId))
+    .returning();
+
+  return result[0] || null;
+}
+
 export async function getBusinessCountByTeam(teamId: number): Promise<number> {
   const result = await db
     .select({ count: count() })
