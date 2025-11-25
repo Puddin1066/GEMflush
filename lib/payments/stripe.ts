@@ -70,6 +70,9 @@ function validatePriceId(priceId: string | null | undefined): void {
   }
 }
 
+// Stripe client initialization
+// API version '2025-04-30.basil' is the latest version defined in Stripe TypeScript types
+// This ensures type safety and compatibility with latest Stripe features
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-04-30.basil'
 });
