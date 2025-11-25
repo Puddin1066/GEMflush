@@ -25,15 +25,22 @@ import { google } from 'googleapis';
 import { openRouterClient } from '@/lib/llm';
 
 // Mock Google Search API
-vi.mock('googleapis', () => ({
-  google: {
-    customsearch: vi.fn(() => ({
-      cse: {
-        list: vi.fn(),
-      },
-    })),
-  },
-}));
+// GREEN: Mock must handle google.customsearch('v1') call
+const mockCseList = vi.fn();
+
+vi.mock('googleapis', () => {
+  const mockCustomSearchInstance = {
+    cse: {
+      list: vi.fn(),
+    },
+  };
+  
+  return {
+    google: {
+      customsearch: vi.fn(() => mockCustomSearchInstance),
+    },
+  };
+});
 
 // Mock OpenRouter LLM client
 vi.mock('@/lib/llm', () => ({
@@ -44,22 +51,28 @@ vi.mock('@/lib/llm', () => ({
 
 describe('🔴 RED: Wikidata Notability Checker Specification', () => {
   let checker: NotabilityChecker;
-  let mockCustomSearch: any;
   let mockLLMQuery: any;
+  let mockGoogleCseList: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    checker = new NotabilityChecker();
     
-    // Get mocked instances
-    mockCustomSearch = (google.customsearch as any)();
-    mockLLMQuery = vi.mocked(openRouterClient.query);
-    
-    // Reset environment variables
+    // Reset environment variables FIRST - set to allow real API calls in tests
+    // Set both API key and engine ID to bypass test mode detection
     process.env.GOOGLE_SEARCH_API_KEY = 'test-key';
     process.env.GOOGLE_SEARCH_ENGINE_ID = 'test-engine';
     process.env.USE_MOCK_GOOGLE_SEARCH = 'false';
-    process.env.NODE_ENV = 'test';
+    // Don't set NODE_ENV to 'test' - leave it undefined or set to production
+    delete process.env.NODE_ENV;
+    process.env.PLAYWRIGHT_TEST = 'false';
+    
+    // Create checker AFTER setting environment variables
+    checker = new NotabilityChecker();
+    
+    // Get mocked instances
+    const mockCustomSearch = (google.customsearch as any)('v1');
+    mockGoogleCseList = mockCustomSearch.cse.list;
+    mockLLMQuery = vi.mocked(openRouterClient.query);
   });
 
   /**
@@ -75,7 +88,8 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'San Francisco', state: 'CA' };
     
     // Mock Google Search to return references
-    vi.mocked(mockCustomSearch.cse.list).mockResolvedValue({
+    // GREEN: Mock structure matches real API response format
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [
           {
@@ -85,7 +99,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
           },
         ],
       },
-    });
+    } as any);
     
     // Mock LLM assessment
     mockLLMQuery.mockResolvedValue({
@@ -115,8 +129,8 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     
     // Assert: Name was normalized (behavior: search uses clean name)
     // The search query should use "Blue Bottle Coffee" not "Blue Bottle Coffee 1763324055284"
-    expect(mockCustomSearch.cse.list).toHaveBeenCalled();
-    const searchQuery = vi.mocked(mockCustomSearch.cse.list).mock.calls[0][0]?.q;
+    expect(mockGoogleCseList).toHaveBeenCalled();
+    const searchQuery = mockGoogleCseList.mock.calls[0][0]?.q;
     expect(searchQuery).toContain('Blue Bottle Coffee');
     expect(searchQuery).not.toContain('1763324055284');
     expect(result.isNotable).toBe(true);
@@ -135,7 +149,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'Seattle', state: 'WA' };
     
     // Mock Google Search response
-    vi.mocked(mockCustomSearch.cse.list).mockResolvedValue({
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [
           {
@@ -188,7 +202,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const result = await checker.checkNotability(businessName, location);
     
     // Assert: Google Search was called (behavior: references are found)
-    expect(mockCustomSearch.cse.list).toHaveBeenCalled();
+    expect(mockGoogleCseList).toHaveBeenCalled();
     expect(result.references).toHaveLength(2);
     expect(result.references[0].url).toBe('https://news.example.com/test-business');
     expect(result.references[1].url).toBe('https://gov.example.com/business-license');
@@ -207,7 +221,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'New York', state: 'NY' };
     
     // Mock Google Search
-    mockCustomSearch.cse.list.mockResolvedValue({
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [
           {
@@ -267,7 +281,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'Small Town', state: 'MT' };
     
     // Mock Google Search with few results
-    vi.mocked(mockCustomSearch.cse.list).mockResolvedValue({
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [
           {
@@ -330,8 +344,10 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     
     // Assert: Rate-limited result (behavior: doesn't exceed API limits)
     expect(result.isNotable).toBe(false);
-    expect(result.reasons).toContain(expect.stringMatching(/rate limit|limit reached/i));
-    expect(mockCustomSearch.cse.list).not.toHaveBeenCalled();
+    // Check that reasons array contains a string matching rate limit pattern
+    const hasRateLimitReason = result.reasons.some(reason => /rate limit|limit reached/i.test(reason));
+    expect(hasRateLimitReason).toBe(true);
+    expect(mockGoogleCseList).not.toHaveBeenCalled();
   });
 
   /**
@@ -347,7 +363,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'Portland', state: 'OR' };
     
     // Mock Google Search
-    mockCustomSearch.cse.list.mockResolvedValue({
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [
           {
@@ -413,7 +429,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'Nowhere', state: 'AK' };
     
     // Mock Google Search returning no results
-    vi.mocked(mockCustomSearch.cse.list).mockResolvedValue({
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [],
       },
@@ -442,7 +458,7 @@ describe('🔴 RED: Wikidata Notability Checker Specification', () => {
     const location = { city: 'Chicago', state: 'IL' };
     
     // Mock Google Search with multiple results
-    vi.mocked(mockCustomSearch.cse.list).mockResolvedValue({
+    mockGoogleCseList.mockResolvedValue({
       data: {
         items: [
           {

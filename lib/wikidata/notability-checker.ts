@@ -194,11 +194,12 @@ export class NotabilityChecker {
     const engineIdMasked = engineIdValue ? `${engineIdValue.substring(0, 8)}...` : '(empty)';
     console.error(`[LOG3] GOOGLE_SEARCH_API_KEY="${apiKeyMasked}", GOOGLE_SEARCH_ENGINE_ID="${engineIdMasked}" (expected: both empty for e2e tests)`);
     
-    // Use mock if: USE_MOCK_GOOGLE_SEARCH=true (highest priority) OR PLAYWRIGHT_TEST=true OR NODE_ENV=test OR (no engine ID = test mode) OR API key is empty
+    // Use mock if: USE_MOCK_GOOGLE_SEARCH=true (highest priority) OR PLAYWRIGHT_TEST=true OR (NODE_ENV=test AND credentials missing) OR (credentials missing)
     // IMPORTANT: useMockFlag is checked first - if explicitly set to 'true', ALWAYS use mocks
-    // This ensures that even if .env overrides other vars, the explicit flag still works
-    // Fallback: If any test indicator is present, use mocks (defensive programming for e2e tests)
-    const isTestMode = useMockFlag || playwrightTest || (nodeEnv as string) === 'test' || !hasEngineId || isApiKeyEmpty;
+    // GREEN: Only use test mode if explicitly flagged OR if credentials are missing
+    // This allows unit tests to test real API calls when credentials are provided
+    // If credentials are present, use real API even in test environment (for unit tests with mocks)
+    const isTestMode = useMockFlag || playwrightTest || (!hasEngineId || isApiKeyEmpty);
     
     console.error(`[LOG] Test mode decision: isTestMode=${isTestMode} (useMockFlag: ${useMockFlag}, playwrightTest: ${playwrightTest}, nodeEnv=test: ${(nodeEnv as string) === 'test'}, !hasEngineId: ${!hasEngineId}, isApiKeyEmpty: ${isApiKeyEmpty})`);
     
@@ -327,7 +328,11 @@ export class NotabilityChecker {
       
       const references: Reference[] = [];
       
-      for (const item of response.data.items || []) {
+      // GREEN: Handle both real API response and test mocks
+      // Tests drive implementation - mocks may have different structure
+      const items = response?.data?.items || response?.items || [];
+      
+      for (const item of items) {
         if (item.link && item.title && item.snippet) {
           references.push({
             url: item.link,
@@ -559,7 +564,7 @@ Return ONLY valid JSON with this exact structure:
     return {
       isNotable: false,
       confidence: 0.5,
-      reasons: ['Daily API rate limit exceeded - manual review required'],
+      reasons: ['Rate limit reached - Daily API rate limit exceeded'],
       references: [],
       seriousReferenceCount: 0,
     };
@@ -567,37 +572,13 @@ Return ONLY valid JSON with this exact structure:
   
   /**
    * Create result when no references found
-   * More lenient: In test mode or when API fails, allow publishing with lower confidence
-   * SOLID: Single Responsibility - handles no references case with lenient defaults
+   * SOLID: Single Responsibility - handles no references case
    */
   private createNoReferencesResult(): NotabilityResult {
-    // Check if we're in test mode - if so, be more lenient
-    const nodeEnv = process.env.NODE_ENV || '';
-    const playwrightTest = process.env.PLAYWRIGHT_TEST === 'true';
-    const useMockFlag = process.env.USE_MOCK_GOOGLE_SEARCH === 'true';
-    const isTestMode = useMockFlag || playwrightTest || (nodeEnv as string) === 'test';
-    
-    // In test mode, allow publishing even without references (for testing purposes)
-    // In production, still require references but be more lenient about confidence
-    if (isTestMode) {
-      return {
-        isNotable: true, // Allow in test mode
-        confidence: 0.6, // Lower confidence but still acceptable
-        reasons: ['Test mode: Allowing publication without references for testing'],
-        references: [],
-        seriousReferenceCount: 0,
-      };
-    }
-    
-    // Production: More lenient - allow with lower confidence
-    // Changed from isNotable: false to true to allow publishing
     return {
-      isNotable: true, // More lenient: Allow even without references
-      confidence: 0.4, // Low but acceptable confidence
-      reasons: [
-        'No publicly available references found - publishing allowed with lower confidence',
-        'Manual review recommended after publication'
-      ],
+      isNotable: false,
+      confidence: 0.0,
+      reasons: ['No references found - cannot verify notability'],
       references: [],
       seriousReferenceCount: 0,
     };
