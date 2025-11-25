@@ -63,6 +63,31 @@ export class NotabilityChecker {
   private dailyQueries = 0;
   private readonly DAILY_LIMIT = 100; // Free tier limit
   
+  // REFACTOR: Extract constants for maintainability
+  private static readonly SOURCE_TYPE_RANK = {
+    'government': 1,
+    'news': 2,
+    'academic': 3,
+    'database': 4,
+    'directory': 5,
+    'review': 6,
+    'other': 7,
+    'company': 8,
+  } as const;
+  
+  private static readonly TRUST_SCORES = {
+    'government': 90,
+    'news': 85,
+    'academic': 85,
+    'database': 80,
+    'directory': 75,
+    'review': 70,
+    'company': 50,
+    'other': 60,
+  } as const;
+  
+  private static readonly SERIOUS_SOURCE_TYPES = ['government', 'news', 'academic', 'database', 'directory', 'review'] as const;
+  
   /**
    * Normalize business name for search by removing test timestamps and trailing numbers
    * SOLID: Single Responsibility - name normalization logic
@@ -96,47 +121,26 @@ export class NotabilityChecker {
   ): Promise<NotabilityResult> {
     // Check rate limit
     if (this.dailyQueries >= this.DAILY_LIMIT) {
-      console.warn('⚠️  Daily Google Search API limit reached');
       return this.createRateLimitedResult();
     }
     
     // Normalize business name (remove test timestamps, trailing numbers)
     const normalizedName = this.normalizeBusinessName(businessName);
-    if (normalizedName !== businessName) {
-      console.log(`📝 Normalized business name: "${businessName}" -> "${normalizedName}"`);
-    }
     
     // Step 1: Find references using normalized name
-    console.log(`🔍 Searching for references: "${normalizedName}"`);
     const references = await this.findReferences(normalizedName, location);
     
-    // LOG 3: Track why references are empty
     if (references.length === 0) {
-      console.log(`❌ No references found for: "${normalizedName}" (normalized from "${businessName}")`);
-      console.log(`[DEBUG checkNotability] References array is empty - check findReferences() logic`);
       return this.createNoReferencesResult();
     }
     
-    console.log(`📚 Found ${references.length} potential references`);
-    
-    // Debug: Show top references
-    if (references.length > 0) {
-      console.log('\n🔍 Top references found:');
-      references.slice(0, 5).forEach((ref, idx) => {
-        console.log(`   ${idx + 1}. ${ref.title}`);
-        console.log(`      ${ref.url}`);
-      });
-      console.log('');
-    }
-    
     // Step 2: Assess quality with LLM (use normalized name for consistency)
-    console.log(`🤖 Assessing reference quality with LLM...`);
     const assessment = await this.assessReferenceQuality(references, normalizedName);
     
     // Step 3: Extract top serious references for Wikidata citations
     const topReferences = this.extractTopReferences(references, assessment);
     
-    const result: NotabilityResult = {
+    return {
       isNotable: assessment.meetsNotability,
       confidence: assessment.confidence,
       reasons: assessment.meetsNotability ? [] : [assessment.summary],
@@ -145,14 +149,6 @@ export class NotabilityChecker {
       assessment: assessment,
       topReferences: topReferences,
     };
-    
-    console.log(
-      assessment.meetsNotability 
-        ? `✅ Notable (${assessment.seriousReferenceCount} serious references)`
-        : `❌ Not notable: ${assessment.summary}`
-    );
-    
-    return result;
   }
   
   /**
@@ -170,54 +166,10 @@ export class NotabilityChecker {
     // This allows e2e tests to exercise real notability logic without Google Search API calls
     // Priority: USE_MOCK_GOOGLE_SEARCH flag > empty API key > NODE_ENV check
     
-    // TEST MODE: In e2e tests, always use mock references to avoid external API calls
-    // Problem: .env file overrides webServer.env, so we need a reliable test detection
-    // Solution: Check for PLAYWRIGHT_TEST flag (set in webServer.env) OR NODE_ENV=test OR explicit flag
-    // SOLID: Single Responsibility - test mode detection logic
-    // DRY: Centralized test mode detection
-    const nodeEnv = process.env.NODE_ENV || '';
-    const playwrightTest = process.env.PLAYWRIGHT_TEST === 'true';
-    const useMockFlag = process.env.USE_MOCK_GOOGLE_SEARCH === 'true';
-    const hasEngineId = !!process.env.GOOGLE_SEARCH_ENGINE_ID && process.env.GOOGLE_SEARCH_ENGINE_ID.trim() !== '';
-    const googleKeyValue = process.env.GOOGLE_SEARCH_API_KEY || '';
-    const isApiKeyEmpty = googleKeyValue.trim() === '';
-    
-    // LOG 1: NODE_ENV check (primary test mode indicator)
-    console.error(`[LOG1] NODE_ENV="${nodeEnv}" (expected: "test" for e2e tests)`);
-    
-    // LOG 2: USE_MOCK_GOOGLE_SEARCH flag check (explicit override)
-    console.error(`[LOG2] USE_MOCK_GOOGLE_SEARCH="${process.env.USE_MOCK_GOOGLE_SEARCH}", PLAYWRIGHT_TEST="${process.env.PLAYWRIGHT_TEST}" (expected: "true" for e2e tests)`);
-    
-    // LOG 3: API credentials check (should be empty in test mode)
-    const apiKeyMasked = googleKeyValue ? `${googleKeyValue.substring(0, 8)}...` : '(empty)';
-    const engineIdValue = process.env.GOOGLE_SEARCH_ENGINE_ID || '';
-    const engineIdMasked = engineIdValue ? `${engineIdValue.substring(0, 8)}...` : '(empty)';
-    console.error(`[LOG3] GOOGLE_SEARCH_API_KEY="${apiKeyMasked}", GOOGLE_SEARCH_ENGINE_ID="${engineIdMasked}" (expected: both empty for e2e tests)`);
-    
-    // Use mock if: USE_MOCK_GOOGLE_SEARCH=true (highest priority) OR PLAYWRIGHT_TEST=true OR (NODE_ENV=test AND credentials missing) OR (credentials missing)
-    // IMPORTANT: useMockFlag is checked first - if explicitly set to 'true', ALWAYS use mocks
-    // GREEN: Only use test mode if explicitly flagged OR if credentials are missing
-    // This allows unit tests to test real API calls when credentials are provided
-    // If credentials are present, use real API even in test environment (for unit tests with mocks)
-    const isTestMode = useMockFlag || playwrightTest || (!hasEngineId || isApiKeyEmpty);
-    
-    console.error(`[LOG] Test mode decision: isTestMode=${isTestMode} (useMockFlag: ${useMockFlag}, playwrightTest: ${playwrightTest}, nodeEnv=test: ${(nodeEnv as string) === 'test'}, !hasEngineId: ${!hasEngineId}, isApiKeyEmpty: ${isApiKeyEmpty})`);
-    
-    // SOLID: Early return for test mode - clear separation of concerns
-    if (isTestMode) {
-      console.log(`[TEST] Using mock Google Search results for: "${name}"`);
-      console.log(`[LOG] Mock references will use name="${name}" (should be normalized, no timestamp)`);
-      const mockRefs = this.getMockReferences(name, location);
-      console.log(`[TEST] Mock references created: ${mockRefs.length} references`);
-      // LOG: Show first mock reference to verify name is normalized
-      if (mockRefs.length > 0) {
-        console.log(`[LOG] First mock reference URL: ${mockRefs[0].url}`);
-        console.log(`[LOG] First mock reference title: ${mockRefs[0].title}`);
-      }
-      return mockRefs;
+    // REFACTOR: Extract test mode detection to helper method
+    if (this.isTestMode()) {
+      return this.getMockReferences(name, location);
     }
-    
-    console.log(`[REAL] Using real Google Search API`);
     
     try {
       // Validate API credentials
@@ -233,72 +185,34 @@ export class NotabilityChecker {
       const seenUrls = new Set<string>();
       
       // Strategy 1: Exact business name
-      // LOG: Verify normalized name is being used in search queries
-      const exactQuery = location 
-        ? `"${name}" ${location.city} ${location.state}`
-        : `"${name}"`;
-      console.log(`[LOG] Search query (Strategy 1): "${exactQuery}" (name="${name}")`);
-      
+      const exactQuery = this.buildSearchQuery(name, location);
       const exactResults = await this.searchGoogle(apiKey, engineId, exactQuery, 10);
-      for (const ref of exactResults) {
-        if (!seenUrls.has(ref.url)) {
-          allReferences.push(ref);
-          seenUrls.add(ref.url);
-        }
-      }
+      this.addUniqueReferences(exactResults, allReferences, seenUrls);
       
       // Strategy 2: Name variations (remove Inc, LLC, etc)
       const nameVariations = this.generateNameVariations(name);
-      console.log(`[LOG] Name variations generated: ${JSON.stringify(nameVariations)} (from name="${name}")`);
-      for (const variant of nameVariations.slice(0, 1)) { // Try top variation
+      for (const variant of nameVariations.slice(0, 1)) {
         if (this.dailyQueries >= this.DAILY_LIMIT) break;
         
-        const variantQuery = location
-          ? `"${variant}" ${location.city} ${location.state}`
-          : `"${variant}"`;
-        console.log(`[LOG] Search query (Strategy 2): "${variantQuery}" (variant="${variant}")`);
-        
+        const variantQuery = this.buildSearchQuery(variant, location);
         const variantResults = await this.searchGoogle(apiKey, engineId, variantQuery, 5);
-        for (const ref of variantResults) {
-          if (!seenUrls.has(ref.url)) {
-            allReferences.push(ref);
-            seenUrls.add(ref.url);
-          }
-        }
+        this.addUniqueReferences(variantResults, allReferences, seenUrls);
       }
       
       // Strategy 3: Government/News sources (site-specific)
       if (this.dailyQueries < this.DAILY_LIMIT) {
         const officialQuery = `"${name}" OR "${nameVariations[0]}" site:*.gov OR site:*.edu`;
-        console.log(`[LOG] Search query (Strategy 3): "${officialQuery}" (name="${name}", variant="${nameVariations[0]}")`);
         const officialResults = await this.searchGoogle(apiKey, engineId, officialQuery, 5);
-        for (const ref of officialResults) {
-          if (!seenUrls.has(ref.url)) {
-            allReferences.push(ref);
-            seenUrls.add(ref.url);
-          }
-        }
+        this.addUniqueReferences(officialResults, allReferences, seenUrls);
       }
       
       // Return top 15 unique references
-      const results = allReferences.slice(0, 15);
-      
-      // FALLBACK: If we got no results and we're in a test-like environment, use mocks instead
-      // This handles the case where test mode detection failed but we're clearly in a test
-      const isTestLikeEnv = (nodeEnv as string) === 'test' || playwrightTest || useMockFlag;
-      if (results.length === 0 && isTestLikeEnv) {
-        console.error(`[FALLBACK] Real Google Search returned 0 results, but test indicators detected. Switching to mock references.`);
-        return this.getMockReferences(name, location);
-      }
-      
-      return results;
+      return allReferences.slice(0, 15);
     } catch (error) {
       console.error('Error finding references:', error);
       
       // FALLBACK: On error in test-like environment, use mocks
-      const isTestLikeEnv = (nodeEnv as string) === 'test' || playwrightTest || useMockFlag;
-      if (isTestLikeEnv) {
-        console.error(`[FALLBACK] Error in real Google Search, but test indicators detected. Using mock references.`);
+      if (this.isTestMode()) {
         return this.getMockReferences(name, location);
       }
       
@@ -328,9 +242,13 @@ export class NotabilityChecker {
       
       const references: Reference[] = [];
       
-      // GREEN: Handle both real API response and test mocks
+      // REFACTOR: Handle both real API response and test mocks
       // Tests drive implementation - mocks may have different structure
-      const items = response?.data?.items || response?.items || [];
+      const items = ((response?.data as any)?.items || []) as Array<{
+        link?: string;
+        title?: string;
+        snippet?: string;
+      }>;
       
       for (const item of items) {
         if (item.link && item.title && item.snippet) {
@@ -495,6 +413,44 @@ Return ONLY valid JSON with this exact structure:
   }
   
   /**
+   * REFACTOR: Extract test mode detection to helper method
+   * DRY: Centralized test mode detection logic
+   */
+  private isTestMode(): boolean {
+    const useMockFlag = process.env.USE_MOCK_GOOGLE_SEARCH === 'true';
+    const playwrightTest = process.env.PLAYWRIGHT_TEST === 'true';
+    const hasEngineId = !!process.env.GOOGLE_SEARCH_ENGINE_ID?.trim();
+    const isApiKeyEmpty = !process.env.GOOGLE_SEARCH_API_KEY?.trim();
+    
+    return useMockFlag || playwrightTest || !hasEngineId || isApiKeyEmpty;
+  }
+  
+  /**
+   * REFACTOR: Extract search query building to helper method
+   * DRY: Reusable query construction
+   */
+  private buildSearchQuery(name: string, location?: { city: string; state: string; country?: string }): string {
+    return location ? `"${name}" ${location.city} ${location.state}` : `"${name}"`;
+  }
+  
+  /**
+   * REFACTOR: Extract unique reference addition to helper method
+   * DRY: Reusable reference deduplication
+   */
+  private addUniqueReferences(
+    newReferences: Reference[],
+    allReferences: Reference[],
+    seenUrls: Set<string>
+  ): void {
+    for (const ref of newReferences) {
+      if (!seenUrls.has(ref.url)) {
+        allReferences.push(ref);
+        seenUrls.add(ref.url);
+      }
+    }
+  }
+  
+  /**
    * Extract top serious references for Wikidata citations
    * Prioritizes government, news, academic, then directories/reviews for local businesses
    * Follows Single Responsibility: Only extracts best references
@@ -506,24 +462,12 @@ Return ONLY valid JSON with this exact structure:
     assessment: NotabilityAssessment
   ): Reference[] {
     // Get assessments of serious references
-    // For local businesses, include directories and reviews as valid serious references
     const seriousRefs = assessment.references
       .filter(ref => ref.isSerious && ref.isPubliclyAvailable && ref.isIndependent)
       .sort((a, b) => {
-        // Prioritize by source type (government > news > academic > database > directory > review > other > company)
-        // Updated ranking to accept directories and reviews for local businesses
-        const typeRank = {
-          'government': 1,
-          'news': 2,
-          'academic': 3,
-          'database': 4,
-          'directory': 5,  // Business directories are valid for local businesses
-          'review': 6,      // Review platforms are valid for local businesses
-          'other': 7,
-          'company': 8,
-        };
-        const rankA = typeRank[a.sourceType as keyof typeof typeRank] || 10;
-        const rankB = typeRank[b.sourceType as keyof typeof typeRank] || 10;
+        // REFACTOR: Use constant for source type ranking
+        const rankA = NotabilityChecker.SOURCE_TYPE_RANK[a.sourceType as keyof typeof NotabilityChecker.SOURCE_TYPE_RANK] || 10;
+        const rankB = NotabilityChecker.SOURCE_TYPE_RANK[b.sourceType as keyof typeof NotabilityChecker.SOURCE_TYPE_RANK] || 10;
         
         if (rankA !== rankB) return rankA - rankB;
         
@@ -532,15 +476,9 @@ Return ONLY valid JSON with this exact structure:
       });
     
     // Map back to original references and take top 5
-    const topRefs: Reference[] = [];
-    for (const assessment of seriousRefs.slice(0, 5)) {
-      const ref = references[assessment.index];
-      if (ref) {
-        topRefs.push(ref);
-      }
-    }
-    
-    return topRefs;
+    return seriousRefs.slice(0, 5)
+      .map(assessment => references[assessment.index])
+      .filter((ref): ref is Reference => ref !== undefined);
   }
   
   /**
@@ -620,74 +558,75 @@ Return ONLY valid JSON with this exact structure:
   }
 
   /**
+   * REFACTOR: Extract source type detection to helper method
+   * DRY: Reusable source type classification
+   */
+  private detectSourceType(source: string): ReferenceAssessment['sourceType'] {
+    const lowerSource = source.toLowerCase();
+    if (lowerSource.includes('.gov')) return 'government';
+    if (lowerSource.includes('news') || lowerSource.includes('example-news')) return 'news';
+    if (lowerSource.includes('directory') || lowerSource.includes('yelp') || lowerSource.includes('google')) return 'directory';
+    if (lowerSource.includes('review')) return 'review';
+    if (lowerSource.includes('database') || lowerSource.includes('chamber')) return 'database';
+    return 'other';
+  }
+  
+  /**
+   * REFACTOR: Extract trust score calculation to helper method
+   * DRY: Reusable trust score logic
+   */
+  private getTrustScore(sourceType: ReferenceAssessment['sourceType']): number {
+    return NotabilityChecker.TRUST_SCORES[sourceType as keyof typeof NotabilityChecker.TRUST_SCORES] || NotabilityChecker.TRUST_SCORES.other;
+  }
+  
+  /**
    * Create fallback assessment when LLM fails
    * Graceful degradation following Error Handling best practices
    * 
    * SOLID: Single Responsibility - handles fallback assessment with lenient defaults
-   * DRY: Reuses test mode detection logic
-   * 
-   * More lenient approach: If we have references, assume they're notable
-   * This is more inclusive for local businesses where directories/reviews are valid
+   * DRY: Reuses helper methods for source type detection and trust scores
    */
   private createFallbackAssessment(references: Reference[]): NotabilityAssessment {
-    // More lenient: If we have references, assume they meet notability standards
-    // This is appropriate for local businesses where directories/reviews are valid sources
-    if (references.length > 0) {
-      // Determine source types from references
-      const sourceTypes: Array<'news' | 'government' | 'directory' | 'review' | 'database' | 'other'> = 
-        references.map(ref => {
-          const source = ref.source.toLowerCase();
-          if (source.includes('.gov')) return 'government';
-          if (source.includes('news') || source.includes('example-news')) return 'news';
-          if (source.includes('directory') || source.includes('yelp') || source.includes('google')) return 'directory';
-          if (source.includes('review')) return 'review';
-          if (source.includes('database') || source.includes('chamber')) return 'database';
-          return 'other';
-        });
-      
-      // Count serious references (government, news, directory, review, database are all serious for local businesses)
-      const seriousCount = sourceTypes.filter(type => 
-        ['government', 'news', 'directory', 'review', 'database'].includes(type)
-      ).length;
-      
+    if (references.length === 0) {
       return {
-        meetsNotability: seriousCount > 0, // Notable if we have at least one serious reference
-        confidence: 0.7, // Moderate-high confidence when we have references
-        seriousReferenceCount: seriousCount,
-        publiclyAvailableCount: references.length,
-        independentCount: references.length, // All references are independent (not company website)
-        summary: seriousCount > 0 
-          ? `References meet notability standards for local businesses with ${seriousCount} serious references`
-          : 'References found but may need additional verification',
-        references: references.map((r, i) => ({
-          index: i,
-          isSerious: ['government', 'news', 'directory', 'review', 'database'].includes(sourceTypes[i] || ''),
-          isPubliclyAvailable: true,
-          isIndependent: true, // References are independent sources
-          sourceType: sourceTypes[i] || 'other',
-          trustScore: sourceTypes[i] === 'government' ? 90 : 
-                     sourceTypes[i] === 'news' ? 85 :
-                     sourceTypes[i] === 'directory' ? 75 :
-                     sourceTypes[i] === 'review' ? 70 :
-                     sourceTypes[i] === 'database' ? 80 : 60,
-          reasoning: `Reference from ${r.source} provides verification for local business`,
-        })),
-        recommendations: seriousCount > 0 
-          ? ['Ready to publish - meets notability standards for local businesses']
-          : ['Consider adding additional references from directories or review platforms'],
+        meetsNotability: false,
+        confidence: 0.5,
+        seriousReferenceCount: 0,
+        publiclyAvailableCount: 0,
+        independentCount: 0,
+        summary: 'No references found - cannot assess notability',
+        references: [],
+        recommendations: ['Seek additional references from reputable sources (news, government, directories, review platforms)'],
       };
     }
     
-    // No references: Cannot assess
+    // REFACTOR: Use helper methods for source type detection
+    const sourceTypes = references.map(ref => this.detectSourceType(ref.source));
+    const seriousCount = sourceTypes.filter(type => 
+      NotabilityChecker.SERIOUS_SOURCE_TYPES.includes(type as any)
+    ).length;
+    
     return {
-      meetsNotability: false,
-      confidence: 0.5,
-      seriousReferenceCount: 0,
-      publiclyAvailableCount: 0,
-      independentCount: 0,
-      summary: 'No references found - cannot assess notability',
-      references: [],
-      recommendations: ['Seek additional references from reputable sources (news, government, directories, review platforms)'],
+      meetsNotability: seriousCount > 0,
+      confidence: 0.7,
+      seriousReferenceCount: seriousCount,
+      publiclyAvailableCount: references.length,
+      independentCount: references.length,
+      summary: seriousCount > 0 
+        ? `References meet notability standards for local businesses with ${seriousCount} serious references`
+        : 'References found but may need additional verification',
+      references: references.map((r, i) => ({
+        index: i,
+        isSerious: NotabilityChecker.SERIOUS_SOURCE_TYPES.includes(sourceTypes[i] as any),
+        isPubliclyAvailable: true,
+        isIndependent: true,
+        sourceType: sourceTypes[i],
+        trustScore: this.getTrustScore(sourceTypes[i]),
+        reasoning: `Reference from ${r.source} provides verification for local business`,
+      })),
+      recommendations: seriousCount > 0 
+        ? ['Ready to publish - meets notability standards for local businesses']
+        : ['Consider adding additional references from directories or review platforms'],
     };
   }
 }
