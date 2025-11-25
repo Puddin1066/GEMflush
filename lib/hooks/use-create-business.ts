@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { mutate } from 'swr';
+import { formatUrl } from '@/lib/utils/format';
 
 export interface UseCreateBusinessReturn {
   createBusiness: (url: string) => Promise<void>;
@@ -33,11 +34,8 @@ export function useCreateBusiness(): UseCreateBusinessReturn {
     setCrawledData(null);
 
     try {
-      // Ensure URL has protocol
-      let formattedUrl = url.trim();
-      if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-        formattedUrl = `https://${formattedUrl}`;
-      }
+      // DRY: Use centralized URL formatting utility
+      const formattedUrl = formatUrl(url);
 
       const response = await fetch('/api/business', {
         method: 'POST',
@@ -99,11 +97,8 @@ export function useCreateBusiness(): UseCreateBusinessReturn {
     setNeedsLocation(false);
 
     try {
-      // Ensure URL has protocol
-      let formattedUrl = url.trim();
-      if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-        formattedUrl = `https://${formattedUrl}`;
-      }
+      // DRY: Use centralized URL formatting utility
+      const formattedUrl = formatUrl(url);
 
       const response = await fetch('/api/business', {
         method: 'POST',

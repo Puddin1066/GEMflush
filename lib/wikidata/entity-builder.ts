@@ -157,7 +157,8 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     const claims: WikidataEntityData['claims'] = {};
     
     // P31: instance of - business (Q4830453)
-    claims.P31 = [this.createItemClaim('P31', 'Q4830453', business.url)];
+    // Handle null URL gracefully (GREEN: Fix bug caught by test)
+    claims.P31 = [this.createItemClaim('P31', 'Q4830453', business.url || undefined)];
     
     // P856: official website
     if (business.url) {
@@ -245,7 +246,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
           const countryQID = country === 'US' ? 'Q30' : 'Q30'; // Default to US for now
           const cityQID = await sparqlService.findCityQID(city, state || undefined, countryQID, true); // fast mode
           if (cityQID) {
-            claims.P131 = [this.createItemClaim('P131', cityQID, business.url)];
+            claims.P131 = [this.createItemClaim('P131', cityQID, business.url || undefined)];
             console.log(`[ENTITY BUILDER] ✓ Added P131 (located in): ${city}, ${state} → ${cityQID}`);
           } else {
             console.log(`[ENTITY BUILDER] ⚠ P131 (located in) NOT added - city QID not found for ${city}, ${state}`);
@@ -280,7 +281,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       
       const countryQID = countryQIDMap[country.toUpperCase()] || countryQIDMap['US']; // Default to US
       if (countryQID) {
-        claims.P17 = [this.createItemClaim('P17', countryQID, business.url)];
+        claims.P17 = [this.createItemClaim('P17', countryQID, business.url || undefined)];
         console.log(`[ENTITY BUILDER] ✓ Added P17 (country): ${country} → ${countryQID}`);
       }
     }
@@ -291,7 +292,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       const value = claims.P131[0].mainsnak.datavalue.value;
       if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
         const cityQID = value.id;
-        claims.P159 = [this.createItemClaim('P159', cityQID, business.url)];
+        claims.P159 = [this.createItemClaim('P159', cityQID, business.url || undefined)];
         console.log(`[ENTITY BUILDER] ✓ Added P159 (headquarters): ${cityQID}`);
       }
     }
@@ -303,7 +304,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       try {
         const industryQID = await sparqlService.findIndustryQID(industry, true); // fast mode
         if (industryQID) {
-          claims.P452 = [this.createItemClaim('P452', industryQID, business.url)];
+          claims.P452 = [this.createItemClaim('P452', industryQID, business.url || undefined)];
           console.log(`[ENTITY BUILDER] ✓ Added P452 (industry): ${industry} → ${industryQID}`);
         } else {
           console.log(`[ENTITY BUILDER] ⚠ P452 (industry) NOT added - industry QID not found for ${industry}`);
@@ -320,7 +321,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       try {
         const legalFormQID = await sparqlService.findLegalFormQID(legalForm);
         if (legalFormQID) {
-          claims.P1454 = [this.createItemClaim('P1454', legalFormQID, business.url)];
+          claims.P1454 = [this.createItemClaim('P1454', legalFormQID, business.url || undefined)];
           console.log(`[ENTITY BUILDER] ✓ Added P1454 (legal form): ${legalForm} → ${legalFormQID}`);
         }
       } catch (error) {
@@ -576,7 +577,12 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
    * Create reference with URL, title, and retrieved date
    * Can accept Reference object from notability checker or plain URL
    */
-  private createReference(urlOrRef: string | { url: string; title?: string; snippet?: string }) {
+  private createReference(urlOrRef: string | { url: string; title?: string; snippet?: string } | undefined) {
+    // Handle null/undefined gracefully (GREEN: Fix bug caught by test)
+    if (!urlOrRef) {
+      // Return empty reference if no URL provided
+      return { snaks: {} };
+    }
     const url = typeof urlOrRef === 'string' ? urlOrRef : urlOrRef.url;
     const title = typeof urlOrRef === 'object' ? urlOrRef.title : undefined;
     

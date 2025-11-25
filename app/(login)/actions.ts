@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/schema';
 import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { createCheckoutSession } from '@/lib/payments/stripe';
 import { getUser, getUserWithTeam } from '@/lib/db/queries';
@@ -97,6 +98,9 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
     return createCheckoutSession({ team: foundTeam, priceId });
   }
 
+  // Revalidate to ensure session is recognized
+  revalidatePath('/dashboard');
+  // Try server-side redirect first (this throws a special error that Next.js catches)
   redirect('/dashboard');
 });
 
@@ -218,6 +222,9 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     return createCheckoutSession({ team: createdTeam, priceId });
   }
 
+  // Revalidate to ensure session is recognized
+  revalidatePath('/dashboard');
+  // Try server-side redirect first (this throws a special error that Next.js catches)
   redirect('/dashboard');
 });
 

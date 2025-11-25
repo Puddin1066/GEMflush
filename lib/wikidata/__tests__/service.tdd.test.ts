@@ -228,16 +228,14 @@ describe('🔴 RED: Wikidata Service - Desired Behavior Specification', () => {
         claims: {},
       } as any);
 
-      const mockClientInstance = {
-        publishEntity: vi.fn().mockResolvedValue({
-          success: true,
-          qid: 'Q123',
-          publishedTo: 'test.wikidata.org',
-          propertiesPublished: 1,
-          referencesPublished: 0,
-        }),
-      };
-      vi.mocked(WikidataClient).mockImplementation(() => mockClientInstance as any);
+      // Use the existing mockClientInstance from the top-level mock
+      mockClientInstance.publishEntity.mockResolvedValue({
+        success: true,
+        qid: 'Q123',
+        publishedTo: 'test.wikidata.org',
+        propertiesPublished: 1,
+        referencesPublished: 0,
+      });
 
       // Act: Create entity (TEST SPECIFIES DESIRED BEHAVIOR)
       const { WikidataService } = await import('../service');
@@ -360,16 +358,14 @@ describe('🔴 RED: Wikidata Service - Desired Behavior Specification', () => {
         claims: {},
       } as any);
 
-      const mockClientInstance = {
-        publishEntity: vi.fn().mockResolvedValue({
-          success: true,
-          qid: 'Q123',
-          publishedTo: 'test.wikidata.org',
-          propertiesPublished: 2,
-          referencesPublished: 0,
-        }),
-      };
-      vi.mocked(WikidataClient).mockImplementation(() => mockClientInstance as any);
+      // Use the existing mockClientInstance from the top-level mock
+      mockClientInstance.publishEntity.mockResolvedValue({
+        success: true,
+        qid: 'Q123',
+        publishedTo: 'test.wikidata.org',
+        propertiesPublished: 2,
+        referencesPublished: 0,
+      });
 
       // Act: Create entity with limits (TEST SPECIFIES DESIRED BEHAVIOR)
       const { WikidataService } = await import('../service');

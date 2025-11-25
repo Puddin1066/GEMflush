@@ -208,3 +208,50 @@ export function formatRank(rank: number): {
   };
 }
 
+/**
+ * Format URL by ensuring it has a protocol
+ * DRY: Centralized URL formatting logic
+ * 
+ * @param url - URL string (may or may not have protocol)
+ * @returns Formatted URL with protocol (defaults to https://)
+ */
+export function formatUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Validate URL format
+ * DRY: Centralized URL validation logic
+ * 
+ * @param url - URL string to validate
+ * @returns true if URL is valid (has http:// or https:// protocol)
+ */
+export function validateUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Format and validate URL in one step
+ * DRY: Convenience function combining format and validate
+ * 
+ * @param url - URL string to format and validate
+ * @returns Object with formatted URL and validation result
+ */
+export function formatAndValidateUrl(url: string): {
+  formatted: string;
+  isValid: boolean;
+} {
+  const formatted = formatUrl(url);
+  const isValid = validateUrl(formatted);
+  return { formatted, isValid };
+}
+

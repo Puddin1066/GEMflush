@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useActionState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { signIn, signUp } from './actions';
 import { ActionState } from '@/lib/auth/middleware';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
   const priceId = searchParams.get('priceId');
@@ -20,6 +21,27 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     mode === 'signin' ? signIn : signUp,
     { error: '' }
   );
+
+  // Handle redirect after successful login if server-side redirect doesn't work
+  useEffect(() => {
+    // Check if login was successful (no error, not pending)
+    // The server action should redirect via redirect(), but if it doesn't work
+    // with useActionState, we'll handle it client-side as a fallback
+    if (!pending && !state?.error) {
+      // Small delay to allow server redirect to happen first
+      const timer = setTimeout(() => {
+        // Only redirect if we're still on the sign-in/sign-up page (server redirect didn't work)
+        const currentPath = window.location.pathname;
+        if (currentPath === '/sign-in' || currentPath === '/sign-up') {
+          const redirectPath = redirect === 'checkout' 
+            ? `/checkout${priceId ? `?priceId=${priceId}` : ''}`
+            : '/dashboard';
+          router.push(redirectPath);
+        }
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [state, pending, redirect, priceId, router]);
 
   return (
     <div className="min-h-[100dvh] flex lg:flex-row flex-col">

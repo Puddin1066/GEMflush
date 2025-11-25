@@ -23,8 +23,20 @@
 
 import { test, expect, Page } from '@playwright/test';
 import { createTestUserAndSignIn } from './helpers/auth-helper';
+import { createBusinessViaUI, waitForBusinessDetailPage } from './helpers/business-helper';
+import { setupIsolatedTestEnvironment } from './helpers/test-setup';
+import { cleanupRoutes } from './helpers/api-helpers';
 
 test.describe('🔴 RED: Critical Platform Stability Specification', () => {
+  // Ensure all external APIs are mocked before each test
+  test.beforeEach(async ({ page }) => {
+    await setupIsolatedTestEnvironment(page);
+  });
+
+  // Clean up routes after each test
+  test.afterEach(async ({ page }) => {
+    await cleanupRoutes(page);
+  });
   /**
    * SPECIFICATION 1: Complete CFP Flow - End-to-End Reliability
    * 
@@ -37,53 +49,17 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
     // Arrange: Create Pro user and sign in (TEST DRIVES IMPLEMENTATION)
     const { user, team } = await createTestUserAndSignIn(page, { tier: 'pro' });
     
-    // Navigate to business creation
-    await page.goto('/dashboard/businesses');
-    
     // Act: Create business with URL (behavior: triggers automatic CFP flow)
-    // Open dialog first
-    await page.click('button:has-text("Add Business")');
-    
-    // Wait for dialog to open
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    
-    // Fill URL form
-    await page.fill('input[id="url"]', 'https://example.com');
-    
-    // Submit form and wait for navigation (TEST DRIVES IMPLEMENTATION)
-    // The hook should redirect to /dashboard/businesses/:id after creation
-    const formButton = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton.click();
-    
-    // Wait for redirect to business detail page (behavior: successful creation redirects)
-    // Handle both cases: immediate redirect or redirect after needsLocation flow
-    try {
-      await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 20000 });
-    } catch (error) {
-      // Check if we're still on businesses list (might be loading or error)
-      const currentUrl = page.url();
-      if (currentUrl.includes('/dashboard/businesses') && !currentUrl.match(/\/\d+$/)) {
-        // Might need to wait for redirect or check for error
-        await page.waitForTimeout(2000);
-        // Try clicking business link if it appears
-        const businessLink = page.locator('a[href*="/businesses/"]').first();
-        const linkExists = await businessLink.isVisible({ timeout: 5000 }).catch(() => false);
-        if (linkExists) {
-          await businessLink.click();
-          await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 10000 });
-        } else {
-          throw new Error(`Business creation failed - no redirect occurred. Current URL: ${currentUrl}`);
-        }
-      } else {
-        throw error;
-      }
-    }
+    // DRY: Use extracted helper to reduce repetition
+    const result = await createBusinessViaUI(page, { url: 'https://example.com' });
     
     // Assert: We're on business detail page (behavior: redirect after creation)
+    expect(result.redirected).toBe(true);
     expect(page.url()).toMatch(/\/dashboard\/businesses\/\d+$/);
     
     // Wait for page to load (check for gem-card - multiple may exist, just check first one)
-    await expect(page.locator('[class*="gem-card"]').first()).toBeVisible({ timeout: 10000 });
+    // DRY: Use extracted helper
+    await waitForBusinessDetailPage(page);
     
     // Wait a bit for data to load and status to update
     await page.waitForTimeout(3000);
@@ -136,19 +112,9 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
   test('dashboard updates in real-time during processing', async ({ page }) => {
     // Arrange: Create business and start processing
     const { user } = await createTestUserAndSignIn(page);
-    await page.goto('/dashboard/businesses');
     
-    // Create business (use same selectors as first test)
-    await page.click('button:has-text("Add Business")');
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    await page.fill('input[id="url"]', 'https://example.com');
-    const formButton = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton.click();
-    
-    // Wait for redirect
-    await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 20000 }).catch(() => {
-      // If no redirect, business might have been created but stayed on list page
-    });
+    // DRY: Use extracted helper for business creation
+    await createBusinessViaUI(page, { url: 'https://example.com', waitForRedirect: false });
     
     // Navigate to dashboard to see real-time updates
     await page.goto('/dashboard');
@@ -223,17 +189,9 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
   test('data persists correctly through page refreshes and navigation', async ({ page }) => {
     // Arrange: Create business and complete processing
     const { user } = await createTestUserAndSignIn(page);
-    await page.goto('/dashboard/businesses');
     
-    // Create business (use same selectors as other tests)
-    await page.click('button:has-text("Add Business")');
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    await page.fill('input[id="url"]', 'https://example.com');
-    const formButton = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton.click();
-    
-    // Wait for redirect to business detail page or stay on list
-    await page.waitForURL(/\/dashboard\/businesses/, { timeout: 20000 });
+    // DRY: Use extracted helper for business creation
+    await createBusinessViaUI(page, { url: 'https://example.com' });
     
     // Wait for business to appear (either on detail page or list)
     await expect(page.locator('[class*="gem-card"]').or(page.locator('h1, h2')).first()).toBeVisible({ timeout: 10000 });
@@ -297,27 +255,18 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
     const { user } = await createTestUserAndSignIn(page, { tier: 'free' });
     
     // Act: Attempt to publish to Wikidata (TEST DRIVES IMPLEMENTATION)
-    await page.goto('/dashboard/businesses');
+    // DRY: Use extracted helper for business creation
+    const result = await createBusinessViaUI(page, { url: 'https://example.com' });
     
-    // Create business (use same selectors as other tests)
-    await page.click('button:has-text("Add Business")');
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    await page.fill('input[id="url"]', 'https://example.com');
-    const formButton = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton.click();
-    
-    // Wait for redirect to business detail page
-    const redirected = await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 20000 }).then(() => true).catch(() => false);
-    if (!redirected) {
-      // If no redirect, navigate to first business
+    // If no redirect, navigate to first business
+    if (!result.redirected) {
       await page.goto('/dashboard/businesses');
       await page.waitForSelector('[class*="gem-card"]', { timeout: 10000 });
       await page.locator('[class*="gem-card"]').first().click();
-      await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 10000 });
+      await waitForBusinessDetailPage(page);
+    } else {
+      await waitForBusinessDetailPage(page);
     }
-    
-    // Wait for business detail page to load
-    await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 10000 });
     
     // Attempt to access publish feature - look for publish button or upgrade prompt
     // Assert: Upgrade prompt is shown OR publish button is disabled (behavior: feature gate enforces tier)
@@ -343,28 +292,13 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
   test('concurrent operations complete without data corruption', async ({ page }) => {
     // Arrange: Create user and business
     const { user } = await createTestUserAndSignIn(page);
-    await page.goto('/dashboard/businesses');
     
-    // Create first business (use same selectors as other tests)
-    await page.click('button:has-text("Add Business")');
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    await page.fill('input[id="url"]', 'https://example1.com');
-    const formButton1 = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton1.click();
-    
-    // Wait for first business to be created (redirect or stay on list)
-    await page.waitForURL(/\/dashboard\/businesses/, { timeout: 20000 });
+    // DRY: Use extracted helper for business creation
+    await createBusinessViaUI(page, { url: 'https://example1.com', waitForRedirect: false });
     
     // Act: Create second business immediately (TEST DRIVES IMPLEMENTATION)
-    await page.goto('/dashboard/businesses');
-    await page.click('button:has-text("Add Business")');
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    await page.fill('input[id="url"]', 'https://example2.com');
-    const formButton2 = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton2.click();
-    
-    // Wait for second business to be created
-    await page.waitForURL(/\/dashboard\/businesses/, { timeout: 20000 });
+    // DRY: Use extracted helper
+    await createBusinessViaUI(page, { url: 'https://example2.com', waitForRedirect: false });
     
     // Assert: Both businesses are created correctly (behavior: no race conditions)
     await expect(page.locator('text=/example1|example2/i').first()).toBeVisible({ timeout: 15000 });
@@ -444,7 +378,7 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
       page.locator('button:has-text("Creating Business")').first().waitFor({ timeout: 1000 }).then(() => true),
       page.locator('text=/creating business/i').first().waitFor({ timeout: 1000 }).then(() => true),
       page.locator('svg.animate-spin, [class*="animate-spin"]').first().waitFor({ timeout: 1000 }).then(() => true),
-      submitButton.waitFor({ state: 'disabled', timeout: 1000 }).then(() => true),
+      submitButton.isDisabled({ timeout: 1000 }).then((disabled) => disabled === true),
     ]);
     
     // At least one loading indicator should be detected
@@ -474,17 +408,11 @@ test.describe('🔴 RED: Critical Platform Stability Specification', () => {
   test('complete data flow works through all layers', async ({ page }) => {
     // Arrange: Pro user with automation
     const { user, team } = await createTestUserAndSignIn(page, { tier: 'pro' });
-    await page.goto('/dashboard/businesses');
     
     // Act: Create business and wait for complete processing (TEST DRIVES IMPLEMENTATION)
-    await page.click('button:has-text("Add Business")');
-    await page.waitForSelector('input[id="url"]', { timeout: 5000 });
-    await page.fill('input[id="url"]', 'https://example.com');
-    const formButton = page.locator('button[type="submit"]:has-text("Create Business")');
-    await formButton.click();
-    
-    // Wait for redirect to business detail page
-    await page.waitForURL(/\/dashboard\/businesses\/\d+/, { timeout: 20000 });
+    // DRY: Use extracted helper for business creation
+    await createBusinessViaUI(page, { url: 'https://example.com' });
+    await waitForBusinessDetailPage(page);
     
     // Wait for processing to progress (may not complete in test mode due to mocked Wikidata)
     // Check for status progression or completed state

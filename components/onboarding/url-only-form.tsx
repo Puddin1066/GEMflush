@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Globe, Sparkles, Loader2 } from 'lucide-react';
 import { GemIcon } from '@/components/ui/gem-icon';
+import { formatAndValidateUrl } from '@/lib/utils/format';
 
 interface UrlOnlyFormProps {
   onSubmit: (url: string) => Promise<void>;
@@ -33,15 +34,6 @@ export function UrlOnlyForm({
   const [url, setUrl] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const validateUrl = (urlString: string): boolean => {
-    try {
-      const urlObj = new URL(urlString);
-      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-    } catch {
-      return false;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
@@ -51,13 +43,10 @@ export function UrlOnlyForm({
       return;
     }
 
-    // Ensure URL has protocol
-    let formattedUrl = url.trim();
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-      formattedUrl = `https://${formattedUrl}`;
-    }
+    // DRY: Use centralized URL formatting and validation utility
+    const { formatted: formattedUrl, isValid } = formatAndValidateUrl(url);
 
-    if (!validateUrl(formattedUrl)) {
+    if (!isValid) {
       setLocalError('Please enter a valid website URL');
       return;
     }

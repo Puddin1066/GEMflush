@@ -29,7 +29,7 @@ import type { DashboardDTO } from '@/lib/data/types';
 import type { User, Team } from '@/lib/db/schema';
 
 interface DashboardClientProps {
-  data: DashboardDTO;
+  dashboardData: DashboardDTO;
   user: User;
   team: Team;
 }
