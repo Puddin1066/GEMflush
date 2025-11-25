@@ -188,11 +188,17 @@ export async function createCustomerPortalSession(team: Team) {
   }
 
   const baseUrl = await getBaseUrl();
-  return stripe.billingPortal.sessions.create({
+  const portalSession = await stripe.billingPortal.sessions.create({
     customer: team.stripeCustomerId,
     return_url: `${baseUrl}/dashboard`,
     configuration: configuration.id
   });
+  
+  if (!portalSession.url) {
+    throw new Error('Stripe portal session created but no URL returned');
+  }
+  
+  redirect(portalSession.url);
 }
 
 /**

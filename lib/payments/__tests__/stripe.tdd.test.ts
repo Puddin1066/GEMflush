@@ -19,6 +19,7 @@ import { TeamTestFactory } from '@/lib/test-helpers/tdd-helpers';
 import type { Team } from '@/lib/db/schema';
 
 // Mock dependencies
+// GREEN: Fix mock structure to work with Stripe constructor
 const mockStripeInstance = {
   checkout: {
     sessions: {
@@ -29,6 +30,9 @@ const mockStripeInstance = {
     configurations: {
       list: vi.fn(),
     },
+    sessions: {
+      create: vi.fn(),
+    },
   },
   products: {
     retrieve: vi.fn(),
@@ -38,10 +42,16 @@ const mockStripeInstance = {
   },
 };
 
-const MockStripe = vi.fn(() => mockStripeInstance);
+// GREEN: Mock Stripe as a class constructor
+class MockStripe {
+  constructor() {
+    return mockStripeInstance;
+  }
+}
 
 vi.mock('stripe', () => ({
   default: MockStripe,
+  __esModule: true,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -91,10 +101,10 @@ describe('🔴 RED: Stripe Payment Service - Desired Behavior Specification', ()
       };
 
       const { getUser } = await import('@/lib/db/queries');
-      const { stripe } = await import('../stripe');
       const { headers } = await import('next/headers');
 
-      vi.mocked(stripe.checkout.sessions.create).mockResolvedValue(mockSession as any);
+      // GREEN: Mock Stripe checkout session creation
+      mockStripeInstance.checkout.sessions.create.mockResolvedValue(mockSession as any);
       vi.mocked(getUser).mockResolvedValue({
         id: 1,
         email: 'test@example.com',
@@ -121,8 +131,8 @@ describe('🔴 RED: Stripe Payment Service - Desired Behavior Specification', ()
       await expect(createCheckoutSession({ team, priceId })).rejects.toThrow('NEXT_REDIRECT');
 
       // Assert: SPECIFICATION - MUST create session
-      expect(stripe.checkout.sessions.create).toHaveBeenCalled();
-      const createCall = vi.mocked(stripe.checkout.sessions.create).mock.calls[0];
+      expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalled();
+      const createCall = mockStripeInstance.checkout.sessions.create.mock.calls[0];
       expect(createCall[0]).toMatchObject({
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
@@ -163,13 +173,25 @@ describe('🔴 RED: Stripe Payment Service - Desired Behavior Specification', ()
       const priceId = 'price_test123';
 
       const { getUser } = await import('@/lib/db/queries');
-      const { stripe } = await import('../stripe');
+      const { headers } = await import('next/headers');
 
-      vi.mocked(stripe.checkout.sessions.create).mockResolvedValue({
+      // GREEN: Mock Stripe checkout session creation
+      mockStripeInstance.checkout.sessions.create.mockResolvedValue({
         id: 'cs_test',
         url: 'https://checkout.stripe.com/test',
       } as any);
       vi.mocked(getUser).mockResolvedValue({ id: 1 } as any);
+      
+      // Mock headers
+      const mockHeaders = {
+        get: vi.fn((key: string) => {
+          if (key === 'host') return 'localhost:3000';
+          if (key === 'x-forwarded-proto') return 'http';
+          return null;
+        }),
+      };
+      vi.mocked(headers).mockResolvedValue(mockHeaders as any);
+      process.env.BASE_URL = 'http://localhost:3000';
 
       // Act: Create checkout session (TEST SPECIFIES DESIRED BEHAVIOR)
       const { createCheckoutSession } = await import('../stripe');
@@ -177,8 +199,8 @@ describe('🔴 RED: Stripe Payment Service - Desired Behavior Specification', ()
       await expect(createCheckoutSession({ team, priceId })).rejects.toThrow('NEXT_REDIRECT');
 
       // Assert: SPECIFICATION - MUST include trial period
-      expect(stripe.checkout.sessions.create).toHaveBeenCalled();
-      const createCall = vi.mocked(stripe.checkout.sessions.create).mock.calls[0];
+      expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalled();
+      const createCall = mockStripeInstance.checkout.sessions.create.mock.calls[0];
       expect(createCall[0]).toMatchObject({
         subscription_data: {
           trial_period_days: 14,
@@ -205,13 +227,30 @@ describe('🔴 RED: Stripe Payment Service - Desired Behavior Specification', ()
         url: 'https://billing.stripe.com/test',
       };
 
-      const { stripe } = await import('../stripe');
-      vi.mocked(stripe.billingPortal.configurations.list).mockResolvedValue({
+      // GREEN: Mock Stripe billing portal
+      mockStripeInstance.billingPortal.configurations.list.mockResolvedValue({
         data: [{
           id: 'bpc_test',
           active: true,
         }],
       } as any);
+      
+      mockStripeInstance.billingPortal.sessions.create.mockResolvedValue({
+        id: 'bps_test123',
+        url: 'https://billing.stripe.com/test',
+      } as any);
+      
+      // Mock headers for getBaseUrl
+      const { headers } = await import('next/headers');
+      const mockHeaders = {
+        get: vi.fn((key: string) => {
+          if (key === 'host') return 'localhost:3000';
+          if (key === 'x-forwarded-proto') return 'http';
+          return null;
+        }),
+      };
+      vi.mocked(headers).mockResolvedValue(mockHeaders as any);
+      process.env.BASE_URL = 'http://localhost:3000';
 
       // Act: Create portal session (TEST SPECIFIES DESIRED BEHAVIOR)
       const { createCustomerPortalSession } = await import('../stripe');
@@ -220,7 +259,7 @@ describe('🔴 RED: Stripe Payment Service - Desired Behavior Specification', ()
       await expect(createCustomerPortalSession(team)).rejects.toThrow('NEXT_REDIRECT');
 
       // Assert: SPECIFICATION - MUST create portal session
-      // Portal session creation is handled by Stripe, we just redirect
+      expect(mockStripeInstance.billingPortal.sessions.create).toHaveBeenCalled();
     });
 
     it('MUST redirect to pricing if team missing Stripe customer ID', async () => {
