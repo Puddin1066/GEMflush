@@ -15,8 +15,18 @@ import type {
   UpdateTeamSubscriptionInput,
 } from './types';
 
+// REFACTOR: Extract constants for maintainability
+const SUBSCRIPTION_STATUS = {
+  ACTIVE: 'active',
+  TRIALING: 'trialing',
+  CANCELED: 'canceled',
+  UNPAID: 'unpaid',
+} as const;
+
+const TRIAL_PERIOD_DAYS = 14;
+
 /**
- * Get the base URL from request headers or environment variable
+ * REFACTOR: Extract URL resolution helper
  * SOLID: Single Responsibility - handles URL resolution
  * DRY: Centralized URL resolution logic
  */
@@ -39,9 +49,61 @@ async function getBaseUrl(): Promise<string> {
   return process.env.BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 }
 
+/**
+ * REFACTOR: Extract redirect detection helper
+ * DRY: Reusable redirect detection logic
+ */
+function isNextJsRedirect(error: unknown): boolean {
+  return !!error && typeof error === 'object' && (
+    'digest' in error || 
+    (error instanceof Error && error.message === 'NEXT_REDIRECT')
+  );
+}
+
+/**
+ * REFACTOR: Extract price ID validation helper
+ * DRY: Reusable validation logic
+ */
+function validatePriceId(priceId: string | null | undefined): void {
+  if (!priceId || priceId.trim() === '') {
+    throw new Error('Price ID is required to create checkout session');
+  }
+}
+
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-04-30.basil'
 });
+
+/**
+ * REFACTOR: Extract checkout session configuration builder
+ * DRY: Reusable session configuration
+ */
+async function buildCheckoutSessionConfig(
+  priceId: string,
+  team: { id: number; stripeCustomerId: string | null },
+  userId: number
+): Promise<Stripe.Checkout.SessionCreateParams> {
+  const baseUrl = await getBaseUrl();
+  
+  return {
+    payment_method_types: ['card'],
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1
+      }
+    ],
+    mode: 'subscription',
+    success_url: `${baseUrl}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/pricing`,
+    customer: team.stripeCustomerId || undefined,
+    client_reference_id: userId.toString(),
+    allow_promotion_codes: true,
+    subscription_data: {
+      trial_period_days: TRIAL_PERIOD_DAYS
+    }
+  };
+}
 
 export async function createCheckoutSession({
   team,
@@ -49,42 +111,16 @@ export async function createCheckoutSession({
 }: CreateCheckoutSessionInput) {
   const user = await getUser();
 
-  // Defensive: Validate priceId before making Stripe API call
-  if (!priceId || priceId.trim() === '') {
-    console.error('[createCheckoutSession] Invalid priceId', {
-      priceId,
-      teamId: team?.id,
-      userId: user?.id,
-    });
-    throw new Error('Price ID is required to create checkout session');
-  }
+  // REFACTOR: Use validation helper
+  validatePriceId(priceId);
 
   if (!team || !user) {
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
   try {
-    // Get base URL dynamically from request (SOLID: use request context)
-    const baseUrl = await getBaseUrl();
-    
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1
-        }
-      ],
-      mode: 'subscription',
-      success_url: `${baseUrl}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/pricing`,
-      customer: team.stripeCustomerId || undefined,
-      client_reference_id: user.id.toString(),
-      allow_promotion_codes: true,
-      subscription_data: {
-        trial_period_days: 14
-      }
-    });
+    const sessionConfig = await buildCheckoutSessionConfig(priceId, team as { id: number; stripeCustomerId: string | null }, user.id);
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     if (!session.url) {
       throw new Error('Stripe checkout session created but no URL returned');
@@ -92,16 +128,8 @@ export async function createCheckoutSession({
 
     redirect(session.url);
   } catch (error) {
-    // Next.js redirect() throws NEXT_REDIRECT error - this is expected behavior, not an error
-    // Check if this is a redirect first (digest will be present for Next.js redirects)
-    // Also check for the error message pattern
-    const isRedirect = error && typeof error === 'object' && (
-      'digest' in error || 
-      (error instanceof Error && error.message === 'NEXT_REDIRECT')
-    );
-    
-    if (isRedirect) {
-      // This is a Next.js redirect, re-throw it as-is (don't log as error)
+    // REFACTOR: Use redirect detection helper
+    if (isNextJsRedirect(error)) {
       throw error;
     }
     
@@ -126,68 +154,94 @@ export async function createCheckoutSession({
   }
 }
 
+/**
+ * REFACTOR: Extract billing portal configuration builder
+ * DRY: Reusable configuration logic
+ */
+function buildBillingPortalConfiguration(
+  productId: string,
+  priceIds: string[]
+): Stripe.BillingPortal.ConfigurationCreateParams {
+  return {
+    business_profile: {
+      headline: 'Manage your subscription'
+    },
+    features: {
+      subscription_update: {
+        enabled: true,
+        default_allowed_updates: ['price', 'quantity', 'promotion_code'],
+        proration_behavior: 'create_prorations',
+        products: [
+          {
+            product: productId,
+            prices: priceIds
+          }
+        ]
+      },
+      subscription_cancel: {
+        enabled: true,
+        mode: 'at_period_end',
+        cancellation_reason: {
+          enabled: true,
+          options: [
+            'too_expensive',
+            'missing_features',
+            'switched_service',
+            'unused',
+            'other'
+          ]
+        }
+      },
+      payment_method_update: {
+        enabled: true
+      }
+    }
+  };
+}
+
+/**
+ * REFACTOR: Extract billing portal configuration retrieval/creation
+ * DRY: Reusable configuration logic
+ */
+async function getOrCreateBillingPortalConfiguration(
+  team: Team
+): Promise<Stripe.BillingPortal.Configuration> {
+  const configurations = await stripe.billingPortal.configurations.list();
+
+  if (configurations.data.length > 0) {
+    return configurations.data[0];
+  }
+
+  // Create new configuration
+  const product = await stripe.products.retrieve(team.stripeProductId!);
+  if (!product.active) {
+    throw new Error("Team's product is not active in Stripe");
+  }
+
+  const prices = await stripe.prices.list({
+    product: product.id,
+    active: true
+  });
+  if (prices.data.length === 0) {
+    throw new Error("No active prices found for the team's product");
+  }
+
+  const configParams = buildBillingPortalConfiguration(
+    product.id,
+    prices.data.map((price) => price.id)
+  );
+  
+  return await stripe.billingPortal.configurations.create(configParams);
+}
+
 export async function createCustomerPortalSession(team: Team) {
   if (!team.stripeCustomerId || !team.stripeProductId) {
     redirect('/pricing');
   }
 
-  let configuration: Stripe.BillingPortal.Configuration;
-  const configurations = await stripe.billingPortal.configurations.list();
-
-  if (configurations.data.length > 0) {
-    configuration = configurations.data[0];
-  } else {
-    const product = await stripe.products.retrieve(team.stripeProductId);
-    if (!product.active) {
-      throw new Error("Team's product is not active in Stripe");
-    }
-
-    const prices = await stripe.prices.list({
-      product: product.id,
-      active: true
-    });
-    if (prices.data.length === 0) {
-      throw new Error("No active prices found for the team's product");
-    }
-
-    configuration = await stripe.billingPortal.configurations.create({
-      business_profile: {
-        headline: 'Manage your subscription'
-      },
-      features: {
-        subscription_update: {
-          enabled: true,
-          default_allowed_updates: ['price', 'quantity', 'promotion_code'],
-          proration_behavior: 'create_prorations',
-          products: [
-            {
-              product: product.id,
-              prices: prices.data.map((price) => price.id)
-            }
-          ]
-        },
-        subscription_cancel: {
-          enabled: true,
-          mode: 'at_period_end',
-          cancellation_reason: {
-            enabled: true,
-            options: [
-              'too_expensive',
-              'missing_features',
-              'switched_service',
-              'unused',
-              'other'
-            ]
-          }
-        },
-        payment_method_update: {
-          enabled: true
-        }
-      }
-    });
-  }
-
+  const configuration = await getOrCreateBillingPortalConfiguration(team);
   const baseUrl = await getBaseUrl();
+  
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: team.stripeCustomerId,
     return_url: `${baseUrl}/dashboard`,
@@ -228,11 +282,87 @@ function normalizeProductNameToPlanId(productName: string | null | undefined): '
   return matched || null; // Return null if no match (type-safe)
 }
 
+/**
+ * REFACTOR: Extract subscription data extraction helper
+ * DRY: Reusable product/plan extraction logic
+ */
+function extractSubscriptionData(subscription: Stripe.Subscription): {
+  productId: string;
+  productName: string | null;
+  planId: 'free' | 'pro' | 'agency' | null;
+} {
+  const plan = subscription.items.data[0]?.plan;
+  const product = plan?.product as Stripe.Product | string;
+  const productName = typeof product === 'object' ? product.name : null;
+  const productId = typeof product === 'object' ? product.id : (product as string);
+  const planId = normalizeProductNameToPlanId(productName);
+  
+  return { productId, productName, planId };
+}
+
+/**
+ * REFACTOR: Extract active subscription update logic
+ * DRY: Reusable update logic
+ */
+async function updateActiveSubscription(
+  team: Team,
+  subscription: Stripe.Subscription,
+  customerId: string
+): Promise<void> {
+  const { productId, planId } = extractSubscriptionData(subscription);
+  
+  const status = subscription.status;
+  const validStatus = (status === 'active' || status === 'trialing' || status === 'canceled' || status === 'unpaid')
+    ? status
+    : null;
+  
+  const updateData: UpdateTeamSubscriptionInput = {
+    stripeSubscriptionId: subscription.id,
+    stripeProductId: productId,
+    planName: planId,
+    subscriptionStatus: validStatus
+  };
+  
+  await updateTeamSubscription(team.id, updateData);
+  
+  // Verify update succeeded (SOLID: proper validation)
+  const updatedTeam = await getTeamByStripeCustomerId(customerId);
+  if (!updatedTeam || updatedTeam.planName !== planId) {
+    console.error('Failed to verify team subscription update:', {
+      teamId: team.id,
+      customerId,
+      expectedPlan: planId,
+      actualPlan: updatedTeam?.planName,
+    });
+  }
+}
+
+/**
+ * REFACTOR: Extract canceled subscription update logic
+ * DRY: Reusable update logic
+ */
+async function updateCanceledSubscription(
+  team: Team,
+  status: Stripe.Subscription.Status
+): Promise<void> {
+  const validStatus = (status === 'active' || status === 'trialing' || status === 'canceled' || status === 'unpaid')
+    ? status
+    : null;
+  
+  const updateData: UpdateTeamSubscriptionInput = {
+    stripeSubscriptionId: null,
+    stripeProductId: null,
+    planName: null,
+    subscriptionStatus: validStatus
+  };
+  
+  await updateTeamSubscription(team.id, updateData);
+}
+
 export async function handleSubscriptionChange(
   subscription: Stripe.Subscription
 ) {
   const customerId = subscription.customer as string;
-  const subscriptionId = subscription.id;
   const status = subscription.status;
 
   const team = await getTeamByStripeCustomerId(customerId);
@@ -242,73 +372,20 @@ export async function handleSubscriptionChange(
     return;
   }
 
-  if (status === 'active' || status === 'trialing') {
-    const plan = subscription.items.data[0]?.plan;
-    const product = plan?.product as Stripe.Product | string;
-    const productName = typeof product === 'object' ? product.name : null;
-    
-    // DRY: Normalize product name to plan ID
-    const planId = normalizeProductNameToPlanId(productName);
-    
-    try {
-      const updateData: UpdateTeamSubscriptionInput = {
-        stripeSubscriptionId: subscriptionId,
-        stripeProductId: typeof product === 'object' ? product.id : (product as string),
-        planName: planId, // Use normalized plan ID, not raw product name
-        subscriptionStatus: status
-      };
-      await updateTeamSubscription(team.id, updateData);
-      
-      // Verify update succeeded (SOLID: proper validation)
-      const updatedTeam = await getTeamByStripeCustomerId(customerId);
-      if (!updatedTeam || updatedTeam.planName !== planId) {
-        console.error('Failed to verify team subscription update:', {
-          teamId: team.id,
-          customerId,
-          expectedPlan: planId,
-          actualPlan: updatedTeam?.planName,
-        });
-      } else {
-        console.log('Team subscription updated successfully:', {
-          teamId: team.id,
-          customerId,
-          planName: planId,
-          subscriptionStatus: status,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating team subscription:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        teamId: team.id,
-        customerId,
-        planId,
-        subscriptionStatus: status,
-      });
-      throw error; // Re-throw to allow webhook retry
+  try {
+    if (status === SUBSCRIPTION_STATUS.ACTIVE || status === SUBSCRIPTION_STATUS.TRIALING) {
+      await updateActiveSubscription(team, subscription, customerId);
+    } else if (status === SUBSCRIPTION_STATUS.CANCELED || status === SUBSCRIPTION_STATUS.UNPAID) {
+      await updateCanceledSubscription(team, status);
     }
-  } else if (status === 'canceled' || status === 'unpaid') {
-    try {
-      const updateData: UpdateTeamSubscriptionInput = {
-        stripeSubscriptionId: null,
-        stripeProductId: null,
-        planName: null,
-        subscriptionStatus: status
-      };
-      await updateTeamSubscription(team.id, updateData);
-      console.log('Team subscription cancelled:', {
-        teamId: team.id,
-        customerId,
-        subscriptionStatus: status,
-      });
-    } catch (error) {
-      console.error('Error cancelling team subscription:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        teamId: team.id,
-        customerId,
-        subscriptionStatus: status,
-      });
-      throw error; // Re-throw to allow webhook retry
-    }
+  } catch (error) {
+    console.error('Error updating team subscription:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      teamId: team.id,
+      customerId,
+      subscriptionStatus: status,
+    });
+    throw error; // Re-throw to allow webhook retry
   }
 }
 
@@ -357,7 +434,8 @@ export class StripeService implements IPaymentService {
   }
 
   async createCustomerPortalSession(team: { stripeCustomerId: string | null; stripeProductId: string | null }): Promise<{ url: string }> {
-    return createCustomerPortalSession(team as Team);
+    // redirect() throws, so this never returns, but interface requires return type
+    return createCustomerPortalSession(team as Team) as never;
   }
 
   async handleSubscriptionChange(subscription: Stripe.Subscription): Promise<void> {
