@@ -5,7 +5,7 @@
  * Integrates with existing crawl data types and enhances them for rich entity population.
  */
 
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 import type { Business } from '@/lib/db/schema';
 import type { CrawlDataInput } from './types';
 
@@ -51,13 +51,13 @@ export class CrawlDataProcessor {
     if (crawledData?.businessDetails) {
       const bd = crawledData.businessDetails;
       processed.business = {
-        industry: bd.industry,
-        sector: bd.sector,
-        legalForm: bd.legalForm,
-        founded: bd.founded,
-        employeeCount: bd.employeeCount,
-        revenue: bd.revenue,
-        stockSymbol: bd.stockSymbol
+        industry: bd.industry ?? undefined,
+        sector: bd.sector ?? undefined,
+        legalForm: bd.legalForm ?? undefined,
+        founded: bd.founded ?? undefined,
+        employeeCount: typeof bd.employeeCount === 'number' ? bd.employeeCount : typeof bd.employeeCount === 'string' ? parseInt(bd.employeeCount, 10) || undefined : undefined,
+        revenue: bd.revenue ?? undefined,
+        stockSymbol: bd.stockSymbol ?? undefined
       };
     }
 
@@ -72,11 +72,13 @@ export class CrawlDataProcessor {
     }
 
     // Process content data
-    if (crawledData?.content || crawledData?.images) {
+    // Note: CrawledData doesn't have 'content' or 'images' properties
+    // Use description as text source if available
+    if (crawledData?.description || crawledData?.imageUrl) {
       processed.content = {
-        text: crawledData.content,
-        images: crawledData.images,
-        links: this.extractLinks(crawledData.content)
+        text: crawledData.description,
+        images: crawledData.imageUrl ? [crawledData.imageUrl] : undefined,
+        links: this.extractLinks(crawledData.description)
       };
     }
 

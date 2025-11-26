@@ -20,7 +20,7 @@ import {
   toCompetitiveLeaderboardDTO,
   toFingerprintHistoryDTOs,
 } from '../fingerprint-dto';
-import type { FingerprintAnalysis } from '@/lib/types/gemflush';
+import type { FingerprintAnalysis } from '@/lib/types/domain/gemflush';
 
 describe('🔴 RED: Fingerprint DTO - Desired Behavior Specification', () => {
   /**

@@ -4,9 +4,9 @@
  * DRY: Extracted from business-fingerprinter.ts
  */
 
-import type { CompetitiveLeaderboard, LLMResult } from './types';
-import { filterValidResults, filterByPromptType } from './result-filter';
-import { estimateCompetitorPosition } from './position-estimator';
+import type { CompetitiveLeaderboard, LLMResult } from '../types';
+import { filterValidResults, filterByPromptType } from '../utils/result-filter';
+import { estimateCompetitorPosition } from '../position-estimator';
 
 export interface ILeaderboardService {
   generateLeaderboard(

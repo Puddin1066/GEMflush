@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { entityBuilder } from '@/lib/wikidata/entity-builder';
 import { notabilityChecker, type NotabilityResult } from '@/lib/wikidata/notability-checker';
 import type { WikidataPublishDTO } from './types';
-import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
+import type { WikidataEntityDataContract } from '@/lib/types/contracts/wikidata-contract';
 import { getTeamForBusiness } from '@/lib/db/queries';
 
 /**

@@ -14,7 +14,7 @@ import {
   FirecrawlCrawlResponse,
   FirecrawlJobStatusResponse,
   BusinessExtractData,
-} from '@/lib/types/firecrawl-contract';
+} from '@/lib/types/contracts/firecrawl-contract';
 import { 
   shouldUseMockFirecrawl, 
   generateMockFirecrawlCrawlResponse, 

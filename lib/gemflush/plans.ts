@@ -1,6 +1,6 @@
 // GEMflush subscription plans configuration
 
-import { SubscriptionPlan } from '@/lib/types/gemflush';
+import { SubscriptionPlan } from '@/lib/types/domain/gemflush';
 
 export const GEMFLUSH_PLANS: Record<string, SubscriptionPlan> = {
   free: {

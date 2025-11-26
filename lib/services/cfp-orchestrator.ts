@@ -21,7 +21,7 @@ import 'server-only';
 import { webCrawler } from '@/lib/crawler';
 import { businessFingerprinter } from '@/lib/llm';
 import { wikidataService, WikidataClient } from '@/lib/wikidata';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 import type { FingerprintAnalysis } from '@/lib/llm/types';
 import type { WikidataEntity, PublishResult } from '@/lib/wikidata/types';
 import { loggers } from '@/lib/utils/logger';

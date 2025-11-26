@@ -12,7 +12,7 @@ import {
   BusinessLocation,
   SubscriptionPlan,
   PlanFeatures,
-} from '@/lib/types/gemflush';
+} from '@/lib/types/domain/gemflush';
 
 console.log('🔍 GEMflush Service Contracts Verification\n');
 console.log('=' .repeat(50));

@@ -3,7 +3,7 @@
  * DRY: Centralized logic for filtering valid LLM results
  */
 
-import type { LLMResult } from './types';
+import type { LLMResult } from '../types';
 
 /**
  * Filter out invalid results (null, undefined, or with errors)

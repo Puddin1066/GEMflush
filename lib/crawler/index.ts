@@ -4,14 +4,14 @@
 
 import 'server-only'; // Ensure this module is never bundled client-side
 
-import { CrawledData, CrawlResult } from '@/lib/types/gemflush';
-import { IWebCrawler } from '@/lib/types/service-contracts';
+import { CrawledData, CrawlResult } from '@/lib/types/domain/gemflush';
+import { IWebCrawler } from '@/lib/types/services/service-contracts';
 import { 
   FirecrawlCrawlResponse,
   FirecrawlJobStatusResponse,
   FirecrawlCrawlPageData,
   BusinessExtractData,
-} from '@/lib/types/firecrawl-contract';
+} from '@/lib/types/contracts/firecrawl-contract';
 import { firecrawlClient } from './firecrawl-client';
 import { generateMockCrawlData, shouldUseMockCrawlData } from '@/lib/utils/mock-crawl-data';
 import { generateMockFirecrawlCrawlResponse } from '@/lib/utils/firecrawl-mock';
@@ -338,17 +338,17 @@ class EnhancedWebCrawler implements IWebCrawler {
     state: ReturnType<typeof this.initializeAggregationState>,
     pageIndex: number
   ): void {
-    // Business name - prefer main page, fallback to first found
+      // Business name - prefer main page, fallback to first found
     if (extractedData.businessName && (!state.aggregated.name || pageIndex === 0)) {
       state.aggregated.name = String(extractedData.businessName).trim();
-    }
+      }
 
-    // Description - prefer longer, more detailed descriptions
+      // Description - prefer longer, more detailed descriptions
     if (extractedData.description && extractedData.description.length > state.bestDescription.length) {
       state.bestDescription = String(extractedData.description).trim();
-    }
+      }
 
-    // Contact information - prefer most complete
+      // Contact information - prefer most complete
     this.updateMostCompleteContactInfo(extractedData, state);
 
     // Location - prefer most complete location data
@@ -381,15 +381,15 @@ class EnhancedWebCrawler implements IWebCrawler {
 
     const contactScore = this.calculateContactScore(extractedData);
     const currentScore = this.calculateContactScore(state.mostCompleteContactInfo);
-    
-    if (contactScore > currentScore) {
+        
+        if (contactScore > currentScore) {
       state.mostCompleteContactInfo = {
-        phone: extractedData.phone,
-        email: extractedData.email,
-        address: extractedData.address,
-      };
-    }
-  }
+            phone: extractedData.phone,
+            email: extractedData.email,
+            address: extractedData.address,
+          };
+        }
+      }
 
   /**
    * Calculate contact information completeness score
@@ -412,13 +412,13 @@ class EnhancedWebCrawler implements IWebCrawler {
     if (!state.aggregated.location || !state.aggregated.location.city) {
       state.aggregated.location = {
         address: extractedData.address || state.mostCompleteContactInfo.address,
-        city: extractedData.city,
-        state: extractedData.state,
-        country: extractedData.country || 'US',
-        postalCode: extractedData.postalCode,
-      };
-    }
-  }
+            city: extractedData.city,
+            state: extractedData.state,
+            country: extractedData.country || 'US',
+            postalCode: extractedData.postalCode,
+          };
+        }
+      }
 
   /**
    * Update business details
@@ -433,16 +433,16 @@ class EnhancedWebCrawler implements IWebCrawler {
 
     if (!state.aggregated.businessDetails) {
       state.aggregated.businessDetails = {};
-    }
-    
+        }
+        
     if (extractedData.industry && !state.aggregated.businessDetails.industry) {
       state.aggregated.businessDetails.industry = String(extractedData.industry).trim();
-    }
-    
+        }
+        
     if (extractedData.founded && !state.aggregated.businessDetails.founded) {
       state.aggregated.businessDetails.founded = String(extractedData.founded).trim();
-    }
-  }
+        }
+      }
 
   /**
    * Finalize aggregated data structure

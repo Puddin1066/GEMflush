@@ -19,7 +19,7 @@ import {
   getWikidataPublishDTO,
   toWikidataEntityDetailDTO,
 } from '../wikidata-dto';
-import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
+import type { WikidataEntityDataContract } from '@/lib/types/contracts/wikidata-contract';
 
 // Mock dependencies
 vi.mock('@/lib/db/drizzle', () => ({

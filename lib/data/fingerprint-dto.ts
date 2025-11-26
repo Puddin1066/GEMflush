@@ -6,7 +6,7 @@
  * @see https://nextjs.org/docs/app/building-your-application/data-fetching/patterns#data-access-layer
  */
 
-import { FingerprintAnalysis } from '@/lib/types/gemflush';
+import { FingerprintAnalysis } from '@/lib/types/domain/gemflush';
 import {
   FingerprintDetailDTO,
   FingerprintResultDTO,

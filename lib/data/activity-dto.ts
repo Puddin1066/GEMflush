@@ -143,7 +143,10 @@ function transformPublishToActivity(
   publish: WikidataEntity,
   business: Business
 ): ActivityDTO {
-  const status = publish.success ? 'completed' : 'failed';
+  // WikidataEntity from schema doesn't have 'success' property
+  // Success is determined by presence of qid
+  const hasQid = !!publish.qid;
+  const status = hasQid ? 'completed' : 'failed';
   const message = generatePublishMessage(publish, business);
 
   return {
@@ -156,7 +159,7 @@ function transformPublishToActivity(
     timestamp: toISOStringWithFallback(publish.publishedAt),
     details: {
       result: publish.qid || undefined,
-      error: publish.success ? undefined : publish.error,
+      error: hasQid ? undefined : 'Publish failed - no QID assigned',
     },
   };
 }
@@ -338,12 +341,9 @@ function generatePublishMessage(publish: any, business: Business): string {
   const businessName = business.name;
   const qid = publish.qid;
   
-  if (publish.success && qid) {
+  // Success is determined by presence of qid (WikidataEntity doesn't have 'success' property)
+  if (qid) {
     return `Published ${businessName} to Wikidata as ${qid}`;
-  }
-  
-  if (publish.success) {
-    return `Published ${businessName} to Wikidata`;
   }
   
   return `Failed to publish ${businessName} to Wikidata`;

@@ -24,19 +24,30 @@ The `types/` module provides TypeScript type definitions, interfaces, and servic
 
 ```
 lib/types/
-├── service-contracts.ts      # Service interface definitions
-├── firecrawl-contract.ts     # Firecrawl API contract
-├── wikidata-contract.ts     # Wikidata API contract
-├── action-api-contract.ts   # Action API contract
-├── gemflush.ts              # Platform-specific types
-└── __tests__/               # TDD test specifications
+├── contracts/                # External API contract types
+│   ├── firecrawl-contract.ts     # Firecrawl API contract
+│   ├── openrouter-contract.ts    # OpenRouter API contract
+│   ├── wikidata-contract.ts      # Wikidata entity contract
+│   ├── action-api-contract.ts    # Wikidata Action API contract
+│   └── index.ts                  # Re-export all contracts
+│
+├── services/                 # Service interface contracts
+│   ├── service-contracts.ts      # Service interface definitions
+│   └── index.ts                  # Re-export service contracts
+│
+├── domain/                   # Domain/business types
+│   ├── gemflush.ts              # Platform-specific types
+│   └── index.ts                 # Re-export domain types
+│
+├── index.ts                  # Re-export everything (optional)
+└── __tests__/                # TDD test specifications
 ```
 
 ---
 
 ## 🔑 Core Components
 
-### 1. Service Contracts (`service-contracts.ts`)
+### 1. Service Contracts (`services/service-contracts.ts`)
 
 **Purpose**: Interface definitions for service implementations
 
@@ -71,7 +82,7 @@ export interface IPaymentService {
 **Usage:**
 
 ```typescript
-import { IWebCrawler } from '@/lib/types/service-contracts';
+import { IWebCrawler } from '@/lib/types/services/service-contracts';
 
 // Implement contract
 class EnhancedWebCrawler implements IWebCrawler {
@@ -88,7 +99,7 @@ function processCrawl(crawler: IWebCrawler) {
 
 ---
 
-### 2. Firecrawl Contract (`firecrawl-contract.ts`)
+### 2. Firecrawl Contract (`contracts/firecrawl-contract.ts`)
 
 **Purpose**: Type definitions for Firecrawl API
 
@@ -122,7 +133,7 @@ export interface BusinessExtractData {
 **Usage:**
 
 ```typescript
-import type { FirecrawlCrawlResponse } from '@/lib/types/firecrawl-contract';
+import type { FirecrawlCrawlResponse } from '@/lib/types/contracts/firecrawl-contract';
 
 async function handleCrawlResponse(response: FirecrawlCrawlResponse) {
   if (response.success && response.data) {
@@ -133,7 +144,7 @@ async function handleCrawlResponse(response: FirecrawlCrawlResponse) {
 
 ---
 
-### 3. Wikidata Contract (`wikidata-contract.ts`)
+### 3. Wikidata Contract (`contracts/wikidata-contract.ts`)
 
 **Purpose**: Type definitions for Wikidata API
 
@@ -170,7 +181,7 @@ export interface WikidataPublishResult {
 **Usage:**
 
 ```typescript
-import type { WikidataEntityDataContract } from '@/lib/types/wikidata-contract';
+import type { WikidataEntityDataContract } from '@/lib/types/contracts/wikidata-contract';
 
 async function buildEntity(business: Business): Promise<WikidataEntityDataContract> {
   return {
@@ -183,7 +194,47 @@ async function buildEntity(business: Business): Promise<WikidataEntityDataContra
 
 ---
 
-### 4. Gemflush Types (`gemflush.ts`)
+### 4. OpenRouter Contract (`contracts/openrouter-contract.ts`)
+
+**Purpose**: Type definitions for OpenRouter API
+
+**Key Types:**
+
+```typescript
+export interface OpenRouterRequest {
+  model: string;
+  messages: OpenRouterMessage[];
+  temperature?: number;
+  max_tokens?: number;
+}
+
+export interface OpenRouterResponse {
+  id: string;
+  model: string;
+  choices: Array<{
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+```
+
+**Usage:**
+
+```typescript
+import type { OpenRouterRequest, OpenRouterResponse } from '@/lib/types/contracts/openrouter-contract';
+```
+
+---
+
+### 5. Gemflush Types (`domain/gemflush.ts`)
 
 **Purpose**: Platform-specific types
 
@@ -220,7 +271,7 @@ export interface BusinessStatus {
 **Usage:**
 
 ```typescript
-import type { CrawlResult, FingerprintAnalysis } from '@/lib/types/gemflush';
+import type { CrawlResult, FingerprintAnalysis } from '@/lib/types/domain/gemflush';
 
 function processBusiness(result: CrawlResult, analysis: FingerprintAnalysis) {
   // Type-safe processing
@@ -235,8 +286,8 @@ function processBusiness(result: CrawlResult, analysis: FingerprintAnalysis) {
 
 ```typescript
 // lib/crawler/index.ts
-import { IWebCrawler } from '@/lib/types/service-contracts';
-import { CrawlResult } from '@/lib/types/gemflush';
+import { IWebCrawler } from '@/lib/types/services/service-contracts';
+import { CrawlResult } from '@/lib/types/domain/gemflush';
 
 export class EnhancedWebCrawler implements IWebCrawler {
   async crawl(url: string): Promise<CrawlResult> {
@@ -253,7 +304,7 @@ export class EnhancedWebCrawler implements IWebCrawler {
 
 ```typescript
 // lib/services/business-execution.ts
-import { IWebCrawler } from '@/lib/types/service-contracts';
+import { IWebCrawler } from '@/lib/types/services/service-contracts';
 
 export class BusinessExecutionService {
   constructor(private crawler: IWebCrawler) {}

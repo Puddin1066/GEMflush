@@ -116,7 +116,7 @@ grep -r "WikidataEntityData\|WikidataClaim\|WikidataReference" lib/ --include="*
 
 **Before**:
 ```typescript
-import { WikidataEntityData } from '@/lib/types/gemflush';
+import { WikidataEntityData } from '@/lib/types/domain/gemflush';
 ```
 
 **After**:

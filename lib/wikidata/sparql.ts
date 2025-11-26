@@ -30,7 +30,7 @@ import {
   COUNTRY_QIDS
 } from './qid-mappings';
 
-import type { IWikidataSPARQLService } from '@/lib/types/service-contracts';
+import type { IWikidataSPARQLService } from '@/lib/types/services/service-contracts';
 
 export class WikidataSPARQLService implements IWikidataSPARQLService {
   private endpoint = 'https://query.wikidata.org/sparql';

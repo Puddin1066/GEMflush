@@ -5,7 +5,7 @@
 // SOLID: Single Responsibility - crawl data validation only
 
 import { z } from 'zod';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 /**
  * Social links schema

@@ -6,7 +6,7 @@
 
 import { vi } from 'vitest';
 import type { FirecrawlResponse } from '../index';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 /**
  * Create a mock Firecrawl API response

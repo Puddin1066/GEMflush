@@ -1,19 +1,19 @@
 // Wikidata entity builder - constructs Wikidata JSON entities from business data
 // Uses strict TypeScript contract aligned with Wikibase JSON Specification
 
-import { CrawledData } from '@/lib/types/gemflush';
+import { CrawledData } from '@/lib/types/domain/gemflush';
 import { 
   WikidataEntityDataContract,
   WikidataClaim,
   WikidataSnak,
   WikidataReference,
   type CleanedWikidataEntity
-} from '@/lib/types/wikidata-contract';
+} from '@/lib/types/contracts/wikidata-contract';
 import { Business } from '@/lib/db/schema';
 import { openRouterClient } from '@/lib/llm/openrouter-client';
 import { BUSINESS_PROPERTY_MAP, type PropertyMapping } from './property-mapping';
 import type { Reference } from './notability-checker';
-import { IWikidataEntityBuilder } from '@/lib/types/service-contracts';
+import { IWikidataEntityBuilder } from '@/lib/types/services/service-contracts';
 import { validateWikidataEntity } from '@/lib/validation/wikidata';
 import { sparqlService } from './sparql';
 import { normalizeBusinessName } from './utils';
@@ -158,7 +158,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
     
     // P31: instance of - business (Q4830453)
     // Handle null URL gracefully (GREEN: Fix bug caught by test)
-    claims.P31 = [this.createItemClaim('P31', 'Q4830453', business.url || undefined)];
+    claims.P31 = [this.createItemClaim('P31', 'Q4830453', business.url || '')];
     
     // P856: official website
     if (business.url) {
@@ -246,7 +246,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
           const countryQID = country === 'US' ? 'Q30' : 'Q30'; // Default to US for now
           const cityQID = await sparqlService.findCityQID(city, state || undefined, countryQID, true); // fast mode
           if (cityQID) {
-            claims.P131 = [this.createItemClaim('P131', cityQID, business.url || undefined)];
+            claims.P131 = [this.createItemClaim('P131', cityQID, business.url || '')];
             console.log(`[ENTITY BUILDER] ✓ Added P131 (located in): ${city}, ${state} → ${cityQID}`);
           } else {
             console.log(`[ENTITY BUILDER] ⚠ P131 (located in) NOT added - city QID not found for ${city}, ${state}`);
@@ -281,7 +281,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       
       const countryQID = countryQIDMap[country.toUpperCase()] || countryQIDMap['US']; // Default to US
       if (countryQID) {
-        claims.P17 = [this.createItemClaim('P17', countryQID, business.url || undefined)];
+        claims.P17 = [this.createItemClaim('P17', countryQID, business.url || '')];
         console.log(`[ENTITY BUILDER] ✓ Added P17 (country): ${country} → ${countryQID}`);
       }
     }
@@ -292,7 +292,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       const value = claims.P131[0].mainsnak.datavalue.value;
       if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') {
         const cityQID = value.id;
-        claims.P159 = [this.createItemClaim('P159', cityQID, business.url || undefined)];
+        claims.P159 = [this.createItemClaim('P159', cityQID, business.url || '')];
         console.log(`[ENTITY BUILDER] ✓ Added P159 (headquarters): ${cityQID}`);
       }
     }
@@ -304,7 +304,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       try {
         const industryQID = await sparqlService.findIndustryQID(industry, true); // fast mode
         if (industryQID) {
-          claims.P452 = [this.createItemClaim('P452', industryQID, business.url || undefined)];
+          claims.P452 = [this.createItemClaim('P452', industryQID, business.url || '')];
           console.log(`[ENTITY BUILDER] ✓ Added P452 (industry): ${industry} → ${industryQID}`);
         } else {
           console.log(`[ENTITY BUILDER] ⚠ P452 (industry) NOT added - industry QID not found for ${industry}`);
@@ -321,7 +321,7 @@ export class WikidataEntityBuilder implements IWikidataEntityBuilder {
       try {
         const legalFormQID = await sparqlService.findLegalFormQID(legalForm);
         if (legalFormQID) {
-          claims.P1454 = [this.createItemClaim('P1454', legalFormQID, business.url || undefined)];
+          claims.P1454 = [this.createItemClaim('P1454', legalFormQID, business.url || '')];
           console.log(`[ENTITY BUILDER] ✓ Added P1454 (legal form): ${legalForm} → ${legalFormQID}`);
         }
       } catch (error) {

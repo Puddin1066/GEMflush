@@ -8,28 +8,21 @@ import type {
   FirecrawlJobStatusResponse,
   FirecrawlCrawlPageData,
   BusinessExtractData 
-} from '@/lib/types/firecrawl-contract';
+} from '@/lib/types/contracts/firecrawl-contract';
 
 // Mock business data for different domains
+// All fields must match BusinessExtractData type
 const MOCK_BUSINESS_DATA: Record<string, BusinessExtractData> = {
   'stripe.com': {
     businessName: 'Stripe',
-    businessDescription: 'Online payment processing for internet businesses. Stripe is a suite of payment APIs that powers commerce for online businesses of all sizes.',
-    businessCategory: 'Financial Technology',
-    contactInfo: {
-      email: 'support@stripe.com',
-      phone: '+1-888-926-2289',
-      address: '354 Oyster Point Blvd, South San Francisco, CA 94080, USA'
-    },
-    location: {
-      city: 'South San Francisco',
-      state: 'California',
-      country: 'United States',
-      coordinates: {
-        latitude: 37.6624,
-        longitude: -122.3897
-      }
-    },
+    description: 'Online payment processing for internet businesses. Stripe is a suite of payment APIs that powers commerce for online businesses of all sizes.',
+    industry: 'Financial Technology',
+    phone: '+1-888-926-2289',
+    email: 'support@stripe.com',
+    address: '354 Oyster Point Blvd, South San Francisco, CA 94080, USA',
+    city: 'South San Francisco',
+    state: 'California',
+    country: 'United States',
     services: [
       'Payment Processing',
       'Online Payments',
@@ -43,41 +36,19 @@ const MOCK_BUSINESS_DATA: Record<string, BusinessExtractData> = {
       linkedin: 'https://linkedin.com/company/stripe',
       facebook: 'https://facebook.com/StripeHQ'
     },
-    businessHours: {
-      monday: '24/7 Support',
-      tuesday: '24/7 Support',
-      wednesday: '24/7 Support',
-      thursday: '24/7 Support',
-      friday: '24/7 Support',
-      saturday: '24/7 Support',
-      sunday: '24/7 Support'
-    },
-    additionalInfo: {
-      founded: '2010',
-      employees: '4000+',
-      headquarters: 'South San Francisco, California',
-      website: 'https://stripe.com',
-      industry: 'Financial Services'
-    }
+    website: 'https://stripe.com',
+    founded: '2010'
   },
   'tesla.com': {
     businessName: 'Tesla',
-    businessDescription: 'Tesla designs and manufactures electric vehicles, energy generation and storage systems.',
-    businessCategory: 'Automotive & Energy',
-    contactInfo: {
-      email: 'info@tesla.com',
-      phone: '+1-650-681-5000',
-      address: '1 Tesla Road, Austin, TX 78725, USA'
-    },
-    location: {
-      city: 'Austin',
-      state: 'Texas',
-      country: 'United States',
-      coordinates: {
-        latitude: 30.2672,
-        longitude: -97.7431
-      }
-    },
+    description: 'Tesla designs and manufactures electric vehicles, energy generation and storage systems.',
+    industry: 'Automotive & Energy',
+    phone: '+1-650-681-5000',
+    email: 'info@tesla.com',
+    address: '1 Tesla Road, Austin, TX 78725, USA',
+    city: 'Austin',
+    state: 'Texas',
+    country: 'United States',
     services: [
       'Electric Vehicles',
       'Energy Storage',
@@ -91,41 +62,21 @@ const MOCK_BUSINESS_DATA: Record<string, BusinessExtractData> = {
       linkedin: 'https://linkedin.com/company/tesla-motors',
       facebook: 'https://facebook.com/tesla'
     },
-    businessHours: {
-      monday: '9:00 AM - 9:00 PM',
-      tuesday: '9:00 AM - 9:00 PM',
-      wednesday: '9:00 AM - 9:00 PM',
-      thursday: '9:00 AM - 9:00 PM',
-      friday: '9:00 AM - 9:00 PM',
-      saturday: '9:00 AM - 9:00 PM',
-      sunday: '10:00 AM - 7:00 PM'
-    },
-    additionalInfo: {
-      founded: '2003',
-      employees: '127000+',
-      headquarters: 'Austin, Texas',
-      website: 'https://tesla.com',
-      industry: 'Automotive'
-    }
+    website: 'https://tesla.com',
+    founded: '2003',
+    hours: '9:00 AM - 9:00 PM'
   },
   'brownphysicians.org': {
     businessName: 'Brown Physicians',
-    businessDescription: 'Multi-specialty physician practice affiliated with Brown University providing comprehensive healthcare services.',
-    businessCategory: 'Healthcare',
-    contactInfo: {
-      email: 'info@brownphysicians.org',
-      phone: '(401) 444-5648',
-      address: '593 Eddy St, Providence, RI 02903'
-    },
-    location: {
-      city: 'Providence',
-      state: 'Rhode Island',
-      country: 'United States',
-      coordinates: {
-        latitude: 41.824,
-        longitude: -71.4128
-      }
-    },
+    description: 'Multi-specialty physician practice affiliated with Brown University providing comprehensive healthcare services.',
+    industry: 'Healthcare',
+    email: 'info@brownphysicians.org',
+    phone: '(401) 444-5648',
+    address: '593 Eddy St, Providence, RI 02903',
+    city: 'Providence',
+    state: 'Rhode Island',
+    country: 'United States',
+    postalCode: '02903',
     services: [
       'Primary Care',
       'Internal Medicine',
@@ -138,41 +89,19 @@ const MOCK_BUSINESS_DATA: Record<string, BusinessExtractData> = {
       linkedin: '',
       facebook: ''
     },
-    businessHours: {
-      monday: '8:00 AM - 5:00 PM',
-      tuesday: '8:00 AM - 5:00 PM',
-      wednesday: '8:00 AM - 5:00 PM',
-      thursday: '8:00 AM - 5:00 PM',
-      friday: '8:00 AM - 5:00 PM',
-      saturday: 'Closed',
-      sunday: 'Closed'
-    },
-    additionalInfo: {
-      founded: '',
-      employees: '50+',
-      headquarters: 'Providence, Rhode Island',
-      website: 'https://brownphysicians.org',
-      industry: 'Healthcare'
-    }
+    website: 'https://brownphysicians.org',
+    hours: '8:00 AM - 5:00 PM'
   },
   'default': {
     businessName: 'Sample Business',
-    businessDescription: 'A sample business for demonstration purposes.',
-    businessCategory: 'General Business',
-    contactInfo: {
-      email: 'contact@example.com',
-      phone: '+1-555-0123',
-      address: '123 Main St, Anytown, USA'
-    },
-    location: {
-      city: 'Anytown',
-      state: 'California',
-      country: 'United States',
-      coordinates: {
-        latitude: 37.7749,
-        longitude: -122.4194
-      }
-    },
+    description: 'A sample business for demonstration purposes.',
+    industry: 'General Business',
+    email: 'contact@example.com',
+    phone: '+1-555-0123',
+    address: '123 Main St, Anytown, USA',
+    city: 'Anytown',
+    state: 'California',
+    country: 'United States',
     services: [
       'General Services',
       'Customer Support',
@@ -182,22 +111,9 @@ const MOCK_BUSINESS_DATA: Record<string, BusinessExtractData> = {
       twitter: 'https://twitter.com/example',
       linkedin: 'https://linkedin.com/company/example'
     },
-    businessHours: {
-      monday: '9:00 AM - 5:00 PM',
-      tuesday: '9:00 AM - 5:00 PM',
-      wednesday: '9:00 AM - 5:00 PM',
-      thursday: '9:00 AM - 5:00 PM',
-      friday: '9:00 AM - 5:00 PM',
-      saturday: 'Closed',
-      sunday: 'Closed'
-    },
-    additionalInfo: {
-      founded: '2020',
-      employees: '50+',
-      headquarters: 'Anytown, California',
-      website: 'https://example.com',
-      industry: 'General'
-    }
+    website: 'https://example.com',
+    founded: '2020',
+    hours: '9:00 AM - 5:00 PM'
   }
 };
 
@@ -223,7 +139,7 @@ export function generateMockFirecrawlCrawlResponse(url: string): FirecrawlCrawlR
   // Customize business data based on URL
   if (domain !== 'stripe.com' && domain !== 'tesla.com' && domain !== 'default') {
     businessData.businessName = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
-    businessData.additionalInfo.website = url;
+    businessData.website = url;
   }
 
   // Enhanced mock response matching FireCrawl API v1 structure
@@ -232,20 +148,21 @@ export function generateMockFirecrawlCrawlResponse(url: string): FirecrawlCrawlR
   const timestamp = new Date().toISOString();
   
   const mockPageData: FirecrawlCrawlPageData = {
-    markdown: `# ${businessData.businessName}\n\n${businessData.businessDescription}\n\n## Services\n${businessData.services.map(s => `- ${s}`).join('\n')}\n\n## Contact\nEmail: ${businessData.contactInfo.email}\nPhone: ${businessData.contactInfo.phone}\nAddress: ${businessData.contactInfo.address}`,
-    html: `<html><head><title>${businessData.businessName}</title><meta name="description" content="${businessData.businessDescription}"></head><body><h1>${businessData.businessName}</h1><p>${businessData.businessDescription}</p><nav><a href="${url}/about">About</a><a href="${url}/services">Services</a><a href="${url}/contact">Contact</a></nav></body></html>`,
-    rawHtml: `<html><head><title>${businessData.businessName}</title></head><body><h1>${businessData.businessName}</h1><p>${businessData.businessDescription}</p></body></html>`,
-    linksOnPage: [
+    url: url,
+    markdown: `# ${businessData.businessName || 'Business'}\n\n${businessData.description || ''}\n\n## Services\n${(businessData.services || []).map(s => `- ${s}`).join('\n')}\n\n## Contact\nEmail: ${businessData.email || ''}\nPhone: ${businessData.phone || ''}\nAddress: ${businessData.address || ''}`,
+    html: `<html><head><title>${businessData.businessName || 'Business'}</title><meta name="description" content="${businessData.description || ''}"></head><body><h1>${businessData.businessName || 'Business'}</h1><p>${businessData.description || ''}</p><nav><a href="${url}/about">About</a><a href="${url}/services">Services</a><a href="${url}/contact">Contact</a></nav></body></html>`,
+    rawHtml: `<html><head><title>${businessData.businessName || 'Business'}</title></head><body><h1>${businessData.businessName || 'Business'}</h1><p>${businessData.description || ''}</p></body></html>`,
+    links: [
       `${url}/about`,
       `${url}/services`,
       `${url}/contact`,
-      businessData.socialMedia.twitter || '',
-      businessData.socialMedia.linkedin || ''
+      businessData.socialMedia?.twitter || '',
+      businessData.socialMedia?.linkedin || ''
     ].filter(Boolean),
     screenshot: `https://example.com/screenshots/${domain}.png`,
     metadata: {
-      title: businessData.businessName,
-      description: businessData.businessDescription,
+      title: businessData.businessName || '',
+      description: businessData.description || '',
       language: 'en',
       sourceURL: url,
       statusCode: 200,
@@ -260,10 +177,7 @@ export function generateMockFirecrawlCrawlResponse(url: string): FirecrawlCrawlR
     success: true,
     id: jobId,
     url: url,
-    data: [mockPageData],
-    partial_data: [],
-    warning: null,
-    error: null
+    data: [mockPageData]
   };
 }
 
@@ -288,8 +202,7 @@ export function generateMockFirecrawlJobStatus(
       completed: 1,
       creditsUsed: 1,
       expiresAt: expiresAt,
-      data: crawlResponse.data || [],
-      partial_data: []
+      data: crawlResponse.data || []
     };
   }
 
@@ -301,8 +214,7 @@ export function generateMockFirecrawlJobStatus(
       completed: 0,
       creditsUsed: 0,
       expiresAt: expiresAt,
-      data: [],
-      partial_data: []
+      data: []
     };
   }
 
@@ -315,7 +227,6 @@ export function generateMockFirecrawlJobStatus(
     creditsUsed: 1,
     expiresAt: expiresAt,
     data: [],
-    partial_data: [],
     error: 'Crawl job failed - unable to access target URL'
   };
 }

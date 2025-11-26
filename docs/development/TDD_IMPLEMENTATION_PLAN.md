@@ -1113,7 +1113,7 @@ describe('🔴 RED: Production Environment Specification', () => {
 | P1.3d | `lib/crawler/__tests__/*.tdd.test.ts` | 21 | ✅ COMPLETE |
 | P1.5a | `lib/llm/__tests__/openrouter-integration.tdd.test.ts` | 8 | ✅ COMPLETE |
 | P1.5b | `lib/wikidata/__tests__/publishing-integration.tdd.test.ts` | 10 | ✅ COMPLETE |
-| P1.6 | `tests/e2e/critical-workflows.tdd.spec.ts` | 15 | Needs Creation |
+| P1.6 | `tests/e2e/critical-workflows.tdd.spec.ts` | 15 | 🔴 RED Phase |
 
 ### P2 - High Priority
 
@@ -1595,8 +1595,10 @@ describe('🔴 RED: Web Crawler Specification', () => {
 
 ### P1.6: End-to-End Workflow Testing
 
-**Status:** 🟠 INFRASTRUCTURE BLOCKED  
-**Business Value:** Production confidence
+**Status:** 🔴 RED → 🟢 GREEN (In Progress)  
+**Business Value:** Production confidence  
+**Test Count:** 15 tests  
+**Key Specification:** Automated CFP flow with URL-only input - users only provide URL, system automatically crawls → fingerprints → publishes
 
 #### RED Phase Test Plan
 
@@ -1675,9 +1677,11 @@ test.describe('🔴 RED: Critical User Workflows Specification', () => {
 
 **Test Coverage Targets:**
 - ✅ Sign up/sign in: 3 tests
-- ✅ Business CRUD: 5 tests
-- ✅ CFP workflow: 4 tests
-- ✅ Pro features: 3 tests
+- ✅ URL-only business creation: 5 tests (automated data extraction)
+- ✅ Automated CFP workflow: 4 tests (crawl → fingerprint → publish)
+- ✅ Pro automated publishing: 3 tests
+
+**Key Specification:** Only URL input required - all CFP steps are automated
 
 **Estimated Time:** 2-3 days  
 **Test Files:** 1 file, ~15 tests total
@@ -1710,7 +1714,7 @@ test.describe('🔴 RED: Critical User Workflows Specification', () => {
 |-----|-------|-------|--------|
 | **11** | P1.3d Crawler tests | 20 tests | 🔴 RED → 🟢 GREEN |
 | **12-13** | P1.5 Real API integration | 18 tests | ✅ COMPLETE |
-| **14** | P1.6 E2E workflows | 15 tests | 🔴 RED → 🟢 GREEN |
+| **14** | P1.6 E2E workflows | 15 tests | 🔴 RED Phase |
 
 ### Week 4: Polish & Production
 

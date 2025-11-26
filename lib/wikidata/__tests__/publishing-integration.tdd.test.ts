@@ -32,7 +32,7 @@ import { config } from 'dotenv';
 import { resolve } from 'path';
 import { BusinessTestFactory } from '@/lib/test-helpers/tdd-helpers';
 import type { Business } from '@/lib/db/schema';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 // Load .env file for integration tests
 config({ path: resolve(process.cwd(), '.env') });

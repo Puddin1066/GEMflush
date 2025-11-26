@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { webCrawler } from '../index';
-import type { CrawlResult } from '@/lib/types/gemflush';
+import type { CrawlResult } from '@/lib/types/domain/gemflush';
 
 // Mock dependencies
 vi.mock('../firecrawl-client', () => ({

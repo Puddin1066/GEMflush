@@ -228,7 +228,7 @@ export interface FeatureAvailability {
 #### 2. Create Transformer (`lib/presentation/transformers/business.ts`)
 ```typescript
 import { Business, LLMFingerprint } from '@/lib/db/schema';
-import { CrawledData } from '@/lib/types/gemflush';
+import { CrawledData } from '@/lib/types/domain/gemflush';
 import { DashboardBusiness, FeatureAvailability } from '../types';
 import { formatTimestamp } from '../formatters/dates';
 

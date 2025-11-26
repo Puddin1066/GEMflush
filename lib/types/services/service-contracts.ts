@@ -6,13 +6,13 @@ import {
   CrawledData,
   FingerprintAnalysis,
   WikidataPublishResult,
-} from './gemflush';
+} from '../domain/gemflush';
 import { 
   WikidataEntityDataContract,
   WikidataClaim as WikidataClaimStrict,
   StoredEntityMetadata,
   NotabilityAssessment
-} from './wikidata-contract';
+} from '../contracts/wikidata-contract';
 import { Business } from '@/lib/db/schema';
 import type {
   StripePriceDTO,

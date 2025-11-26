@@ -4,7 +4,7 @@
  */
 
 import { Business } from '@/lib/db/schema';
-import { CrawledData } from '@/lib/types/gemflush';
+import { CrawledData } from '@/lib/types/domain/gemflush';
 
 // ============================================================================
 // CORE LLM TYPES

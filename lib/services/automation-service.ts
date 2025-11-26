@@ -17,7 +17,7 @@
 
 import { Team, Business } from '@/lib/db/schema';
 import { GEMFLUSH_PLANS } from '@/lib/gemflush/plans';
-import type { SubscriptionPlan } from '@/lib/types/gemflush';
+import type { SubscriptionPlan } from '@/lib/types/domain/gemflush';
 
 export interface AutomationConfig {
   crawlFrequency: 'manual' | 'monthly' | 'weekly' | 'daily';

@@ -161,7 +161,7 @@ describe('CrawledData Schema Validation', () => {
 
 ```typescript
 import { z } from 'zod';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 export const socialLinksSchema = z.object({
   facebook: z.string().url().optional(),

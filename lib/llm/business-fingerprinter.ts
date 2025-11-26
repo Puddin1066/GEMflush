@@ -26,7 +26,7 @@ import {
   IParallelProcessor
 } from './types';
 import { Business } from '@/lib/db/schema';
-import { CrawledData } from '@/lib/types/gemflush';
+import { CrawledData } from '@/lib/types/domain/gemflush';
 import { promptGenerator as defaultPromptGenerator } from './prompt-generator';
 import { parallelProcessor as defaultParallelProcessor } from './parallel-processor';
 import { loggers } from '@/lib/utils/logger';
@@ -254,7 +254,7 @@ export class BusinessFingerprinter implements IBusinessFingerprinter {
     
     return analysis;
   }
-
+  
   /**
    * Convert Business entity to BusinessContext
    * DRY: Use shared conversion utility

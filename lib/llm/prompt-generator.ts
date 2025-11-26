@@ -17,7 +17,7 @@ import {
   PromptTemplate 
 } from './types';
 import { Business } from '@/lib/db/schema';
-import { CrawledData } from '@/lib/types/gemflush';
+import { CrawledData } from '@/lib/types/domain/gemflush';
 import { businessToContext as convertBusinessToContext } from './business-context';
 
 // ============================================================================

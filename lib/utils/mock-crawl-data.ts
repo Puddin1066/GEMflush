@@ -7,7 +7,7 @@
  * Follows DRY principles by centralizing mock data generation.
  */
 
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 interface MockBusinessProfile {
   name: string;

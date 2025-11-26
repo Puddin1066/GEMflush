@@ -7,7 +7,7 @@ import {
   getUser,
   updateTeamSubscription
 } from '@/lib/db/queries';
-import { IPaymentService } from '@/lib/types/service-contracts';
+import { IPaymentService } from '@/lib/types/services/service-contracts';
 import type {
   StripePriceDTO,
   StripeProductDTO,
@@ -237,9 +237,12 @@ async function getOrCreateBillingPortalConfiguration(
   return await stripe.billingPortal.configurations.create(configParams);
 }
 
-export async function createCustomerPortalSession(team: Team) {
+export async function createCustomerPortalSession(team: Team): Promise<{ url: string }> {
   if (!team.stripeCustomerId || !team.stripeProductId) {
+    // Redirect to pricing if team doesn't have Stripe customer ID
     redirect('/pricing');
+    // This line is unreachable but TypeScript needs it for type checking
+    throw new Error('Redirect failed');
   }
 
   const configuration = await getOrCreateBillingPortalConfiguration(team);
@@ -255,7 +258,8 @@ export async function createCustomerPortalSession(team: Team) {
     throw new Error('Stripe portal session created but no URL returned');
   }
   
-  redirect(portalSession.url);
+  // Return URL - the caller will handle redirect
+  return { url: portalSession.url };
 }
 
 /**

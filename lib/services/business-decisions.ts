@@ -7,7 +7,7 @@
 
 import type { Business, Team } from '@/lib/db/schema';
 import { getAutomationConfig } from './automation-service';
-import { getFingerprintsByBusiness } from '@/lib/db/queries';
+import { getFingerprintHistory } from '@/lib/db/queries';
 
 // Cache window: 7 days (businesses shouldn't be crawled more than once per week)
 const CRAWL_CACHE_WINDOW_DAYS = 7;
@@ -50,7 +50,7 @@ export async function canRunFingerprint(business: Business, team: Team): Promise
   }
 
   // Get fingerprints to check last run
-  const fingerprints = await getFingerprintsByBusiness(business.id);
+  const fingerprints = await getFingerprintHistory(business.id);
   
   // If never fingerprinted, allow
   if (fingerprints.length === 0) {

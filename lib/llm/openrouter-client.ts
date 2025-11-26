@@ -19,6 +19,10 @@ import {
   DEFAULT_MODELS,
   DEFAULT_CONFIG
 } from './types';
+import type { 
+  OpenRouterRequest, 
+  OpenRouterResponse 
+} from '@/lib/types/contracts/openrouter-contract';
 import { loggers } from '@/lib/utils/logger';
 import fs from 'fs';
 import path from 'path';
@@ -37,38 +41,12 @@ const CACHE_FILE_NAME = 'responses.json';
 const MILLISECONDS_PER_SECOND = 1000;
 
 // ============================================================================
-// OPENROUTER API TYPES
+// INTERNAL TYPES
 // ============================================================================
 
-interface OpenRouterMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-interface OpenRouterRequest {
-  model: string;
-  messages: OpenRouterMessage[];
-  temperature?: number;
-  max_tokens?: number;
-}
-
-interface OpenRouterResponse {
-  id: string;
-  model: string;
-  choices: Array<{
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }>;
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
+/**
+ * Cache entry structure (internal to OpenRouterClient)
+ */
 interface CacheEntry {
   prompt: string;
   model: string;
@@ -378,7 +356,9 @@ export class OpenRouterClient implements IOpenRouterClient {
         });
       }
     } catch (error) {
-      log.warn('Failed to load LLM cache', error);
+      log.warn('Failed to load LLM cache', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       this.cache = {};
     }
   }
@@ -390,7 +370,9 @@ export class OpenRouterClient implements IOpenRouterClient {
     try {
       fs.writeFileSync(this.cacheFile, JSON.stringify(this.cache, null, 2));
     } catch (error) {
-      log.warn('Failed to save LLM cache', error);
+      log.warn('Failed to save LLM cache', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
   
@@ -430,26 +412,28 @@ export class OpenRouterClient implements IOpenRouterClient {
       return;
     }
 
-    try {
-      const data = fs.readFileSync(this.cacheFile, 'utf-8');
-      const fileCache = JSON.parse(data);
+      try {
+        const data = fs.readFileSync(this.cacheFile, 'utf-8');
+        const fileCache = JSON.parse(data);
       
       // Handle both single entry (test scenario) and full cache object
-      if (fileCache.response && fileCache.model && fileCache.prompt) {
-        // Single entry format (from test) - convert to cache key format
-        const cacheKey = this.getCacheKey(fileCache.model, fileCache.prompt);
-        this.cache[cacheKey] = fileCache;
-      } else {
-        // Full cache object format - merge into memory cache
-        Object.assign(this.cache, fileCache);
-      }
-    } catch (error) {
+        if (fileCache.response && fileCache.model && fileCache.prompt) {
+          // Single entry format (from test) - convert to cache key format
+          const cacheKey = this.getCacheKey(fileCache.model, fileCache.prompt);
+          this.cache[cacheKey] = fileCache;
+        } else {
+          // Full cache object format - merge into memory cache
+          Object.assign(this.cache, fileCache);
+        }
+      } catch (error) {
       // Handle corrupted cache file gracefully
-      log.warn('Failed to parse cache file, treating as empty', error);
-      this.cache = {};
+        log.warn('Failed to parse cache file, treating as empty', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        this.cache = {};
+      }
     }
-  }
-
+    
   /**
    * Check if cache entry is still valid
    * DRY: Extracted to reduce duplication

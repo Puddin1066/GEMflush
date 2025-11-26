@@ -17,7 +17,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BusinessTestFactory } from '@/lib/test-helpers/tdd-helpers';
 import type { Business } from '@/lib/db/schema';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 describe('🔴 RED: Prompt Generator - Desired Behavior Specification', () => {
   beforeEach(() => {

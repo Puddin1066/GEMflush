@@ -3,7 +3,7 @@
  * DRY: Centralized logic for converting Business entities to BusinessContext
  */
 
-import type { BusinessContext } from './types';
+import type { BusinessContext } from '../types';
 import type { Business } from '@/lib/db/schema';
 
 /**

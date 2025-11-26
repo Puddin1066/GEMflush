@@ -4,9 +4,9 @@
  * DRY: Extracted from business-fingerprinter.ts
  */
 
-import type { BusinessVisibilityMetrics, LLMResult } from './types';
-import { filterValidResults, filterMentionedResults, filterRankedResults } from './result-filter';
-import { calculateVisibilityScore } from './score-calculator';
+import type { BusinessVisibilityMetrics, LLMResult } from '../types';
+import { filterValidResults, filterMentionedResults, filterRankedResults } from '../utils/result-filter';
+import { calculateVisibilityScore } from '../utils/score-calculator';
 
 export interface IVisibilityMetricsService {
   calculateMetrics(results: LLMResult[]): BusinessVisibilityMetrics;
@@ -48,7 +48,7 @@ export class VisibilityMetricsService implements IVisibilityMetricsService {
       : 0;
     
     // Calculate sentiment score (0-1 scale)
-    const sentimentScores = mentionedResults.map(r => {
+    const sentimentScores: number[] = mentionedResults.map(r => {
       switch (r.sentiment) {
         case 'positive': return 1;
         case 'negative': return 0;
@@ -57,9 +57,19 @@ export class VisibilityMetricsService implements IVisibilityMetricsService {
       }
     });
     
-    const avgSentimentScore = sentimentScores.length > 0 
-      ? sentimentScores.reduce((sum, score) => sum + score, 0 as number) / sentimentScores.length
+    // Calculate average sentiment score (clamp to valid range)
+    const rawAvg: number = sentimentScores.length > 0 
+      ? sentimentScores.reduce((sum, score) => sum + score, 0) / sentimentScores.length
       : 0.5;
+    // Clamp to nearest valid value (0, 0.5, or 1)
+    let avgSentimentScore: 0 | 0.5 | 1;
+    if (rawAvg < 0.25) {
+      avgSentimentScore = 0;
+    } else if (rawAvg < 0.75) {
+      avgSentimentScore = 0.5;
+    } else {
+      avgSentimentScore = 1;
+    }
     
     // Calculate average confidence
     const avgConfidence = validResults.reduce((sum, r) => sum + r.confidence, 0) / successfulQueries;

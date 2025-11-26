@@ -18,7 +18,7 @@ export function extractBusinessNameFromUrl(url: string): string {
     // First, check if we have mock data for this URL
     if (shouldUseMockCrawlData(url)) {
       const mockData = generateMockCrawlData(url);
-      return mockData.name;
+      return mockData.name || 'Business';
     }
 
     // Validate URL format before parsing

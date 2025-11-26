@@ -215,5 +215,6 @@ export const loggers = {
   crawler: createLogger('CRAWLER'),
   fingerprint: createLogger('FINGERPRINT'),
   api: createLogger('API'),
+  db: createLogger('DB'),
 };
 

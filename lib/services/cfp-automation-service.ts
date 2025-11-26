@@ -260,7 +260,7 @@ export async function executeCFPAutomation(
     }
 
     // STEP 4: Schedule next processing if enabled
-    if (options.scheduleNext && crawlSuccess) {
+    if (options.scheduleNext && crawlSuccess && config.crawlFrequency !== 'manual') {
       try {
         const nextDate = calculateNextCrawlDate(config.crawlFrequency);
         await withRetry(

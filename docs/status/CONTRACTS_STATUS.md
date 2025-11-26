@@ -58,7 +58,7 @@ export interface CrawledData {
 **Status:** ✅ **ALREADY USING CONTRACT**
 ```typescript
 // Line 4
-import { CrawledData, CrawlResult } from '@/lib/types/gemflush';
+import { CrawledData, CrawlResult } from '@/lib/types/domain/gemflush';
 
 // Line 11
 async crawl(url: string): Promise<CrawlResult>
@@ -434,7 +434,7 @@ import {
   CompetitiveBenchmark,
   BusinessLocation,
   SubscriptionPlan,
-} from '@/lib/types/gemflush';
+} from '@/lib/types/domain/gemflush';
 
 console.log('✅ All contracts imported successfully!');
 console.log('\nAvailable types:');

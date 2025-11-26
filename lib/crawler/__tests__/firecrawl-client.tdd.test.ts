@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { FirecrawlExtractSchema } from '@/lib/types/firecrawl-contract';
+import type { FirecrawlExtractSchema } from '@/lib/types/contracts/firecrawl-contract';
 
 // Mock dependencies
 vi.mock('@/lib/utils/firecrawl-mock', () => ({
@@ -179,11 +179,11 @@ describe('🔴 RED: Firecrawl Client - Desired Behavior Specification', () => {
       expect(result.data).toBeDefined();
       expect(Array.isArray(result.data)).toBe(true);
       if (result.data && result.data.length > 0) {
-        expect(result.data[0].extract).toMatchObject({
-          businessName: 'Test Business',
-          phone: '+1-555-123-4567',
-          email: 'test@example.com',
-        });
+      expect(result.data[0].extract).toMatchObject({
+        businessName: 'Test Business',
+        phone: '+1-555-123-4567',
+        email: 'test@example.com',
+      });
       }
     });
 
