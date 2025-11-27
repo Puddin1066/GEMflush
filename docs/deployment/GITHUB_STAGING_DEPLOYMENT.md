@@ -52,7 +52,31 @@ GitHub Actions runs:
 
 ## 🛠️ Setup Instructions
 
-### **Step 1: Get Vercel Credentials**
+### **Step 1: Verify GitHub Token Scopes**
+
+**IMPORTANT:** Your GitHub Personal Access Token must have the correct scopes.
+
+**Required Scopes:**
+- ✅ **`repo`** - Full control of private repositories (for pushing code and managing secrets)
+- ✅ **`workflow`** - Update GitHub Action workflows (for CI/CD setup)
+
+**Check Your Token:**
+```bash
+gh auth status
+```
+
+**If your token is missing scopes:**
+1. Create new token: https://github.com/settings/tokens/new
+2. Select: **Classic Personal Access Token**
+3. Check: **`repo`** and **`workflow`** scopes
+4. Update `.env`: `GITHUB_TOKEN=your_new_token`
+5. Re-authenticate: `gh auth login --with-token <<< "$GITHUB_TOKEN"`
+
+📚 **See:** `docs/deployment/GITHUB_TOKEN_SCOPES.md` for complete token setup guide.
+
+---
+
+### **Step 2: Get Vercel Credentials**
 
 You need three pieces of information from Vercel:
 

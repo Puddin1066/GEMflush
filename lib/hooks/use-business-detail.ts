@@ -23,6 +23,7 @@ export interface BusinessDetail {
   createdAt: string;
   lastCrawledAt?: string | null;
   automationEnabled?: boolean;
+  crawlData?: any;
 }
 
 export interface UseBusinessDetailReturn {

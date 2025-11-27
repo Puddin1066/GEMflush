@@ -43,13 +43,13 @@ jobs:
         continue-on-error: true
       
       - name: Run unit tests (REQUIRED)
-        run: pnpm test -- --run
+        run: pnpm test:run
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       
       - name: Generate test coverage
-        run: pnpm test -- --run --coverage
+        run: pnpm test:coverage
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

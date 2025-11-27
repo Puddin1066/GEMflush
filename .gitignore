@@ -45,3 +45,4 @@ coverage/
 
 # Manual Wikidata publication storage (contains business data)
 .wikidata-manual-publish/
+.github-auth-helper.sh

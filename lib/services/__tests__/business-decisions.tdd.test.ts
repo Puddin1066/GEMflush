@@ -23,6 +23,7 @@ import { BusinessTestFactory, TeamTestFactory } from '@/lib/test-helpers/tdd-hel
 vi.mock('@/lib/db/queries', () => ({
   getCrawlJobsByBusiness: vi.fn(),
   getFingerprintsByBusiness: vi.fn(),
+  getFingerprintHistory: vi.fn(),
 }));
 
 describe('🔴 RED: Business Decisions - Missing Functionality Specification', () => {
@@ -128,7 +129,7 @@ describe('🔴 RED: Business Decisions - Missing Functionality Specification', (
     const team = TeamTestFactory.createPro(); // Monthly frequency
 
     const queries = await import('@/lib/db/queries');
-    vi.mocked(queries.getFingerprintsByBusiness).mockResolvedValue([
+    vi.mocked(queries.getFingerprintHistory).mockResolvedValue([
       { createdAt: recentFingerprintDate },
     ]);
 
@@ -158,7 +159,7 @@ describe('🔴 RED: Business Decisions - Missing Functionality Specification', (
     const team = TeamTestFactory.createPro();
 
     const queries = await import('@/lib/db/queries');
-    vi.mocked(queries.getFingerprintsByBusiness).mockResolvedValue([]);
+    vi.mocked(queries.getFingerprintHistory).mockResolvedValue([]);
 
     // Act: Check if fingerprint can run (TEST DRIVES IMPLEMENTATION)
     const { canRunFingerprint } = await import('../business-decisions');
@@ -189,7 +190,7 @@ describe('🔴 RED: Business Decisions - Missing Functionality Specification', (
     const team = TeamTestFactory.createPro(); // Monthly frequency
 
     const queries = await import('@/lib/db/queries');
-    vi.mocked(queries.getFingerprintsByBusiness).mockResolvedValue([
+    vi.mocked(queries.getFingerprintHistory).mockResolvedValue([
       { createdAt: oldFingerprintDate },
     ]);
 

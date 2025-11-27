@@ -41,7 +41,8 @@ export function DashboardClient({ dashboardData: initialData, user, team }: Dash
   // Use hook data if available, otherwise fallback to initial SSR data
   const dashboardData = !loading && polledData.totalBusinesses >= 0 ? polledData : initialData;
   // Calculate plan info from team
-  const planTier = team.planName || 'free';
+  // Type assertion: team.planName is string, but we need 'free' | 'pro' | 'agency'
+  const planTier = (team.planName || 'free') as 'free' | 'pro' | 'agency';
   const isPro = planTier === 'pro' || planTier === 'agency';
   const maxBusinesses = team.planName === 'pro' ? 5 : team.planName === 'agency' ? 25 : 1;
 

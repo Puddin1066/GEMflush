@@ -15,9 +15,11 @@ import { BackButton } from '@/components/navigation/back-button';
 import { BusinessDetailSkeleton } from '@/components/loading';
 import { ErrorCard } from '@/components/error';
 import { GemOverviewCard } from '@/components/business/gem-overview-card';
-import { VisibilityIntelCard } from '@/components/fingerprint/visibility-intel-card';
-import { CompetitiveEdgeCard } from '@/components/competitive/competitive-edge-card';
-import { EntityPreviewCard } from '@/components/wikidata/entity-preview-card';
+import { VisibilityMetricsCard } from '@/components/fingerprint/visibility-metrics-card';
+import { CompetitiveAnalysisCard } from '@/components/competitive/competitive-analysis-card';
+import { PublishingStatusCard } from '@/components/wikidata/publishing-status-card';
+import { useFingerprintHistory } from '@/lib/hooks/use-fingerprint-history';
+import { useWikidataPublishData } from '@/lib/hooks/use-wikidata-publish-data';
 import { JsonPreviewModal } from '@/components/wikidata/json-preview-modal';
 import { FeatureGate } from '@/components/subscription/feature-gate';
 import { UpgradeCTA } from '@/components/subscription/upgrade-cta';
@@ -56,6 +58,10 @@ export default function BusinessDetailPage() {
     error,
     refresh,
   } = useBusinessDetail(businessId);
+
+  // Fetch additional data for high-value components
+  const { data: fingerprintHistory, isLoading: historyLoading } = useFingerprintHistory(businessId);
+  const { data: publishData, isLoading: publishDataLoading } = useWikidataPublishData(businessId);
 
   const [jsonPreviewOpen, setJsonPreviewOpen] = useState(false);
   
@@ -135,76 +141,46 @@ export default function BusinessDetailPage() {
         {/* Navigation - Use new component */}
         <BackButton href="/dashboard/businesses" />
 
-        {/* 3-Column Layout - Only show components with DTO data or actively processing */}
+        {/* 3-Column Layout - High-Value Components */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <GemOverviewCard
-            business={business}
-            onCrawl={isAutoProcessing ? undefined : handleCrawl}
-            crawling={isAutoProcessing ? (business.status === 'crawling' || business.status === 'pending') : false}
+          {/* Component 1: Wikidata Publishing Status */}
+          <PublishingStatusCard
+            entity={entity}
+            publishData={publishData || null}
+            businessId={businessId}
+            businessName={business.name}
+            isPublished={isPublished}
+            wikidataQID={business.wikidataQID || null}
+            onPublish={isAutoProcessing ? undefined : handlePublish}
+            publishing={isAutoProcessing ? ((business.status === 'crawled' || business.status === 'generating') && !isPublished) : false}
             showAutoProgress={isAutoProcessing}
-            isPro={isPro}
           />
-          {/* VisibilityIntelCard - Only show when fingerprint exists or actively processing */}
-          {(fingerprint || (isAutoProcessing && (business.status === 'crawling' || business.status === 'crawled' || business.status === 'generating'))) && (
-            <VisibilityIntelCard
-              fingerprint={fingerprint}
-              loading={isAutoProcessing ? (business.status === 'crawling' || business.status === 'crawled') && !fingerprint : false}
-              onAnalyze={isAutoProcessing ? undefined : handleAnalyze}
-              isPublished={isPublished}
-              showAutoProgress={isAutoProcessing}
-              businessId={businessId}
-              businessStatus={business.status}
-              automationEnabled={business.automationEnabled}
-            />
-          )}
-          {/* CompetitiveEdgeCard - Only show when leaderboard exists or fingerprint exists */}
-          {(fingerprint?.competitiveLeaderboard || fingerprint) && (
-            <CompetitiveEdgeCard
-              leaderboard={fingerprint?.competitiveLeaderboard || null}
-              businessId={businessId}
-              businessName={business.name}
-            />
-          )}
+
+          {/* Component 2: LLM Visibility Metrics */}
+          <VisibilityMetricsCard
+            fingerprint={fingerprint}
+            history={fingerprintHistory}
+            businessName={business.name}
+            loading={historyLoading}
+          />
+
+          {/* Component 3: Competitive Analysis */}
+          <CompetitiveAnalysisCard
+            leaderboard={fingerprint?.competitiveLeaderboard || null}
+            businessName={business.name}
+            businessId={businessId}
+            loading={false}
+          />
         </div>
 
-        {/* Wikidata Entity Section */}
-        {entity ? (
-          <FeatureGate
-            feature="wikidata"
-            fallback={
-              <div className="space-y-4">
-                <UpgradeCTA feature="wikidata" variant="banner" />
-                <div className="opacity-50 pointer-events-none">
-                  <EntityPreviewCard
-                    entity={entity}
-                    onPublish={handlePublish}
-                    onPreview={() => setJsonPreviewOpen(true)}
-                    publishing={false}
-                  />
-                </div>
-              </div>
-            }
-          >
-            <EntityPreviewCard
-              entity={entity}
-              onPublish={isAutoProcessing ? () => {} : handlePublish}
-              onPreview={() => setJsonPreviewOpen(true)}
-              publishing={isAutoProcessing ? ((business.status === 'crawled' || business.status === 'generating') && !isPublished) : false}
-              showAutoProgress={isAutoProcessing}
-            />
-          </FeatureGate>
-        ) : (
-          !hasCrawlData && <UpgradeCTA feature="wikidata" />
-        )}
-
-        {/* JSON Preview Modal */}
-        {entity && (
-          <JsonPreviewModal
-            open={jsonPreviewOpen}
-            onOpenChange={setJsonPreviewOpen}
-            entity={entity}
-          />
-        )}
+        {/* Additional Business Overview */}
+        <GemOverviewCard
+          business={business}
+          onCrawl={isAutoProcessing ? undefined : handleCrawl}
+          crawling={isAutoProcessing ? (business.status === 'crawling' || business.status === 'pending') : false}
+          showAutoProgress={isAutoProcessing}
+          isPro={isPro}
+        />
       </div>
     </div>
   );

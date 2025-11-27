@@ -57,6 +57,7 @@ const metricExplanations = {
     title: 'Market Position',
     description: 'Your overall competitive standing based on mention count and visibility.',
     calculation: 'Determined by comparing your mention rate and count to competitors.',
+    example: 'If you appear in 45 out of 100 recommendation queries (45% mention rate), you\'re in the competitive tier. If you appear in 70+ queries, you\'re leading.',
     levels: {
       leading: 'You have 60%+ mention rate or are the most mentioned business. You dominate the competitive landscape.',
       competitive: 'You have 30-60% mention rate. You\'re visible alongside competitors with room for improvement.',
@@ -110,7 +111,7 @@ export function MetricExplanation({ metric, children }: MetricExplanationProps) 
           )}
 
           {/* Levels (for market position) */}
-          {explanation.levels && (
+          {'levels' in explanation && explanation.levels && (
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <h3 className="font-semibold text-purple-900 mb-2">Position Levels</h3>
               <div className="space-y-2 text-sm text-purple-800">

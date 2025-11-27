@@ -91,3 +91,4 @@ No naming changes needed - the file names already communicate intent.
 
 **✅ FLATTEN** - The consistency benefits outweigh the minimal organizational loss. The module is small enough (14 files) that flat structure is perfectly manageable, and it matches the established pattern in the codebase.
 
+

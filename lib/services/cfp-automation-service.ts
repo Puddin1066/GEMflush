@@ -259,8 +259,46 @@ export async function executeCFPAutomation(
       });
     }
 
-    // STEP 4: Schedule next processing if enabled
-    if (options.scheduleNext && crawlSuccess && config.crawlFrequency !== 'manual') {
+    // STEP 4: Enable automation and schedule next processing for Pro/Agency tier
+    // SOLID: Single Responsibility - automation setup happens after successful CFP
+    // DRY: Centralized automation configuration
+    const success = crawlSuccess && finalFingerprintSuccess;
+    
+    if (success && (team.planName === 'pro' || team.planName === 'agency')) {
+      try {
+        // For Pro/Agency tier: Always enable automation and schedule next crawl
+        // SPECIFICATION: Monthly automation is scheduled after successful CFP
+        // Pro/Agency tiers should never have 'manual' frequency, but check to be safe
+        if (config.crawlFrequency === 'manual') {
+          throw new Error('Pro/Agency tier businesses cannot have manual crawl frequency');
+        }
+        
+        const updates: { automationEnabled: boolean; nextCrawlAt: Date } = {
+          automationEnabled: true,
+          nextCrawlAt: calculateNextCrawlDate(config.crawlFrequency), // Always schedule for Pro/Agency
+        };
+
+        await withRetry(
+          () => updateBusiness(businessId, updates),
+          { ...context, operation: 'enable-automation' },
+          RETRY_CONFIGS.database
+        );
+        
+        log.info('Automation enabled and scheduled', {
+          businessId,
+          automationEnabled: true,
+          nextCrawlAt: updates.nextCrawlAt.toISOString(),
+          frequency: config.crawlFrequency,
+          planName: team.planName,
+        });
+      } catch (automationError) {
+        log.warn('Failed to enable automation', { 
+          businessId, 
+          error: automationError instanceof Error ? automationError.message : String(automationError)
+        });
+      }
+    } else if (options.scheduleNext && crawlSuccess && config.crawlFrequency !== 'manual') {
+      // For non-Pro/Agency tiers, just schedule next processing if requested
       try {
         const nextDate = calculateNextCrawlDate(config.crawlFrequency);
         await withRetry(
@@ -282,7 +320,6 @@ export async function executeCFPAutomation(
     }
 
     const duration = Date.now() - startTime;
-    const success = crawlSuccess && finalFingerprintSuccess;
 
     log.info('CFP automation completed', {
       businessId,

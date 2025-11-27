@@ -160,6 +160,7 @@ export interface CompetitiveLeaderboardDTO {
     rank: number | null;             // Position in recommendations (1-5)
     mentionCount: number;            // How many times mentioned
     mentionRate: number;             // Percentage (0-100)
+    marketPosition: 'leading' | 'competitive' | 'emerging' | 'unknown'; // Market position for easy access
   };
   competitors: CompetitorDTO[];
   totalQueries: number;              // Total recommendation queries analyzed

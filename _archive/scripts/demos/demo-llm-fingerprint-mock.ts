@@ -8,7 +8,7 @@
  * For real API calls, use the actual fingerprinter service
  */
 
-import { Business } from '../lib/db/schema';
+import { Business } from '../../lib/db/schema';
 import { FingerprintAnalysis, LLMResult } from '../lib/types/gemflush';
 import 'dotenv/config';
 

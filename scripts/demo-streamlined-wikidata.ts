@@ -7,7 +7,7 @@
 
 import { WikidataService } from '@/lib/wikidata';
 import type { Business } from '@/lib/db/schema';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 // Enable mock mode for safe demonstration
 process.env.WIKIDATA_PUBLISH_MODE = 'mock';

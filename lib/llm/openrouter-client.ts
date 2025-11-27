@@ -494,7 +494,24 @@ export class OpenRouterClient implements IOpenRouterClient {
     const location = MockResponseGenerator.extractLocation(prompt);
     
     // Detect prompt type and generate appropriate mock response
-    if (lowerPrompt.includes('what do you know about') || lowerPrompt.includes('information about')) {
+    // SOLID: Single Responsibility - detect prompt type and delegate to appropriate generator
+    if (lowerPrompt.includes('assess if these references meet wikidata') || 
+        lowerPrompt.includes('serious and publicly available') ||
+        lowerPrompt.includes('notability criteria')) {
+      // Notability assessment - return valid JSON (DRY: use centralized generator)
+      // Extract references from prompt if available (mock references for testing)
+      const mockReferences = [
+        { url: 'https://example-news.com/business', title: 'Business News Article' },
+        { url: 'https://state.gov/business', title: 'Business Registration' },
+      ];
+      content = MockResponseGenerator.generateNotabilityAssessmentResponse(mockReferences);
+    } else if (lowerPrompt.includes('wikidata entity expert') || 
+               lowerPrompt.includes('suggest all applicable wikidata properties') ||
+               lowerPrompt.includes('suggest properties') ||
+               lowerPrompt.includes('available properties:')) {
+      // Property suggestion - return valid JSON array (DRY: use centralized generator)
+      content = MockResponseGenerator.generatePropertySuggestionResponse(businessName, location || undefined);
+    } else if (lowerPrompt.includes('what do you know about') || lowerPrompt.includes('information about')) {
       content = MockResponseGenerator.generateFactualResponse(businessName, location || undefined);
     } else if (lowerPrompt.includes('thinking about') || lowerPrompt.includes('considering')) {
       content = MockResponseGenerator.generateOpinionResponse(businessName, location || undefined);

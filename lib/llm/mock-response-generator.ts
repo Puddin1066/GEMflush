@@ -108,6 +108,66 @@ export class MockResponseGenerator {
     const industryMatch = prompt.match(/(?:best|top)\s+([A-Za-z\s]+?)(?:\s+in|\s+located)/i);
     return industryMatch ? industryMatch[1].toLowerCase().trim() : 'businesses';
   }
+
+  /**
+   * Generate mock notability assessment JSON response
+   * DRY: Centralized notability assessment mock for Wikidata integration
+   */
+  static generateNotabilityAssessmentResponse(references: any[] = []): string {
+    // Generate valid JSON response matching NotabilityAssessment interface
+    const assessment = {
+      meetsNotability: references.length >= 2,
+      confidence: references.length >= 2 ? 0.85 : 0.3,
+      seriousReferenceCount: Math.min(references.length, 3),
+      publiclyAvailableCount: references.length,
+      independentCount: Math.min(references.length, 2),
+      summary: references.length >= 2
+        ? 'Business meets notability criteria with multiple independent references'
+        : 'Insufficient references to meet notability criteria',
+      references: references.slice(0, 3).map((ref: any, index: number) => ({
+        index,
+        isSerious: index < 2,
+        isPubliclyAvailable: true,
+        isIndependent: index < 2,
+        sourceType: index === 0 ? 'news' : index === 1 ? 'government' : 'directory',
+        trustScore: index < 2 ? 0.9 : 0.7,
+        reasoning: index === 0
+          ? 'News article from reputable source'
+          : index === 1
+          ? 'Government business registration'
+          : 'Business directory listing',
+      })),
+    };
+    
+    return JSON.stringify(assessment);
+  }
+
+  /**
+   * Generate mock property suggestion JSON response
+   * DRY: Centralized property suggestion mock for Wikidata entity building
+   * SOLID: Single Responsibility - generates property suggestions only
+   */
+  static generatePropertySuggestionResponse(businessName: string, location?: string): string {
+    // Generate valid JSON array matching the expected format from buildPropertySuggestionPrompt
+    const suggestions = [
+      {
+        pid: 'P452',
+        value: 'General Business',
+        dataType: 'item',
+        confidence: 0.8,
+        reasoning: 'Business appears to be a general commercial entity',
+      },
+      ...(location ? [{
+        pid: 'P131',
+        value: location,
+        dataType: 'item',
+        confidence: 0.9,
+        reasoning: `Business is located in ${location}`,
+      }] : []),
+    ];
+    
+    return JSON.stringify(suggestions);
+  }
 }
 
 

@@ -1,4 +1,4 @@
-import { desc, and, eq, isNull, count } from 'drizzle-orm';
+import { desc, and, eq, isNull, count, sql } from 'drizzle-orm';
 import { db } from './drizzle';
 import {
   activityLogs,
@@ -17,6 +17,7 @@ import {
 } from './schema';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth/session';
+import { getFirstResult } from './utils';
 
 export async function getUser() {
   const sessionCookie = (await cookies()).get('session');
@@ -43,11 +44,17 @@ export async function getUser() {
     .where(and(eq(users.id, sessionData.user.id), isNull(users.deletedAt)))
     .limit(1);
 
-  if (user.length === 0) {
-    return null;
-  }
+  return getFirstResult(user);
+}
 
-  return user[0];
+export async function getUserByEmail(email: string) {
+  const result = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.email, email), isNull(users.deletedAt)))
+    .limit(1);
+
+  return getFirstResult(result);
 }
 
 export async function getTeamByStripeCustomerId(customerId: string) {
@@ -57,7 +64,7 @@ export async function getTeamByStripeCustomerId(customerId: string) {
     .where(eq(teams.stripeCustomerId, customerId))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function updateTeamSubscription(
@@ -160,7 +167,7 @@ export async function getBusinessById(businessId: number) {
     .where(eq(businesses.id, businessId))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function getTeamForBusiness(businessId: number) {
@@ -175,7 +182,7 @@ export async function getTeamForBusiness(businessId: number) {
     .where(eq(teams.id, business.teamId))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function createBusiness(businessData: NewBusiness) {
@@ -226,7 +233,7 @@ export async function getLatestFingerprint(businessId: number) {
     .orderBy(desc(llmFingerprints.createdAt))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function createFingerprint(fingerprintData: NewLLMFingerprint) {
@@ -250,6 +257,49 @@ export async function getFingerprintHistory(
     .limit(limit);
 }
 
+/**
+ * Get fingerprint by ID
+ * 
+ * @param fingerprintId - Fingerprint ID
+ * @returns Fingerprint or null if not found
+ */
+export async function getFingerprintById(
+  fingerprintId: number
+): Promise<typeof llmFingerprints.$inferSelect | null> {
+  const result = await db
+    .select()
+    .from(llmFingerprints)
+    .where(eq(llmFingerprints.id, fingerprintId))
+    .limit(1);
+  
+  return getFirstResult(result);
+}
+
+/**
+ * Get business with team verification
+ * 
+ * @param businessId - Business ID
+ * @param teamId - Team ID to verify ownership
+ * @returns Business or null if not found or doesn't belong to team
+ */
+export async function getBusinessForTeam(
+  businessId: number,
+  teamId: number
+): Promise<typeof businesses.$inferSelect | null> {
+  const result = await db
+    .select()
+    .from(businesses)
+    .where(
+      and(
+        eq(businesses.id, businessId),
+        eq(businesses.teamId, teamId)
+      )
+    )
+    .limit(1);
+  
+  return getFirstResult(result);
+}
+
 export async function getWikidataEntity(businessId: number) {
   const result = await db
     .select()
@@ -258,16 +308,53 @@ export async function getWikidataEntity(businessId: number) {
     .orderBy(desc(wikidataEntities.publishedAt))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function createWikidataEntity(entityData: NewWikidataEntity) {
-  const result = await db
-    .insert(wikidataEntities)
-    .values(entityData)
-    .returning();
-
-  return result[0];
+  // SOLID: Handle duplicate key constraint gracefully with ON CONFLICT
+  // DRY: Use upsert pattern to prevent race conditions
+  try {
+    const result = await db
+      .insert(wikidataEntities)
+      .values(entityData)
+      .onConflictDoUpdate({
+        target: [wikidataEntities.qid], // Conflict on qid unique constraint
+        set: {
+          entityData: entityData.entityData,
+          businessId: entityData.businessId,
+          publishedTo: entityData.publishedTo,
+          version: sql`${wikidataEntities.version} + 1`, // Increment version
+        },
+      })
+      .returning();
+    return result[0];
+  } catch (error: any) {
+    // Fallback: If ON CONFLICT fails, try to update existing entity
+    if (error?.code === '23505' || error?.message?.includes('unique constraint')) {
+      const existing = await db
+        .select()
+        .from(wikidataEntities)
+        .where(eq(wikidataEntities.qid, entityData.qid))
+        .limit(1);
+      
+      const existingEntity = getFirstResult(existing);
+      if (existingEntity) {
+        const updated = await db
+          .update(wikidataEntities)
+          .set({
+            entityData: entityData.entityData,
+            businessId: entityData.businessId,
+            publishedTo: entityData.publishedTo,
+            version: (existingEntity.version || 1) + 1,
+          })
+          .where(eq(wikidataEntities.qid, entityData.qid))
+          .returning();
+        return getFirstResult(updated);
+      }
+    }
+    throw error; // Re-throw if we can't handle it
+  }
 }
 
 export async function createCrawlJob(jobData: NewCrawlJob) {
@@ -299,7 +386,7 @@ export async function getCrawlJob(jobId: number) {
     .where(eq(crawlJobs.id, jobId))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function getLatestCrawlJob(businessId: number) {
@@ -310,7 +397,7 @@ export async function getLatestCrawlJob(businessId: number) {
     .orderBy(desc(crawlJobs.createdAt))
     .limit(1);
 
-  return result.length > 0 ? result[0] : null;
+  return getFirstResult(result);
 }
 
 export async function getActiveCrawlJobs() {

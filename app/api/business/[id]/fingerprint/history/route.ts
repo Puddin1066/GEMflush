@@ -1,29 +1,34 @@
 /**
  * API Route: GET /api/business/[id]/fingerprint/history
  * Returns historical fingerprint data for a business
+ * 
+ * SOLID: Uses lib/db/queries and verifyBusinessOwnership for proper integration
+ * DRY: Reuses existing query functions and DTO transformations
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getUser, getTeamForUser } from '@/lib/db/queries';
-import { db } from '@/lib/db/drizzle';
-import { businesses, llmFingerprints } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { getUser, getTeamForUser, getFingerprintHistory } from '@/lib/db/queries';
+import { verifyBusinessOwnership } from '@/lib/auth/middleware';
 import { toFingerprintHistoryDTOs } from '@/lib/data/fingerprint-dto';
+import { idParamSchema } from '@/lib/validation/common';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const businessId = parseInt(id);
-
-    if (isNaN(businessId)) {
+    // Validate params using schema
+    const paramResult = idParamSchema.safeParse(await params);
+    if (!paramResult.success) {
       return NextResponse.json(
-        { error: 'Invalid business ID' },
+        { 
+          error: 'Invalid business ID', 
+          details: paramResult.error.errors 
+        },
         { status: 400 }
       );
     }
+    const businessId = paramResult.data.id;
 
     // Authentication
     const user = await getUser();
@@ -42,41 +47,23 @@ export async function GET(
       );
     }
 
-    // Verify business belongs to team
-    const [business] = await db
-      .select()
-      .from(businesses)
-      .where(
-        and(
-          eq(businesses.id, businessId),
-          eq(businesses.teamId, team.id)
-        )
-      )
-      .limit(1);
-
-    if (!business) {
+    // ✅ Use centralized ownership verification
+    const { authorized, business } = await verifyBusinessOwnership(
+      businessId,
+      team.id
+    );
+    
+    if (!authorized || !business) {
       return NextResponse.json(
         { error: 'Business not found' },
         { status: 404 }
       );
     }
 
-    // Get all historical fingerprints, ordered by date (newest first)
-    const fingerprints = await db
-      .select({
-        id: llmFingerprints.id,
-        visibilityScore: llmFingerprints.visibilityScore,
-        mentionRate: llmFingerprints.mentionRate,
-        sentimentScore: llmFingerprints.sentimentScore,
-        accuracyScore: llmFingerprints.accuracyScore,
-        avgRankPosition: llmFingerprints.avgRankPosition,
-        createdAt: llmFingerprints.createdAt,
-      })
-      .from(llmFingerprints)
-      .where(eq(llmFingerprints.businessId, businessId))
-      .orderBy(desc(llmFingerprints.createdAt));
+    // ✅ Use query function instead of direct query
+    const fingerprints = await getFingerprintHistory(businessId, 100);
 
-    // Transform to DTO (SOLID: uses DTO layer for data transformation)
+    // ✅ Use DTO layer for transformation
     const history = toFingerprintHistoryDTOs(fingerprints);
 
     return NextResponse.json({

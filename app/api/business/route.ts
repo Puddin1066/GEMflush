@@ -26,6 +26,13 @@ import { getBusinessNameWithFallback } from '@/lib/utils/business-name-extractor
 const logger = loggers.api;
 
 export async function GET(request: NextRequest) {
+  // Rate limiting (basic in-memory)
+  const { checkRateLimit, getRateLimitStatus, getClientIdentifier, RATE_LIMITS } = await import('@/lib/api/rate-limit');
+  const rateLimitResponse = checkRateLimit(request, RATE_LIMITS.api);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     const user = await getUser();
     if (!user) {
@@ -46,10 +53,23 @@ export async function GET(request: NextRequest) {
     // Use DTO layer (SOLID: uses DTO for data transformation)
     const dashboardDTO = await getDashboardDTO(team.id);
 
-    return NextResponse.json({
-      businesses: dashboardDTO.businesses,
-      maxBusinesses: getMaxBusinesses(team),
-    });
+    // Add rate limit headers to successful response (DRY: reuse rate limit status)
+    const identifier = getClientIdentifier(request);
+    const rateLimitStatus = getRateLimitStatus(identifier, RATE_LIMITS.api);
+
+    return NextResponse.json(
+      {
+        businesses: dashboardDTO.businesses,
+        maxBusinesses: getMaxBusinesses(team),
+      },
+      {
+        headers: {
+          'X-RateLimit-Limit': RATE_LIMITS.api.maxRequests.toString(),
+          'X-RateLimit-Remaining': rateLimitStatus.remaining.toString(),
+          'X-RateLimit-Reset': rateLimitStatus.resetAt.toString(),
+        },
+      }
+    );
   } catch (error) {
     logger.error('Error fetching businesses', error);
     return NextResponse.json(
@@ -60,6 +80,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limiting (stricter for business creation)
+  const { checkRateLimit, getRateLimitStatus, getClientIdentifier, RATE_LIMITS } = await import('@/lib/api/rate-limit');
+  const rateLimitResponse = checkRateLimit(request, RATE_LIMITS.businessCreate);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
+  // Get rate limit status for headers (before processing increments counter)
+  const identifier = getClientIdentifier(request);
+  const rateLimitStatus = getRateLimitStatus(identifier, RATE_LIMITS.businessCreate);
+
   try {
     const user = await getUser();
     if (!user) {
@@ -193,7 +224,20 @@ export async function POST(request: NextRequest) {
       };
       // Cache the response for idempotency
       cacheResponse(idempotencyKey, response);
-      return NextResponse.json(response, { status: 200 });
+      
+      // Add rate limit headers (DRY: reuse rate limit status)
+      const currentRateLimitStatus = getRateLimitStatus(identifier, RATE_LIMITS.businessCreate);
+      return NextResponse.json(
+        response,
+        {
+          status: 200,
+          headers: {
+            'X-RateLimit-Limit': RATE_LIMITS.businessCreate.maxRequests.toString(),
+            'X-RateLimit-Remaining': currentRateLimitStatus.remaining.toString(),
+            'X-RateLimit-Reset': currentRateLimitStatus.resetAt.toString(),
+          },
+        }
+      );
     }
 
     // Create business
@@ -247,7 +291,19 @@ export async function POST(request: NextRequest) {
         });
       });
       
-      return NextResponse.json(response, { status: 422 });
+      // Add rate limit headers (DRY: reuse rate limit status)
+      const currentRateLimitStatus = getRateLimitStatus(identifier, RATE_LIMITS.businessCreate);
+      return NextResponse.json(
+        response,
+        {
+          status: 422,
+          headers: {
+            'X-RateLimit-Limit': RATE_LIMITS.businessCreate.maxRequests.toString(),
+            'X-RateLimit-Remaining': currentRateLimitStatus.remaining.toString(),
+            'X-RateLimit-Reset': currentRateLimitStatus.resetAt.toString(),
+          },
+        }
+      );
     }
 
     // Auto-start crawl and fingerprint in parallel (optimized processing)
@@ -282,7 +338,19 @@ export async function POST(request: NextRequest) {
     // Cache response for idempotency
     cacheResponse(idempotencyKey, response);
 
-    return NextResponse.json(response, { status: 201 });
+    // Add rate limit headers (DRY: reuse rate limit status)
+    const currentRateLimitStatus = getRateLimitStatus(identifier, RATE_LIMITS.businessCreate);
+    return NextResponse.json(
+      response,
+      {
+        status: 201,
+        headers: {
+          'X-RateLimit-Limit': RATE_LIMITS.businessCreate.maxRequests.toString(),
+          'X-RateLimit-Remaining': currentRateLimitStatus.remaining.toString(),
+          'X-RateLimit-Reset': currentRateLimitStatus.resetAt.toString(),
+        },
+      }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.error('Validation error', error, {

@@ -52,6 +52,8 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000, // Increased to 3 minutes for slower startup
+    // Note: healthCheck is not a standard Playwright webServer option
+    // Server readiness is handled by Playwright's built-in health check mechanism
     env: {
       // CRITICAL: Pass all required environment variables to Next.js server for E2E tests
       // Without these, sign-up and all database operations fail

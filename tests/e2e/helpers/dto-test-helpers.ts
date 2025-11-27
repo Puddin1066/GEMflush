@@ -368,6 +368,10 @@ export async function waitForBusinessStatus(
   const maxAttempts = Math.floor(timeout / 5000); // Poll every 5 seconds
   let status = 'pending';
   let attempts = 0;
+  
+  // Terminal error states that indicate failure (fail fast for TDD)
+  const ERROR_STATES = ['error', 'failed'];
+  let lastErrorDetails: any = null;
 
   while (status !== targetStatus && attempts < maxAttempts) {
     const elapsed = Date.now() - startTime;
@@ -386,9 +390,42 @@ export async function waitForBusinessStatus(
         const businessData = await businessResponse.json();
         const business = businessData.business || businessData;
         status = business.status || status;
+        lastErrorDetails = business; // Store for error reporting
+        
+        // TDD Optimization: Fail fast if status is error (don't wait full timeout)
+        if (ERROR_STATES.includes(status) && targetStatus !== 'error') {
+          // Fetch detailed error information
+          let errorMessage = business.errorMessage || 'Unknown error';
+          
+          // Try to get crawl job error details
+          try {
+            const statusResponse = await page.request.get(`${baseURL}/api/business/${businessId}/status`, {
+              timeout: 10000,
+            });
+            if (statusResponse.ok()) {
+              const statusData = await statusResponse.json();
+              if (statusData.crawlJob?.errorMessage) {
+                errorMessage = statusData.crawlJob.errorMessage;
+              }
+            }
+          } catch (e) {
+            // Ignore - use business errorMessage
+          }
+          
+          throw new Error(
+            `Business status is '${status}' (expected '${targetStatus}'). ` +
+            `CFP process failed. Error: ${errorMessage}. ` +
+            `This indicates the CFP automation is failing. Check server logs for details.`
+          );
+        }
+        
         console.log(`[DTO HELPER] Status: ${status} (attempt ${attempts + 1}/${maxAttempts}, target: ${targetStatus})`);
       }
     } catch (error) {
+      // If it's our fail-fast error, re-throw it
+      if (error instanceof Error && error.message.includes('Business status is')) {
+        throw error;
+      }
       console.log(`[DTO HELPER] ⚠️  Status check error: ${error instanceof Error ? error.message : 'Unknown'}, retrying...`);
     }
 
@@ -396,7 +433,14 @@ export async function waitForBusinessStatus(
   }
 
   if (status !== targetStatus) {
-    throw new Error(`Status did not reach '${targetStatus}' within ${timeout}ms. Final status: ${status}`);
+    // Provide helpful error message with context
+    let errorContext = '';
+    if (lastErrorDetails) {
+      errorContext = ` Business errorMessage: ${lastErrorDetails.errorMessage || 'None'}`;
+    }
+    throw new Error(
+      `Status did not reach '${targetStatus}' within ${timeout}ms. Final status: ${status}.${errorContext}`
+    );
   }
 
   console.log(`[DTO HELPER] ✓ Status reached: ${status}`);

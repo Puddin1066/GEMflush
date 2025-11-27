@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,13 +21,28 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     mode === 'signin' ? signIn : signUp,
     { error: '' }
   );
+  
+  // Track if form has been submitted to avoid redirect on initial load
+  // SOLID: Separate concern of form submission tracking
+  const hasSubmittedRef = useRef(false);
+  
+  // Track when form is submitted
+  useEffect(() => {
+    if (pending) {
+      hasSubmittedRef.current = true;
+    }
+  }, [pending]);
 
   // Handle redirect after successful login if server-side redirect doesn't work
   useEffect(() => {
-    // Check if login was successful (no error, not pending)
+    // Check if login was successful (no error, not pending, and form has been submitted)
     // The server action should redirect via redirect(), but if it doesn't work
     // with useActionState, we'll handle it client-side as a fallback
-    if (!pending && !state?.error) {
+    // SOLID: Only redirect if we have a successful form submission, not on initial load
+    // DRY: Use ref to track submission state
+    const isSuccess = hasSubmittedRef.current && !pending && !state?.error;
+    
+    if (isSuccess) {
       // Small delay to allow server redirect to happen first
       const timer = setTimeout(() => {
         // Only redirect if we're still on the sign-in/sign-up page (server redirect didn't work)

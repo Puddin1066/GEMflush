@@ -200,22 +200,14 @@ export function verifyEntityBuilderErrors(
     errors.push(`Entity builder error: ${entityDTO.error}`);
   }
   
-  // Check for entity structure (can be DetailDTO or raw entity)
-  const hasDetailDTOStructure = entityDTO.label && entityDTO.claims;
-  const hasRawEntityStructure = entityDTO.entity?.labels && entityDTO.entity?.claims;
+  // Check for entity structure (WikidataEntityDTO has entity.labels, not label)
+  const hasEntityStructure = entityDTO.entity?.labels && entityDTO.entity?.claims;
   
-  if (!hasDetailDTOStructure && !hasRawEntityStructure) {
+  if (!hasEntityStructure) {
     errors.push('Entity structure is missing');
   } else {
-    // Check for missing labels (DetailDTO has label, raw entity has labels)
-    if (hasDetailDTOStructure) {
-      if (!entityDTO.label) {
-        errors.push('Entity label is missing');
-      }
-      if (!entityDTO.claims || entityDTO.claims.length === 0) {
-        errors.push('Entity claims are missing');
-      }
-    } else if (hasRawEntityStructure) {
+    // Check for missing labels
+    if (hasEntityStructure) {
       // Check for missing labels
       if (!entityDTO.entity.labels || Object.keys(entityDTO.entity.labels).length === 0) {
         errors.push('Entity labels are missing');

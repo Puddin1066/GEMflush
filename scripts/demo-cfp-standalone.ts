@@ -9,7 +9,7 @@
 import { webCrawler } from '@/lib/crawler';
 import { businessFingerprinter } from '@/lib/llm';
 import { wikidataService } from '@/lib/wikidata';
-import type { CrawledData } from '@/lib/types/gemflush';
+import type { CrawledData } from '@/lib/types/domain/gemflush';
 
 // ============================================================================
 // STANDALONE CFP IMPLEMENTATION

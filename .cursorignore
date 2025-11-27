@@ -7,20 +7,106 @@ _archive/docs/historical/
 # Archive directory (optional - uncomment if you want to exclude entire archive)
 # _archive/
 
-# Log files
-*.log
+# ============================================
+# Standard Build & Generated Files
+# ============================================
+# Dependencies
+node_modules/
 
-# Test output files
+# Build outputs
+.next/
+dist/
+build/
+out/
+.vercel/
+
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Lock files (too large for context, use package.json instead)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# ============================================
+# Log Files
+# ============================================
+*.log
+*.log.*
 test-output*.log
 test-run*.log
 build-output*.log
 
+# ============================================
+# Test Output & Reports
+# ============================================
 # Coverage reports
 coverage/
+.nyc_output/
 
-# Test results
+# Test results and reports
 test-results/
 playwright-report/
+test-results.json
 
+# Vitest generated files and cache
+.vitest/
+vitest.config.ts.timestamp-*
 
+# Test snapshots (if generated, keep source tests accessible)
+# Uncomment if using snapshot testing:
+# **/__snapshots__/
 
+# ============================================
+# Integration & Testing Rules
+# ============================================
+# Architectural integrity: Higher layers (app/, components/) can use lower layers (lib/)
+# but lower layers should not depend on higher layers. Test files are kept accessible
+# for understanding implementation, but test outputs are excluded.
+
+# Exclude test output files but keep test implementation files accessible
+# (Test files in __tests__/ directories remain searchable for code understanding)
+
+# Generated test reports and summaries (not implementation)
+*_TESTING_RESULTS.md
+*_TESTING_SUMMARY.md
+*_TEST_REPORT.md
+TESTING_SUMMARY.md
+FEATURE_TESTING_RESULTS.md
+COMPLETE_TESTING_REPORT.md
+
+# Debugging and bug reports (temporary files)
+BUG_REPORT.md
+BUSINESS_CREATION_BUG.md
+DEBUGGING_SUMMARY.md
+UI_BUGS_FOUND.md
+NAVIGATION_DEBUGGING_COMPLETE.md
+NAVIGATION_TEST_RESULTS.md
+
+# ============================================
+# Environment & Config Files
+# ============================================
+# Environment files (sensitive, use .env.example instead)
+.env
+.env.local
+.env.*.local
+
+# ============================================
+# IDE & Editor Files
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================
+# Temporary & Cache Files
+# ============================================
+.cache/
+.temp/
+tmp/
+*.tmp
+*.temp

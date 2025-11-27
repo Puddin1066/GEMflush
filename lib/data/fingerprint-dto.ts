@@ -322,6 +322,7 @@ export function toCompetitiveLeaderboardDTO(
       rank: roundPercentage(targetBusiness.avgPosition),
       mentionCount: targetBusiness.mentionCount,
       mentionRate: roundPercentage(mentionRate) ?? 0,
+      marketPosition, // DRY: Include marketPosition in targetBusiness for easy access
     },
     competitors: competitorDTOs,
     totalQueries: totalRecommendationQueries,

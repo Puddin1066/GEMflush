@@ -82,7 +82,6 @@ export async function POST(
       businessId,
       status: business.status,
     });
-
   } catch (error) {
     logger.error('Error triggering CFP processing', error);
     return NextResponse.json(

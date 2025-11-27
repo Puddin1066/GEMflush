@@ -53,8 +53,14 @@ export class WikidataClient {
   }
 
   constructor(config: WikidataConfig = {}) {
+    // Determine API URL based on publish mode environment variable
+    const publishMode = process.env.WIKIDATA_PUBLISH_MODE || 'test';
+    const defaultApiUrl = publishMode === 'production'
+      ? 'https://www.wikidata.org/w/api.php'
+      : 'https://test.wikidata.org/w/api.php';
+    
     this.config = {
-      apiUrl: config.apiUrl || 'https://test.wikidata.org/w/api.php',
+      apiUrl: config.apiUrl || defaultApiUrl,
       userAgent: config.userAgent || 'WikidataClient/1.0 (Streamlined)',
       timeout: config.timeout || 30000,
       retryAttempts: config.retryAttempts || 3,
@@ -75,16 +81,28 @@ export class WikidataClient {
     const startTime = Date.now();
     
     try {
-      // SAFETY: Force test.wikidata.org - production publishing can get accounts blocked
-      // Only allow production if explicitly enabled via environment variable
-      const allowProduction = process.env.WIKIDATA_ALLOW_PRODUCTION === 'true';
-      if (options.target === 'production' && !allowProduction) {
+      // Determine target based on environment variable or options
+      const publishMode = process.env.WIKIDATA_PUBLISH_MODE || 'test';
+      if (publishMode === 'production' && options.target !== 'production') {
+        // If WIKIDATA_PUBLISH_MODE=production, use production unless explicitly overridden
+        options.target = 'production';
+      } else if (publishMode !== 'production' && options.target === 'production') {
+        // If WIKIDATA_PUBLISH_MODE is not production, force test mode
         console.warn(
           '[SAFETY] Production publishing blocked. ' +
-          'Set WIKIDATA_ALLOW_PRODUCTION=true to enable (not recommended). ' +
+          'Set WIKIDATA_PUBLISH_MODE=production to enable. ' +
           'Publishing to test.wikidata.org instead.'
         );
         options.target = 'test';
+      }
+      
+      // Validate credentials are present for production
+      if (options.target === 'production') {
+        if (!process.env.WIKIDATA_BOT_USERNAME || !process.env.WIKIDATA_BOT_PASSWORD) {
+          throw new Error(
+            'Production Wikidata publishing requires WIKIDATA_BOT_USERNAME and WIKIDATA_BOT_PASSWORD environment variables'
+          );
+        }
       }
 
       // Validate entity if enabled
@@ -121,7 +139,9 @@ export class WikidataClient {
       }
 
       // Set API URL based on target (always test unless explicitly allowed)
-      const apiUrl = options.target === 'production' && allowProduction
+      const allowProduction = process.env.WIKIDATA_ALLOW_PRODUCTION === 'true';
+      
+      const apiUrl = options.target === 'production' && publishMode === 'production' && allowProduction
         ? 'https://www.wikidata.org/w/api.php'
         : 'https://test.wikidata.org/w/api.php';
 
