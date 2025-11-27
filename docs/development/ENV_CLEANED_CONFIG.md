@@ -57,8 +57,8 @@ BASE_URL=http://localhost:3000
 # ============================================
 # STRIPE CONFIGURATION (Test Mode)
 # ============================================
-STRIPE_SECRET_KEY=sk_test_51RAANsKVjsXNguSD8N3pxbUlRutlu5pVidpwzqPkXxCC5ruY2zh8ShHkUcQl1SwWMXIGgwSICQ0KfK2peyCMGnOd00V9HZDKCS
-STRIPE_WEBHOOK_SECRET=whsec_691dd5d1dc1e2cacd237f2bca2f319d3713afb210062661713465c0a49e4901e
+STRIPE_SECRET_KEY=sk_test_YOUR_STRIPE_SECRET_KEY_HERE
+STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET_HERE
 STRIPE_PRO_PRICE_ID=price_1SR398KVjsXNguSDhkKCPXTm
 STRIPE_AGENCY_PRICE_ID=price_1SSn6rKVjsXNguSDCKy7hB6m
 
@@ -194,5 +194,6 @@ DEBUG_APIS=true
 ---
 
 **Copy the cleaned configuration above and paste it into your `.env` file to fix all issues!**
+
 
 

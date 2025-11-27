@@ -14,8 +14,8 @@
 
 ### Local `.env` File:
 ```bash
-STRIPE_SECRET_KEY=sk_test_51RAANsKVjsXNguSD8N3pxbUlRutlu5pVidpwzqPkXxCC5ruY2zh8ShHkUcQl1SwWMXIGgwSICQ0KfK2peyCMGnOd00V9HZDKCS
-STRIPE_WEBHOOK_SECRET=whsec_691dd5d1dc1e2cacd237f2bca2f319d3713afb210062661713465c0a49e4901e
+STRIPE_SECRET_KEY=sk_test_YOUR_STRIPE_SECRET_KEY_HERE
+STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET_HERE
 ```
 
 ### Vercel Environment Variables:
@@ -42,7 +42,7 @@ STRIPE_WEBHOOK_SECRET=whsec_691dd5d1dc1e2cacd237f2bca2f319d3713afb21006266171346
 **To verify the secret matches:**
 1. Go to: https://dashboard.stripe.com/test/webhooks/we_1SSQEXKVjsXNguSDaiFph7WD
 2. Click on "Reveal" next to "Signing secret"
-3. Verify it matches: `whsec_691dd5d1dc1e2cacd237f2bca2f319d3713afb210062661713465c0a49e4901e`
+3. Verify it matches: `whsec_YOUR_WEBHOOK_SECRET_HERE`
 
 **If the secret doesn't match:**
 1. Click "Reveal" to see the actual secret
@@ -65,7 +65,7 @@ STRIPE_WEBHOOK_SECRET=whsec_691dd5d1dc1e2cacd237f2bca2f319d3713afb21006266171346
 ```bash
 # List recent webhook events
 curl -X GET "https://api.stripe.com/v1/events?type=customer.subscription.updated" \
-  -u "sk_test_51RAANsKVjsXNguSD8N3pxbUlRutlu5pVidpwzqPkXxCC5ruY2zh8ShHkUcQl1SwWMXIGgwSICQ0KfK2peyCMGnOd00V9HZDKCS:"
+  -u "sk_test_YOUR_STRIPE_SECRET_KEY_HERE:"
 ```
 
 ## 🔄 Updating the Webhook (If Needed)
@@ -73,7 +73,7 @@ curl -X GET "https://api.stripe.com/v1/events?type=customer.subscription.updated
 ### Update Webhook URL:
 ```bash
 curl -X POST "https://api.stripe.com/v1/webhook_endpoints/we_1SSQEXKVjsXNguSDaiFph7WD" \
-  -u "sk_test_51RAANsKVjsXNguSD8N3pxbUlRutlu5pVidpwzqPkXxCC5ruY2zh8ShHkUcQl1SwWMXIGgwSICQ0KfK2peyCMGnOd00V9HZDKCS:" \
+  -u "sk_test_YOUR_STRIPE_SECRET_KEY_HERE:" \
   -d "url=https://saas-starter-psi-six.vercel.app/api/stripe/webhook" \
   -d "enabled_events[]=customer.subscription.updated" \
   -d "enabled_events[]=customer.subscription.deleted"
@@ -82,7 +82,7 @@ curl -X POST "https://api.stripe.com/v1/webhook_endpoints/we_1SSQEXKVjsXNguSDaiF
 ### Update Webhook Events:
 ```bash
 curl -X POST "https://api.stripe.com/v1/webhook_endpoints/we_1SSQEXKVjsXNguSDaiFph7WD" \
-  -u "sk_test_51RAANsKVjsXNguSD8N3pxbUlRutlu5pVidpwzqPkXxCC5ruY2zh8ShHkUcQl1SwWMXIGgwSICQ0KfK2peyCMGnOd00V9HZDKCS:" \
+  -u "sk_test_YOUR_STRIPE_SECRET_KEY_HERE:" \
   -d "enabled_events[]=customer.subscription.updated" \
   -d "enabled_events[]=customer.subscription.deleted"
 ```
@@ -90,7 +90,7 @@ curl -X POST "https://api.stripe.com/v1/webhook_endpoints/we_1SSQEXKVjsXNguSDaiF
 ### Create New Webhook (if needed):
 ```bash
 curl -X POST "https://api.stripe.com/v1/webhook_endpoints" \
-  -u "sk_test_51RAANsKVjsXNguSD8N3pxbUlRutlu5pVidpwzqPkXxCC5ruY2zh8ShHkUcQl1SwWMXIGgwSICQ0KfK2peyCMGnOd00V9HZDKCS:" \
+  -u "sk_test_YOUR_STRIPE_SECRET_KEY_HERE:" \
   -d "url=https://saas-starter-psi-six.vercel.app/api/stripe/webhook" \
   -d "enabled_events[]=customer.subscription.updated" \
   -d "enabled_events[]=customer.subscription.deleted" \
